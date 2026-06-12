@@ -4,7 +4,7 @@ import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCoold
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
-import { sfx, unlockAudio } from "./audio";
+import { sfx, unlockAudio, startBgm } from "./audio";
 
 const app = document.getElementById("app")!;
 
@@ -198,6 +198,6 @@ function flash(msg: string) {
   t.textContent = msg; t.className = "show"; clearTimeout((t as any)._t); (t as any)._t = setTimeout(() => { t!.className = ""; }, 1100);
 }
 
-// 브라우저 정책: 첫 사용자 제스처에 오디오 컨텍스트 언락
-document.addEventListener("pointerdown", () => unlockAudio(), { once: true });
+// 브라우저 정책: 첫 사용자 제스처에 오디오 언락 + 배경음악 시작
+document.addEventListener("pointerdown", () => { unlockAudio(); startBgm(); }, { once: true });
 paint();
