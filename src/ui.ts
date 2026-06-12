@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute } from "./audio";
@@ -18,6 +18,8 @@ export interface Actions {
   pickCompany(youIdx: number): void;
   toTitle(): void;
   toIndustry(): void;
+  acquire(rivalKey: string): void;
+  raiseDebt(): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
@@ -114,8 +116,11 @@ function renderPanel(s: GameState, A: Actions) {
   o.className = "drawer";
   o.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">' + panelBody(s, s.ui.panel) + '</div>';
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
-  o.querySelectorAll<HTMLElement>(".proj").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".proj:not(.mna)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
+  const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
+  if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
 }
 
 function panelBody(s: GameState, panel: string): string {
@@ -140,15 +145,29 @@ function panelBody(s: GameState, panel: string): string {
         '</div><div class="mute small" style="margin-top:6px">운영 행동엔 <b>쿨다운</b>이 있습니다(무한 클릭 불가). 시간이 흐르면 다시 가능.</div></div>';
     }
   } else if (panel === "strategy") {
-    if (s.venture) h += '<div class="card mute small">이미 진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
+    // 1) 내부 개발(역량 투자)
+    h += '<div class="sect">내부 개발 — 역량 투자(NPV)</div>';
+    if (s.venture) h += '<div class="card mute small">진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
     else {
-      h += '<div class="sect">새 투자 — NPV로 판단 후 진행</div>';
       strategyProjects(s).forEach((p: Project) => {
         const go = p.npv > 0;
         h += '<button class="proj" data-cap="' + p.cap + '"><div class="h">' + p.h + (go ? '<span class="bdg go">투자 적격</span>' : '<span class="bdg no">가치 파괴</span>') + '</div><div class="e">' + p.e + '</div><div class="fin"><span>Capex $' + p.capex + 'B</span><span class="gold">점유율 +' + (p.dShare * 100).toFixed(1) + '%p</span><span class="' + (go ? 'pos' : 'neg') + '">NPV $' + fmt(p.npv) + 'B</span><span>IRR ' + (p.irr != null ? (p.irr * 100).toFixed(0) + '%' : '-') + '</span></div></button>';
       });
       h += '<div class="mute small">※ NPV는 "지금 소비자 선호 유지" 가정. 환경이 바뀌면 실현이 달라집니다.</div>';
     }
+    // 2) M&A(경쟁사 인수)
+    h += '<div class="sect">M&A — 경쟁사 인수</div>';
+    const tgts = acquireTargets(s);
+    if (!tgts.length) h += '<div class="card mute small">인수할 경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
+    else tgts.forEach(t => {
+      const can = s.cash >= t.price;
+      h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e">역량 흡수(더 높은 값 채택) + <b>경쟁자 제거</b> · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
+    });
+    // 3) 재무(자금 조달)
+    h += '<div class="sect">재무 — 자금 조달</div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
+      '<button class="actbtn" id="raiseDebt"' + (s.debt >= 250 ? ' disabled' : '') + '>부채로 +$40B 조달</button>' +
+      '<div class="mute small" style="margin-top:6px">부채는 즉시 현금이 되지만 월 이자·WACC 상승을 부릅니다. 큰 인수의 실탄.</div></div>';
   } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
   }

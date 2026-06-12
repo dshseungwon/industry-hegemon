@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -90,6 +90,40 @@ const A: Actions = {
     else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, "risk", 2); flash("리스크 해소"); sfx("select"); }
     else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); sfx("select"); }
     else if (action === "cancel") { s.cash += 15; s.venture = null; flash("취소 — 자금 회수"); sfx("cancel"); }
+    render(s, A);
+  },
+  acquire(rivalKey) {
+    if (!s) return;
+    const t = acquireTargets(s).find(x => x.key === rivalKey); if (!t) return;
+    s.ui.confirm = {
+      title: "M&A — " + t.name + " 인수",
+      lines: [
+        "인수가: <b>$" + Math.round(t.price) + "B</b> (보유 현금 $" + Math.round(s.cash) + "B)",
+        "효과: 각 역량을 <b>더 높은 값으로 흡수</b>하고 <b>경쟁자를 제거</b>합니다.",
+        "남은 경쟁사를 모두 인수하면 시장을 완전 장악합니다. 진행할까요?",
+      ],
+      okLabel: "인수",
+      onOk: () => {
+        if (!s) return;
+        if (s.cash < t.price) { s.ui.confirm = null; flash("현금이 부족합니다 — 재무에서 자금 조달"); render(s, A); return; }
+        s.cash -= t.price; doAcquire(s, rivalKey); s.ui.confirm = null; sfx("invest"); render(s, A);
+      },
+    };
+    render(s, A);
+  },
+  raiseDebt() {
+    if (!s) return;
+    const amt = 40;
+    s.ui.confirm = {
+      title: "재무 — 부채 조달",
+      lines: [
+        "조달: <b>+$" + amt + "B</b> 현금 (부채 +$" + amt + "B)",
+        "월 이자(연 5%)가 나가고, 부채가 늘면 <b>WACC(할인율)</b>가 올라 투자 문턱이 높아집니다.",
+        "진행할까요?",
+      ],
+      okLabel: "조달",
+      onOk: () => { if (!s) return; engineRaiseDebt(s, amt); s.ui.confirm = null; sfx("select"); render(s, A); },
+    };
     render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },

@@ -62,6 +62,33 @@ export function strategyProjects(s: GameState): Project[] {
   return list;
 }
 
+// ---- 전략: M&A(인수) / 재무(자금조달) ----
+export interface MnaTarget { key: string; name: string; col: string; price: number; share: number; }
+// 인수 후보: 경쟁사별 인수가(현재 점령 규모 가치 기준)와 점유율.
+export function acquireTargets(s: GameState): MnaTarget[] {
+  const you = s.firms[s.youIdx];
+  let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size;
+  return s.firms.filter(f => f.key !== you.key).map(f => ({
+    key: f.key, name: f.name, col: f.col,
+    price: Math.max(20, Math.round(capturedSize(s, f.key) * 0.2)),
+    share: tot > 0 ? capturedSize(s, f.key) / tot : 0,
+  }));
+}
+// 인수 실행: 각 역량을 더 높은 값으로 흡수하고, 경쟁자를 제거(점유율 분모 축소 → 내 점유율 급등).
+export function doAcquire(s: GameState, rivalKey: string) {
+  const you = s.firms[s.youIdx];
+  const idx = s.firms.findIndex(f => f.key === rivalKey);
+  if (idx < 0 || s.firms[idx].key === you.key) return;
+  const rival = s.firms[idx];
+  for (const k of CAPS) you.caps[k] = clamp(Math.max(you.caps[k], rival.caps[k]), 0, 100);
+  s.firms.splice(idx, 1);
+  s.youIdx = s.firms.findIndex(f => f.key === you.key);   // 배열 변동 후 플레이어 인덱스 갱신
+  recomputeLeaders(s);
+  pushLog(s, "🤝 " + rival.name + " 인수 완료 — 역량 흡수·경쟁자 제거");
+}
+// 부채 조달: 즉시 현금, 부채 증가(월 이자 + WACC 상승).
+export function raiseDebt(s: GameState, amount: number) { s.cash += amount; s.debt += amount; pushLog(s, "💵 부채 조달 +$" + amount + "B"); }
+
 // ---- real-time tick (1 month) ----
 const TRENDS: { bias: Cap; headline: string; note: string }[] = [
   { bias: "tech", headline: "AI·기술 경쟁 가열", note: "기술을 원하는 시장이 늘어납니다." },
