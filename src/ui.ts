@@ -28,6 +28,8 @@ export interface Actions {
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
 const fmt = (x: number) => Math.round(x).toLocaleString();
 const esc = (s: string) => s.replace(/"/g, "&quot;");
+// 역량별 색 — 4역량을 시각적으로 구분(기업 구분은 카드 색띠·이름색으로).
+const CAPCOL: Record<Cap, string> = { tech: "#5aa9e6", brand: "#ff7eb6", scale: "#36c98e", global: "#ffc24b" };
 
 export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
@@ -70,23 +72,24 @@ function setupMapNav(svg: SVGSVGElement, A: Actions) {
     zoomAt(svg, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, e.deltaY > 0 ? 1.15 : 1 / 1.15);
   }, { passive: false });
 
-  svg.addEventListener("pointerdown", (e) => {
-    drag = true; moved = false; sx = e.clientX; sy = e.clientY; sX = vb.x; sY = vb.y;
-    try { svg.setPointerCapture(e.pointerId); } catch { /* noop */ }
-  });
-  svg.addEventListener("pointermove", (e) => {
+  // 드래그 = 팬. window 리스너로 svg 밖으로 나가도 끊기지 않게(견고).
+  const onMove = (e: PointerEvent) => {
     if (!drag) return; const r = rect();
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
-    vb.x = sX - dx / r.width * vb.w; vb.y = sY - dy / r.height * vb.h; clampVB(); applyVB(svg);
-  });
-  const end = (e: PointerEvent) => {
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    if (moved) { vb.x = sX - dx / r.width * vb.w; vb.y = sY - dy / r.height * vb.h; clampVB(); applyVB(svg); }
+  };
+  const onUp = (e: PointerEvent) => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
     if (!drag) return; drag = false;
-    try { svg.releasePointerCapture(e.pointerId); } catch { /* noop */ }
     if (!moved) { const t = e.target as Element; const n = t && t.getAttribute ? t.getAttribute("data-n") : null; A.selectCountry(n || null); }
   };
-  svg.addEventListener("pointerup", end);
-  svg.addEventListener("pointercancel", end);
+  svg.addEventListener("pointerdown", (e) => {
+    drag = true; moved = false; sx = e.clientX; sy = e.clientY; sX = vb.x; sY = vb.y;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  });
 
   document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
     const z = b.dataset.z;
@@ -184,7 +187,7 @@ function panelBody(s: GameState, panel: string): string {
   if (panel === "company") {
     const cf = monthlyCashflow(s);
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
-    h += '<div class="sect">역량</div><div class="card">' + CAPS.map(k => bar(CAPKO[k], you.caps[k])).join("") + '</div>';
+    h += '<div class="sect">역량</div><div class="card">' + CAPS.map(k => bar(CAPKO[k], you.caps[k], CAPCOL[k])).join("") + '</div>';
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span>' + CAPS.map(k => CAPKO[k][0] + f.caps[k]).join(" ") + '</span></div></div>').join("");
   } else if (panel === "projects") {
     if (!s.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
@@ -283,7 +286,7 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>현재 1위</span><b style="color:' + lead.col + '">' + lead.name + '</b></div>' +
     '<div class="kv"><span>소비자 핵심 선호</span><b>' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율</div>' + shareRows +
-    '<div class="sect">소비자 선호</div>' + CAPS.map(k => bar(CAPKO[k], (m.pref[k] || 0) * 100)).join("") +
+    '<div class="sect">소비자 선호</div>' + CAPS.map(k => bar(CAPKO[k], (m.pref[k] || 0) * 100, CAPCOL[k])).join("") +
     '<div class="mute small" style="margin-top:6px">이 시장은 <b>' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>' +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
@@ -362,7 +365,7 @@ export function renderCompany(app: HTMLElement, sc: import("./state").IndustrySc
   const roleKo = (k: string) => k === "global" ? "글로벌 1위" : k === "challenger" ? "신흥 도전자" : "한국 1위 · 추천";
   const firmCard = (f: import("./state").FirmDef, idx: number) =>
     '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f.key) + '</span></div>' +
-    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k], f.col)).join("") + '</div>' +
+    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k], CAPCOL[k])).join("") + '</div>' +
     '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
