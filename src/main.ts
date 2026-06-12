@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -162,6 +162,27 @@ const A: Actions = {
         if (!s) return;
         if (s.cash < n.cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
         s.cash -= n.cost; doResearch(s, key); s.ui.confirm = null; sfx("invest"); render(s, A);
+      },
+    };
+    render(s, A);
+  },
+  enter(marketName) {
+    if (!s) return;
+    if (s.marketOrder.includes(marketName)) return;
+    const cost = entryCost(s, marketName); const m = s.markets[marketName];
+    if (s.cash < cost) { flash("현금이 부족합니다 — 재무에서 자금 조달"); return; }
+    s.ui.confirm = {
+      title: "해외진출 — " + m.ko,
+      lines: [
+        "진입장벽 돌파 비용: <b>$" + cost + "B</b> (규모 $" + m.size + "B)",
+        "신규 시장을 <b>우리 강점 KSF로 형성</b>해 선점합니다.",
+        "전체 시장이 커지니 점유율 관리 부담도 함께 늘어납니다. 진행할까요?",
+      ],
+      okLabel: "진출",
+      onOk: () => {
+        if (!s) return;
+        if (s.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        s.cash -= cost; doEnter(s, marketName); s.ui.confirm = null; sfx("conquer"); render(s, A);
       },
     };
     render(s, A);

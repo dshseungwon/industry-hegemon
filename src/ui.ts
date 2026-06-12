@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute } from "./audio";
@@ -22,6 +22,7 @@ export interface Actions {
   raiseDebt(): void;
   lobby(marketName: string): void;
   research(key: string): void;
+  enter(marketName: string): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
@@ -50,19 +51,22 @@ let prevLeaders: Record<string, string> = {};
 function recolor(s: GameState) {
   const youKey = s.firms[s.youIdx].key;
   const first = Object.keys(prevLeaders).length === 0;
+  const open = new Set(s.marketOrder);
   let gained = 0, lost = 0;
   document.querySelectorAll<SVGPathElement>("#map path").forEach(p => {
     const n = p.getAttribute("data-n")!; const m = s.markets[n];
-    p.setAttribute("fill", m ? colByKey(s, m.leader) : "#23415f");
-    let cls = "country" + (m ? " active" : " inactive") + (s.ui.country === n ? " sel" : "");
-    if (m && !first && prevLeaders[n] !== undefined && prevLeaders[n] !== m.leader) {
-      const win = m.leader === youKey;
+    const isOpen = !!m && open.has(n);
+    const isFrontier = !!m && !open.has(n);
+    p.setAttribute("fill", isOpen ? colByKey(s, m!.leader) : isFrontier ? "#2f4a2a" : "#23415f");
+    let cls = "country" + (isOpen ? " active" : isFrontier ? " frontier" : " inactive") + (s.ui.country === n ? " sel" : "");
+    if (isOpen && !first && prevLeaders[n] !== undefined && prevLeaders[n] !== m!.leader) {
+      const win = m!.leader === youKey;
       cls += win ? " flash-win" : " flash-lose";
       if (win) gained++; else if (prevLeaders[n] === youKey) lost++;
       // 애니메이션 재생을 위해 클래스 제거(리플로우 후 재적용)
       window.setTimeout(() => { const el = p; el.setAttribute("class", el.getAttribute("class")!.replace(/ flash-(win|lose)/g, "")); }, 900);
     }
-    if (m) prevLeaders[n] = m.leader;
+    if (isOpen) prevLeaders[n] = m!.leader; else if (isFrontier) delete prevLeaders[n];
     p.setAttribute("class", cls);
   });
   if (gained > 0) sfx("conquer");
@@ -118,9 +122,10 @@ function renderPanel(s: GameState, A: Actions) {
   o.className = "drawer";
   o.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">' + panelBody(s, s.ui.panel) + '</div>';
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
-  o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech):not(.enter)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
+  o.querySelectorAll<HTMLElement>(".enter").forEach(b => b.onclick = () => A.enter(b.dataset.n!));
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
@@ -171,6 +176,14 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
       '<button class="actbtn" id="raiseDebt"' + (s.debt >= 250 ? ' disabled' : '') + '>부채로 +$40B 조달</button>' +
       '<div class="mute small" style="margin-top:6px">부채는 즉시 현금이 되지만 월 이자·WACC 상승을 부릅니다. 큰 인수의 실탄.</div></div>';
+    // 4) 해외진출(프론티어 시장 개척)
+    h += '<div class="sect">해외진출 — 신규 시장 개척</div>';
+    const fr = frontierMarkets(s);
+    if (!fr.length) h += '<div class="card mute small">모든 시장에 진출했습니다.</div>';
+    else fr.forEach(m => {
+      const cost = entryCost(s, m.name); const can = s.cash >= cost;
+      h += '<button class="proj enter" data-n="' + esc(m.name) + '"><div class="h">🌏 ' + m.ko + ' 진출<span class="bdg ' + (can ? 'go' : 'no') + '">$' + cost + 'B</span></div><div class="e">규모 $' + m.size + 'B · 우리 강점으로 시장 형성(선점 우위)</div></button>';
+    });
   } else if (panel === "tech") {
     h += '<div class="card mute small">연구 노드를 해금해 <b>영구 역량</b>과 경제 효과(마진·고정비·벤처속도)를 얻습니다. 무엇을 먼저 개발할지가 전략.</div>';
     researchOptions(s).forEach(o => {
@@ -196,6 +209,20 @@ function renderSheet(s: GameState, A: Actions) {
   const el = document.getElementById("sheet")!;
   if (!s.ui.country) { el.className = "hide"; el.innerHTML = ""; return; }
   const m = s.markets[s.ui.country]; if (!m) { el.className = "hide"; return; }
+  // 닫힌 프론티어 시장 → 해외진출 시트
+  if (!s.marketOrder.includes(m.name)) {
+    const cost = entryCost(s, m.name); const can = s.cash >= cost;
+    el.className = "sheet";
+    el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
+      '<div class="kv"><span>상태</span><b class="mute">미진출 시장</b></div>' +
+      '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
+      '<div class="card mute small">진입장벽을 돌파해 개척하면 시장이 <b>우리 강점 KSF로 형성</b>돼 선점 우위를 얻습니다. 단, 전체 시장이 커져 점유율 관리 부담도 늘어납니다.</div>' +
+      '<button class="actbtn" id="enterBtn"' + (can ? '' : ' disabled') + '>해외진출 — 진입장벽 돌파 ($' + cost + 'B)</button>';
+    document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
+    const eb = document.getElementById("enterBtn") as HTMLButtonElement | null;
+    if (eb && !eb.disabled) eb.onclick = () => A.enter(m.name);
+    return;
+  }
   const lead = s.firms.find(f => f.key === m.leader)!;
   const top = (CAPS.slice().sort((a, b) => (m.pref[b] || 0) - (m.pref[a] || 0)))[0];
   el.className = "sheet";

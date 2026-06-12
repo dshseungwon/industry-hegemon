@@ -91,6 +91,21 @@ export function raiseDebt(s: GameState, amount: number) { s.cash += amount; s.de
 
 function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if (t > 0) for (const p of CAPS) m.pref[p] /= t; }
 
+// ---- 해외진출: 닫힌 프론티어 시장을 진입장벽을 뚫고 개척(시장 확대 + 선점 우위) ----
+export function isOpen(s: GameState, name: string) { return s.marketOrder.includes(name); }
+export function frontierMarkets(s: GameState): Market[] { return Object.values(s.markets).filter(m => !s.marketOrder.includes(m.name)); }
+export function entryCost(s: GameState, name: string) { const m = s.markets[name]; return m ? Math.max(15, Math.round(m.size * 0.4)) : 0; }
+export function doEnter(s: GameState, name: string) {
+  if (s.marketOrder.includes(name)) return;
+  const m = s.markets[name]; if (!m) return;
+  const you = s.firms[s.youIdx];
+  let best: Cap = "tech"; for (const k of CAPS) if (you.caps[k] > you.caps[best]) best = k;
+  // 진출 시장을 우리 강점으로 형성 → 선점 우위
+  for (const k of CAPS) m.pref[k] = 0.2; m.pref[best] += 0.25; renorm(m);
+  s.marketOrder.push(name); recomputeLeaders(s);
+  pushLog(s, "🌏 " + m.ko + " 해외진출 — 신규 시장 개척");
+}
+
 // ---- 로비: 선택 시장의 KSF를 우리 강점 쪽으로 유도(환경에 개입) ----
 export function lobbyCost(s: GameState, marketName: string) { const m = s.markets[marketName]; return m ? Math.max(8, Math.round(m.size * 0.08)) : 0; }
 export function doLobby(s: GameState, marketName: string) {

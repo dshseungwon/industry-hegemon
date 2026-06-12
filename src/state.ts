@@ -72,6 +72,16 @@ const FIRM_DEFS: FirmDef[] = [
 export const WORLD_MARKETS: { name: string; ko: string; size: number }[] =
   MARKET_DEFS.map(m => ({ name: m.name, ko: m.ko, size: m.size }));
 
+// 프론티어(미진출) 시장 — 닫힌 채 시작, 해외진출로 개척. 모든 시나리오 공통.
+export const FRONTIER_GEO: { name: string; ko: string; size: number }[] = [
+  { name: "Canada", ko: "캐나다", size: 55 },
+  { name: "Australia", ko: "호주", size: 50 },
+  { name: "Saudi Arabia", ko: "사우디", size: 60 },
+  { name: "Vietnam", ko: "베트남", size: 55 },
+  { name: "Nigeria", ko: "나이지리아", size: 45 },
+  { name: "Turkey", ko: "튀르키예", size: 45 },
+];
+
 // 빌트인 기준 시나리오 — 손수 밸런스 튜닝된 "소비자 전자/스마트폰"(로드맵 #1 검증 완료). preset=false.
 export const BUILTIN_SCENARIO: IndustryScenario = {
   key: "consumer-electronics", name: "Consumer Electronics", ko: "소비자 전자·스마트폰",
@@ -97,6 +107,8 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   const markets: Record<string, Market> = {};
   const order: string[] = [];
   for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: full(m.pref), size: m.size, leader: youKey }; order.push(m.name); }
+  // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방.
+  for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: f.size, leader: youKey }; }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset },
