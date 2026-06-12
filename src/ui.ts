@@ -33,18 +33,65 @@ export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
+    '<div id="mapnav"><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
     '<div id="topbar"></div>' +
     '<div id="overlayL" class="hide"></div>' +
     '<div id="overlay" class="hide"></div>' +
     '<div id="sheet" class="hide"></div>' +
     '<div id="confirmwrap" class="hide"></div>' +
     '<div id="banner" class="hide"></div>';
-  const svg = document.getElementById("map")!;
+  const svg = document.getElementById("map") as unknown as SVGSVGElement;
   svg.innerHTML = MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("");
-  svg.addEventListener("click", (ev) => {
-    const t = ev.target as Element;
-    const n = t && t.getAttribute ? t.getAttribute("data-n") : null;
-    A.selectCountry(n || null);
+  setupMapNav(svg, A);
+}
+
+// ---- 지도 팬/줌(스크롤) — viewBox 조작 ----
+const VB0 = { x: 0, y: 0, w: 800, h: 420 };
+let vb = { x: 0, y: 0, w: 800, h: 420 };
+const clampN = (x: number, a: number, b: number) => x < a ? a : x > b ? b : x;
+function applyVB(svg: SVGSVGElement) { svg.setAttribute("viewBox", vb.x + " " + vb.y + " " + vb.w + " " + vb.h); }
+function clampVB() {
+  vb.w = clampN(vb.w, VB0.w / 5, VB0.w); vb.h = vb.w * (VB0.h / VB0.w);
+  vb.x = clampN(vb.x, 0, VB0.w - vb.w); vb.y = clampN(vb.y, 0, VB0.h - vb.h);
+}
+function zoomAt(svg: SVGSVGElement, fx: number, fy: number, factor: number) {
+  const nw = clampN(vb.w * factor, VB0.w / 5, VB0.w);
+  const px = vb.x + fx * vb.w, py = vb.y + fy * vb.h;   // 고정점(viewBox 좌표)
+  vb.x = px - fx * nw; vb.y = py - fy * (nw * (VB0.h / VB0.w)); vb.w = nw;
+  clampVB(); applyVB(svg);
+}
+function setupMapNav(svg: SVGSVGElement, A: Actions) {
+  vb = { ...VB0 }; applyVB(svg);
+  const rect = () => svg.getBoundingClientRect();
+  let drag = false, moved = false, sx = 0, sy = 0, sX = 0, sY = 0;
+
+  svg.addEventListener("wheel", (e) => {
+    e.preventDefault(); const r = rect();
+    zoomAt(svg, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, e.deltaY > 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+
+  svg.addEventListener("pointerdown", (e) => {
+    drag = true; moved = false; sx = e.clientX; sy = e.clientY; sX = vb.x; sY = vb.y;
+    try { svg.setPointerCapture(e.pointerId); } catch { /* noop */ }
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (!drag) return; const r = rect();
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    vb.x = sX - dx / r.width * vb.w; vb.y = sY - dy / r.height * vb.h; clampVB(); applyVB(svg);
+  });
+  const end = (e: PointerEvent) => {
+    if (!drag) return; drag = false;
+    try { svg.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    if (!moved) { const t = e.target as Element; const n = t && t.getAttribute ? t.getAttribute("data-n") : null; A.selectCountry(n || null); }
+  };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+
+  document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
+    const z = b.dataset.z;
+    if (z === "reset") { vb = { ...VB0 }; applyVB(svg); }
+    else zoomAt(svg, 0.5, 0.5, z === "in" ? 1 / 1.4 : 1.4);
   });
 }
 let prevLeaders: Record<string, string> = {};
