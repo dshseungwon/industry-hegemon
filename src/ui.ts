@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute } from "./audio";
@@ -21,6 +21,7 @@ export interface Actions {
   acquire(rivalKey: string): void;
   raiseDebt(): void;
   lobby(marketName: string): void;
+  research(key: string): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
@@ -85,7 +86,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(s.cash) + 'B</b></span>' + (s.debt > 0 ? '<span>부채 <b>$' + fmt(s.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("codex", "📖", s) +
+      mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("codex", "📖", s) +
       '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (s.venture ? ' · 🚀 ' + CAPKO[s.venture.cap] + ' ' + Math.round(s.venture.progress) + '%' : '') + '</div>';
@@ -117,8 +118,9 @@ function renderPanel(s: GameState, A: Actions) {
   o.className = "drawer";
   o.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">' + panelBody(s, s.ui.panel) + '</div>';
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
-  o.querySelectorAll<HTMLElement>(".proj:not(.mna)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
+  o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
@@ -169,6 +171,14 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
       '<button class="actbtn" id="raiseDebt"' + (s.debt >= 250 ? ' disabled' : '') + '>부채로 +$40B 조달</button>' +
       '<div class="mute small" style="margin-top:6px">부채는 즉시 현금이 되지만 월 이자·WACC 상승을 부릅니다. 큰 인수의 실탄.</div></div>';
+  } else if (panel === "tech") {
+    h += '<div class="card mute small">연구 노드를 해금해 <b>영구 역량</b>과 경제 효과(마진·고정비·벤처속도)를 얻습니다. 무엇을 먼저 개발할지가 전략.</div>';
+    researchOptions(s).forEach(o => {
+      const n = o.node;
+      if (o.unlocked) h += '<div class="proj tech done"><div class="h">' + n.name + '<span class="bdg go">완료 ✓</span></div><div class="e">' + n.desc + '</div></div>';
+      else if (o.available) { const can = s.cash >= n.cost; h += '<button class="proj tech" data-key="' + n.key + '"><div class="h">' + n.name + '<span class="bdg ' + (can ? 'go' : 'no') + '">$' + n.cost + 'B</span></div><div class="e">' + n.desc + '</div></button>'; }
+      else h += '<div class="proj tech locked"><div class="h">🔒 ' + n.name + '</div><div class="e">선행 필요: ' + n.req.map(r => TECH_NODES.find(x => x.key === r)?.name || r).join(", ") + '</div></div>';
+    });
   } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
   }
@@ -179,7 +189,7 @@ function opbtn(s: GameState, action: string, h: string, e: string) {
   const cd = s.venture && !ok ? Math.max(0, (s.venture.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", codex: "📖 용어집" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", tech: "🔬 테크트리", codex: "📖 용어집" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 function renderSheet(s: GameState, A: Actions) {

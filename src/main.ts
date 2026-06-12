@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -145,6 +145,23 @@ const A: Actions = {
         if (s.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
         s.cash -= cost; doLobby(s, marketName); setActCooldown(s, "lobby:" + marketName, 5);
         recomputeLeaders(s); s.ui.confirm = null; sfx("select"); render(s, A);
+      },
+    };
+    render(s, A);
+  },
+  research(key) {
+    if (!s) return;
+    const n = TECH_NODES.find(x => x.key === key); if (!n) return;
+    if (s.tech.includes(key)) return;
+    if (s.cash < n.cost) { flash("현금이 부족합니다"); return; }
+    s.ui.confirm = {
+      title: "테크 개발 — " + n.name,
+      lines: [ "비용: <b>$" + n.cost + "B</b>", n.desc, "한 번 개발하면 영구적입니다. 진행할까요?" ],
+      okLabel: "개발",
+      onOk: () => {
+        if (!s) return;
+        if (s.cash < n.cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        s.cash -= n.cost; doResearch(s, key); s.ui.confirm = null; sfx("invest"); render(s, A);
       },
     };
     render(s, A);

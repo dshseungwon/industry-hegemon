@@ -38,6 +38,7 @@ export interface GameState {
   log: string[];
   fx: string[];              // 이번 tick에 발생한 연출/효과음 이벤트(main이 비움)
   cooldowns: Record<string, number>;   // 벤처 외 행동(로비 등) 쿨다운: key -> 가능해지는 date
+  tech: string[];            // 해금한 테크트리 노드 key
   ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: { won: boolean; msg: string } | null };
 }
 export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; }
@@ -102,6 +103,6 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     firms, youIdx, markets, marketOrder: order,
     cash: 60, debt: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
-    log: [], fx: [], cooldowns: {}, ui: { panel: "none", leftPanel: "none", country: null, confirm: null, over: null },
+    log: [], fx: [], cooldowns: {}, tech: [], ui: { panel: "none", leftPanel: "none", country: null, confirm: null, over: null },
   };
 }

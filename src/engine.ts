@@ -32,7 +32,7 @@ export function capturedSize(s: GameState, firmKey: string, capsOverride?: Recor
   let sz = 0; for (const n of s.marketOrder) { const m = s.markets[n]; sz += m.size * shareOf(s, m, firmKey, capsOverride); } return sz;
 }
 export function myShare(s: GameState) { let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size; const you = s.firms[s.youIdx].key; return tot > 0 ? capturedSize(s, you) / tot : 0; }
-export function monthlyCashflow(s: GameState) { return capturedSize(s, s.firms[s.youIdx].key) * MARGIN - OVERHEAD; }
+export function monthlyCashflow(s: GameState) { const m = techMods(s); return capturedSize(s, s.firms[s.youIdx].key) * (MARGIN + m.marginAdd) - Math.max(0, OVERHEAD - m.overheadCut); }
 // 시간 종료 판정: 점령 규모 기준 전 기업 순위(내림차순). [0]이 1위.
 export function rankByCaptured(s: GameState) { return s.firms.map(f => ({ firm: f, size: capturedSize(s, f.key) })).sort((a, b) => b.size - a.size); }
 
@@ -103,6 +103,42 @@ export function doLobby(s: GameState, marketName: string) {
 export function canAct(s: GameState, key: string) { return (s.cooldowns[key] || 0) <= s.date; }
 export function setActCooldown(s: GameState, key: string, months: number) { s.cooldowns[key] = s.date + months; }
 
+// ---- 테크트리: 연구 노드를 해금해 영구 역량 + 경제 효과를 얻는 내부개발 심화 ----
+export interface TechNode { key: string; name: string; desc: string; cost: number; req: string[]; caps?: Partial<Record<Cap, number>>; }
+export const TECH_NODES: TechNode[] = [
+  { key: "rnd",          name: "R&D 센터",      desc: "기술 +8 · 벤처 진행 +1.5/월", cost: 28,  req: [],                  caps: { tech: 8 } },
+  { key: "automation",   name: "생산 자동화",    desc: "가성비 +8 · 월 고정비 -1",     cost: 28,  req: [],                  caps: { scale: 8 } },
+  { key: "ai",           name: "AI 플랫폼",      desc: "기술 +10 · 마진↑",            cost: 50,  req: ["rnd"],             caps: { tech: 10 } },
+  { key: "brandlab",     name: "브랜드 랩",      desc: "브랜드 +10",                  cost: 48,  req: ["rnd"],             caps: { brand: 10 } },
+  { key: "smartfactory", name: "스마트 팩토리",  desc: "가성비 +10 · 고정비 -2",       cost: 50,  req: ["automation"],      caps: { scale: 10 } },
+  { key: "globalscm",    name: "글로벌 SCM",     desc: "글로벌 +10 · 마진↑",          cost: 54,  req: ["automation"],      caps: { global: 10 } },
+  { key: "ecosystem",    name: "플랫폼 생태계",  desc: "전 역량 +6 · 마진↑↑",         cost: 110, req: ["ai", "brandlab"],  caps: { tech: 6, brand: 6, scale: 6, global: 6 } },
+];
+export function researchOptions(s: GameState) {
+  const have = new Set(s.tech);
+  return TECH_NODES.map(n => ({ node: n, unlocked: have.has(n.key), available: !have.has(n.key) && n.req.every(r => have.has(r)) }));
+}
+export function doResearch(s: GameState, key: string) {
+  if (s.tech.includes(key)) return;
+  const n = TECH_NODES.find(x => x.key === key); if (!n || !n.req.every(r => s.tech.includes(r))) return;
+  const you = s.firms[s.youIdx];
+  if (n.caps) for (const k of CAPS) if (n.caps[k]) you.caps[k] = clamp(you.caps[k] + n.caps[k]!, 0, 100);
+  s.tech.push(key); recomputeLeaders(s);
+  pushLog(s, "🔬 " + n.name + " 개발 완료");
+}
+// 해금 노드들의 지속 효과(마진·고정비·벤처속도) 합산
+export function techMods(s: GameState) {
+  const t = new Set(s.tech);
+  let marginAdd = 0, overheadCut = 0, ventureAdd = 0;
+  if (t.has("rnd")) ventureAdd += 1.5;
+  if (t.has("automation")) overheadCut += 1;
+  if (t.has("smartfactory")) overheadCut += 2;
+  if (t.has("ai")) marginAdd += 0.002;
+  if (t.has("globalscm")) marginAdd += 0.002;
+  if (t.has("ecosystem")) marginAdd += 0.003;
+  return { marginAdd, overheadCut, ventureAdd };
+}
+
 // ---- real-time tick (1 month) ----
 const TRENDS: { bias: Cap; headline: string; note: string }[] = [
   { bias: "tech", headline: "AI·기술 경쟁 가열", note: "기술을 원하는 시장이 늘어납니다." },
@@ -139,7 +175,7 @@ export function tick(s: GameState) {
   if (s.venture) {
     const v = s.venture;
     if (Math.random() < 0.09) v.risk++;
-    const rate = 7 - v.risk * 1.3; v.progress = Math.min(100, v.progress + Math.max(2, rate));
+    const rate = 7 + techMods(s).ventureAdd - v.risk * 1.3; v.progress = Math.min(100, v.progress + Math.max(2, rate));
     if (v.progress >= 100) {
       const you = s.firms[s.youIdx]; you.caps[v.cap] = clamp(you.caps[v.cap] + v.payoff, 0, 100);
       pushLog(s, "🚀 " + CAPKO[v.cap] + " 프로그램 완성! 시장 점령 확대");
