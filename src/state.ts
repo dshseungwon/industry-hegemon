@@ -13,7 +13,8 @@ export interface FirmDef { key: string; name: string; col: string; caps: Record<
 export interface IndustryScenario {
   key: string; name: string; ko: string; sector: string;
   headline: string; reportUrl: string;
-  preset: boolean;                 // true = 섹터 프리셋(임시), false = 실데이터(파이프라인)
+  preset: boolean;                 // true = 섹터 프리셋(임시), false = 손튜닝/실데이터
+  real?: boolean;                  // true = The Industry Brief 실데이터(KSF·경쟁사) 사용
   markets: MarketDef[];
   firms: FirmDef[];                // [0]은 기본 플레이어 후보(보통 한국 1위)
 }
@@ -22,7 +23,7 @@ export interface Venture {
   cooldown: Record<string, number>; // action -> date it becomes available again
 }
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
-export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; }
+export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; real?: boolean; }
 export interface GameState {
   date: number;              // months since start
   speed: 0 | 1 | 2 | 3;      // 0 = paused
@@ -111,7 +112,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: f.size, leader: youKey }; }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
-    scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset },
+    scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real },
     firms, youIdx, markets, marketOrder: order,
     cash: 60, debt: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },

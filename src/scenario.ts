@@ -4,6 +4,7 @@
 //   buildScenario를 "리포트 JSON → IndustryScenario"로 교체하면 됩니다(나머지 게임은 그대로).
 import { Cap, CAPS, IndustryScenario, MarketDef, FirmDef, WORLD_MARKETS, BUILTIN_SCENARIO } from "./state";
 import { BriefMeta, reportUrl } from "./reports.data";
+import { GAME_DATA } from "./game.data";
 
 // GICS 섹터별 KSF 프리셋(tech/brand/scale/global). 합은 normalize로 맞춤.
 const SECTOR_PRESET: Record<string, Partial<Record<Cap, number>>> = {
@@ -61,20 +62,25 @@ function capsFor(preset: Record<Cap, number>, base: number, lean: number, gics: 
 }
 
 export function buildScenario(meta: BriefMeta): IndustryScenario {
-  const preset = normalize(full(SECTOR_PRESET[meta.sector] || DEFAULT_PRESET));
   const g = meta.gics;
-  // 3사 구도(밸런스가 3사로 튜닝됨): 글로벌 1위(리더, KSF 강함) / 한국 1위(플레이어, KSF 갭) / 신흥 도전자(가성비).
+  const gd = GAME_DATA[g];   // The Industry Brief 실데이터(있으면 사용)
+  // KSF: 실데이터 가중치 우선, 없으면 섹터 프리셋(임시 브리지)
+  const preset = gd ? normalize(full(gd.ksf_weights)) : normalize(full(SECTOR_PRESET[meta.sector] || DEFAULT_PRESET));
+  // 경쟁사 이름: 실데이터의 글로벌 pie(리더/도전자) + 한국 1위(플레이어)
+  const leaderName = gd?.global_firms?.[0]?.name || meta.global_company;
+  const challengerName = gd?.global_firms?.[1]?.name || gd?.global_firms?.[2]?.name || "신흥 도전자";
+  // 3사 구도: 한국 1위(플레이어, KSF 갭) / 글로벌 1위(리더, KSF 강함) / 도전자(가성비).
   const firms: FirmDef[] = [
     { key: "you", name: meta.korea_company, col: "#ffb81c", ai: "balanced",
-      caps: capsFor(preset, 70, -55, g, 10) },                 // 언더독: KSF에서 뒤처짐
-    { key: "global", name: meta.global_company, col: "#5aa9e6", ai: "leader",
-      caps: capsFor(preset, 80, 65, g, 40) },                  // 리더: KSF에 강함
-    { key: "challenger", name: "신흥 도전자", col: "#36c98e", ai: "scale",
+      caps: capsFor(preset, 70, -55, g, 10) },
+    { key: "global", name: leaderName, col: "#5aa9e6", ai: "leader",
+      caps: capsFor(preset, 80, 65, g, 40) },
+    { key: "challenger", name: challengerName, col: "#36c98e", ai: "scale",
       caps: capsFor({ tech: .15, brand: .15, scale: .5, global: .2 } as Record<Cap, number>, 58, 40, g, 70) },
   ];
   return {
     key: "ind-" + g, name: meta.industry_en, ko: meta.industry_ko, sector: meta.sector,
-    headline: meta.headline_ko, reportUrl: reportUrl(meta), preset: true,
+    headline: meta.headline_ko, reportUrl: reportUrl(meta), preset: !gd, real: !!gd,
     markets: marketsFor(preset), firms,
   };
 }

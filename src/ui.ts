@@ -322,7 +322,7 @@ export function renderCompany(app: HTMLElement, sc: import("./state").IndustrySc
     '<div><h2>' + sc.ko + '</h2><div class="mute small">' + (sectorKo[sc.sector] || sc.sector) + '</div></div></div>' +
     '<div class="card"><div class="ihead">' + sc.headline + '</div>' +
     '<div class="ico"><a class="rlink" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
-    (sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div></div>' +
+    (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div></div>' +
     '<div class="sect">어느 기업을 운영할까요?</div>' +
     sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div>';
   document.getElementById("back")!.onclick = () => A.toIndustry();
