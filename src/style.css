@@ -19,8 +19,8 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 @keyframes flashWin{0%{filter:brightness(2.6) drop-shadow(0 0 7px var(--gold));}60%{filter:brightness(1.6);}100%{filter:none;}}
 @keyframes flashLose{0%{filter:brightness(.45) drop-shadow(0 0 6px var(--red));}100%{filter:none;}}
 /* topbar */
-#topbar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:10px;padding:8px 12px;
-  background:linear-gradient(#0a1c30ee,#0a1c3088);flex-wrap:wrap;}
+#topbar{position:absolute;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:linear-gradient(#0a1c30f5,#0a1c30e0);flex-wrap:wrap;}
 #topbar .brand{font-weight:800;font-size:14px;color:var(--gold);}
 .clock{display:flex;align-items:center;gap:5px;background:#11294593;border:1px solid var(--line);border-radius:999px;padding:3px 7px;}
 .clock .date{font-weight:800;font-size:13px;margin-right:4px;}
@@ -33,9 +33,12 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .mbtn.on{background:var(--gold);}
 .trend{width:100%;font-size:11.5px;color:#cfe0f3;background:#0e2745aa;border:1px solid var(--line);border-radius:8px;padding:4px 9px;margin-top:2px;}
 /* drawer overlay (map stays visible) */
-.drawer{position:absolute;top:0;right:0;bottom:0;width:min(360px,86%);z-index:20;background:#0d2238f2;border-left:1px solid var(--gold);
+.drawer{position:absolute;top:68px;right:0;bottom:0;width:min(360px,86%);z-index:20;background:#0d2238f2;border-left:1px solid var(--gold);
   box-shadow:-10px 0 30px #0007;display:flex;flex-direction:column;animation:slidein .2s ease;}
+/* 기업 내부 — 왼쪽 드로어(투자/전략 패널과 동시에 열림) */
+.drawer.left{left:0;right:auto;border-left:none;border-right:1px solid var(--gold);box-shadow:10px 0 30px #0007;animation:slideinL .2s ease;}
 @keyframes slidein{from{transform:translateX(30px);opacity:.4;}to{transform:none;opacity:1;}}
+@keyframes slideinL{from{transform:translateX(-30px);opacity:.4;}to{transform:none;opacity:1;}}
 .dhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-size:15px;}
 .dbody{flex:1;overflow:auto;padding:12px;}
 .x{background:#1c3e63;border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12px;}

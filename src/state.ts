@@ -37,7 +37,7 @@ export interface GameState {
   trend: Trend;
   log: string[];
   fx: string[];              // 이번 tick에 발생한 연출/효과음 이벤트(main이 비움)
-  ui: { panel: string; country: string | null; confirm: ConfirmSpec | null; over: { won: boolean; msg: string } | null };
+  ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: { won: boolean; msg: string } | null };
 }
 export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; }
 
@@ -96,11 +96,11 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   const order: string[] = [];
   for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: full(m.pref), size: m.size, leader: youKey }; order.push(m.name); }
   return {
-    date: 0, speed: 2,
+    date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset },
     firms, youIdx, markets, marketOrder: order,
     cash: 60, debt: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
-    log: [], fx: [], ui: { panel: "none", country: null, confirm: null, over: null },
+    log: [], fx: [], ui: { panel: "none", leftPanel: "none", country: null, confirm: null, over: null },
   };
 }

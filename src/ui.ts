@@ -29,6 +29,7 @@ export function mountGame(app: HTMLElement, A: Actions) {
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
     '<div id="topbar"></div>' +
+    '<div id="overlayL" class="hide"></div>' +
     '<div id="overlay" class="hide"></div>' +
     '<div id="sheet" class="hide"></div>' +
     '<div id="confirmwrap" class="hide"></div>' +
@@ -89,24 +90,43 @@ function renderTop(s: GameState, A: Actions) {
   t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
   document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
 }
-const mbtn = (p: string, ic: string, s: GameState) => '<button class="mbtn' + (s.ui.panel === p ? " on" : "") + '" data-p="' + p + '">' + ic + '</button>';
+const mbtn = (p: string, ic: string, s: GameState) => {
+  const on = p === "company" ? s.ui.leftPanel === p : s.ui.panel === p;
+  return '<button class="mbtn' + (on ? " on" : "") + '" data-p="' + p + '">' + ic + '</button>';
+};
 
-function bar(label: string, v: number) {
-  return '<div class="barrow"><span class="bl">' + label + '</span><div class="bt"><div class="bf" style="width:' + Math.round(v) + '%"></div></div><span class="bv">' + Math.round(v) + '</span></div>';
+function bar(label: string, v: number, color?: string) {
+  const fill = color ? ';background:' + color : '';
+  return '<div class="barrow"><span class="bl">' + label + '</span><div class="bt"><div class="bf" style="width:' + Math.round(v) + '%' + fill + '"></div></div><span class="bv">' + Math.round(v) + '</span></div>';
 }
 
 function renderPanel(s: GameState, A: Actions) {
+  // 기업 내부 = 왼쪽 드로어, 투자/전략/용어집 = 오른쪽 드로어 (독립적으로 동시에 열림)
+  const left = document.getElementById("overlayL")!;
+  if (s.ui.leftPanel === "none") { left.className = "hide"; left.innerHTML = ""; }
+  else {
+    left.className = "drawer left";
+    left.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.leftPanel) + '</b><button class="x" id="closeL">✕</button></div><div class="dbody">' + panelBody(s, s.ui.leftPanel) + '</div>';
+    document.getElementById("closeL")!.onclick = () => A.togglePanel(s.ui.leftPanel);
+  }
   const o = document.getElementById("overlay")!;
   if (s.ui.panel === "none") { o.className = "hide"; o.innerHTML = ""; return; }
   o.className = "drawer";
-  let h = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">';
+  o.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">' + panelBody(s, s.ui.panel) + '</div>';
+  document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
+  o.querySelectorAll<HTMLElement>(".proj").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
+}
+
+function panelBody(s: GameState, panel: string): string {
+  let h = "";
   const you = s.firms[s.youIdx];
-  if (s.ui.panel === "company") {
+  if (panel === "company") {
     const cf = monthlyCashflow(s);
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + CAPS.map(k => bar(CAPKO[k], you.caps[k])).join("") + '</div>';
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span>' + CAPS.map(k => CAPKO[k][0] + f.caps[k]).join(" ") + '</span></div></div>').join("");
-  } else if (s.ui.panel === "projects") {
+  } else if (panel === "projects") {
     if (!s.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
     else {
       const v = s.venture;
@@ -119,7 +139,7 @@ function renderPanel(s: GameState, A: Actions) {
           opbtn(s, "cancel", "✕ 취소", "자금 일부 회수") +
         '</div><div class="mute small" style="margin-top:6px">운영 행동엔 <b>쿨다운</b>이 있습니다(무한 클릭 불가). 시간이 흐르면 다시 가능.</div></div>';
     }
-  } else if (s.ui.panel === "strategy") {
+  } else if (panel === "strategy") {
     if (s.venture) h += '<div class="card mute small">이미 진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
     else {
       h += '<div class="sect">새 투자 — NPV로 판단 후 진행</div>';
@@ -129,14 +149,10 @@ function renderPanel(s: GameState, A: Actions) {
       });
       h += '<div class="mute small">※ NPV는 "지금 소비자 선호 유지" 가정. 환경이 바뀌면 실현이 달라집니다.</div>';
     }
-  } else if (s.ui.panel === "codex") {
+  } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
   }
-  h += '</div>';
-  o.innerHTML = h;
-  document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
-  o.querySelectorAll<HTMLElement>(".proj").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
-  o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
+  return h;
 }
 function opbtn(s: GameState, action: string, h: string, e: string) {
   const ok = canOperate(s, action);
@@ -231,8 +247,8 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
 export function renderCompany(app: HTMLElement, sc: import("./state").IndustryScenario, A: Actions) {
   const roleKo = (k: string) => k === "global" ? "글로벌 1위" : k === "challenger" ? "신흥 도전자" : "한국 1위 · 추천";
   const firmCard = (f: import("./state").FirmDef, idx: number) =>
-    '<div class="ccard"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f.key) + '</span></div>' +
-    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k])).join("") + '</div>' +
+    '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f.key) + '</span></div>' +
+    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k], f.col)).join("") + '</div>' +
     '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +

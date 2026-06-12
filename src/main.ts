@@ -51,7 +51,12 @@ const A: Actions = {
 
   // ----- 인게임 -----
   setSpeed(n) { if (!s) return; s.speed = n; sfx("click"); render(s, A); schedule(); },
-  togglePanel(p) { if (!s) return; s.ui.panel = s.ui.panel === p ? "none" : p; sfx("click"); render(s, A); },
+  togglePanel(p) {
+    if (!s) return;
+    if (p === "company") s.ui.leftPanel = s.ui.leftPanel === p ? "none" : p;   // 기업 내부는 왼쪽 드로어(독립)
+    else s.ui.panel = s.ui.panel === p ? "none" : p;
+    sfx("click"); render(s, A);
+  },
   selectCountry(n) { if (!s) return; s.ui.country = n; if (n) sfx("click"); render(s, A); },
   startStrategy(cap) {
     if (!s) return;
