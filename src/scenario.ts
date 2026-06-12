@@ -29,6 +29,30 @@ const COUNTRY_TILT: Record<string, Cap> = {
   "France": "brand", "Indonesia": "scale", "Mexico": "scale", "Russia": "scale",
 };
 
+// 잘 알려진 기업 CI 색(캡 색과 비충돌·지도에서 잘 보이는 밝기). 모르면 역할 팔레트로.
+const CI: [string, string][] = [
+  ["apple", "#c9ced6"], ["samsung", "#2d6fe0"], ["xiaomi", "#ff6900"], ["lg", "#a50034"],
+  ["sk ", "#e2231a"], ["hynix", "#e2231a"], ["hyundai", "#0b65c2"], ["naver", "#03c75a"],
+  ["google", "#4285f4"], ["alphabet", "#4285f4"], ["meta", "#0866ff"], ["amazon", "#ff9900"],
+  ["netflix", "#e50914"], ["nvidia", "#76b900"], ["intel", "#0071c5"], ["microsoft", "#5db64f"],
+  ["toyota", "#eb0a1e"], ["sony", "#c9ced6"], ["disney", "#1f6fed"], ["tesla", "#e82127"],
+  ["bhp", "#e35205"], ["pfizer", "#0093d0"], ["jpmorgan", "#0b6fd0"], ["nike", "#cfd4da"],
+];
+function ciColor(name: string, fallback: string): string {
+  const n = (name || "").toLowerCase();
+  for (const [k, c] of CI) if (n.includes(k)) return c;
+  return fallback;
+}
+// 한 시나리오 내 세 기업 색이 겹치지 않게 보정(겹치면 역할 팔레트로 교체).
+function ensureDistinct(firms: FirmDef[]) {
+  const palette = ["#2d8cff", "#ff5a5f", "#ff8a3d", "#c9ced6"];
+  const used = new Set<string>();
+  for (const f of firms) {
+    if (used.has(f.col)) { const alt = palette.find(p => !used.has(p)) || f.col; f.col = alt; }
+    used.add(f.col);
+  }
+}
+
 function normalize(p: Record<Cap, number>): Record<Cap, number> {
   let t = 0; for (const k of CAPS) t += p[k];
   const out = {} as Record<Cap, number>; for (const k of CAPS) out[k] = t > 0 ? p[k] / t : 0.25; return out;
@@ -70,14 +94,16 @@ export function buildScenario(meta: BriefMeta): IndustryScenario {
   const leaderName = gd?.global_firms?.[0]?.name || meta.global_company;
   const challengerName = gd?.global_firms?.[1]?.name || gd?.global_firms?.[2]?.name || "신흥 도전자";
   // 3사 구도: 한국 1위(플레이어, KSF 갭) / 글로벌 1위(리더, KSF 강함) / 도전자(가성비).
+  // 기업 색: CI 알려진 곳은 CI, 아니면 역할별 구분 팔레트(캡 색과 비충돌).
   const firms: FirmDef[] = [
-    { key: "you", name: meta.korea_company, col: "#ffb81c", ai: "balanced",
+    { key: "you", name: meta.korea_company, col: ciColor(meta.korea_company, "#2d8cff"), ai: "balanced",
       caps: capsFor(preset, 70, -55, g, 10) },
-    { key: "global", name: leaderName, col: "#5aa9e6", ai: "leader",
+    { key: "global", name: leaderName, col: ciColor(leaderName, "#ff5a5f"), ai: "leader",
       caps: capsFor(preset, 80, 65, g, 40) },
-    { key: "challenger", name: challengerName, col: "#36c98e", ai: "scale",
+    { key: "challenger", name: challengerName, col: ciColor(challengerName, "#ff8a3d"), ai: "scale",
       caps: capsFor({ tech: .15, brand: .15, scale: .5, global: .2 } as Record<Cap, number>, 58, 40, g, 70) },
   ];
+  ensureDistinct(firms);
   return {
     key: "ind-" + g, name: meta.industry_en, ko: meta.industry_ko, sector: meta.sector,
     headline: meta.headline_ko, reportUrl: reportUrl(meta), preset: !gd, real: !!gd,

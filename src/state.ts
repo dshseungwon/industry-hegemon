@@ -64,9 +64,10 @@ const MARKET_DEFS: { name: string; ko: string; pref: Partial<Record<Cap, number>
 ];
 
 const FIRM_DEFS: FirmDef[] = [
-  { key: "you", name: "Samsung", col: "#ffb81c", caps: { tech: 80, brand: 64, scale: 90, global: 70 }, ai: "balanced" },
-  { key: "apple", name: "Apple", col: "#5aa9e6", caps: { tech: 82, brand: 95, scale: 70, global: 82 }, ai: "brand" },
-  { key: "xiaomi", name: "Xiaomi", col: "#36c98e", caps: { tech: 60, brand: 50, scale: 80, global: 55 }, ai: "scale" },
+  // 기업 색은 CI 참고(캡 색과 비충돌): Samsung 블루 / Apple 실버 / Xiaomi 오렌지
+  { key: "you", name: "Samsung", col: "#2d6fe0", caps: { tech: 80, brand: 64, scale: 90, global: 70 }, ai: "balanced" },
+  { key: "apple", name: "Apple", col: "#c9ced6", caps: { tech: 82, brand: 95, scale: 70, global: 82 }, ai: "brand" },
+  { key: "xiaomi", name: "Xiaomi", col: "#ff6900", caps: { tech: 60, brand: 50, scale: 80, global: 55 }, ai: "scale" },
 ];
 
 // 공유 지리(세계지도). 산업마다 동일 국가·규모, KSF(pref)만 산업별로 달라짐. scenario.ts가 사용.

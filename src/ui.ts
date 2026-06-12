@@ -28,8 +28,8 @@ export interface Actions {
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
 const fmt = (x: number) => Math.round(x).toLocaleString();
 const esc = (s: string) => s.replace(/"/g, "&quot;");
-// 역량별 색 — 4역량을 시각적으로 구분(기업 구분은 카드 색띠·이름색으로).
-const CAPCOL: Record<Cap, string> = { tech: "#5aa9e6", brand: "#ff7eb6", scale: "#36c98e", global: "#ffc24b" };
+// 역량별 색 — 4역량 전용(예약). 기업 색과 겹치지 않게 시안/마젠타/옐로/바이올렛.
+const CAPCOL: Record<Cap, string> = { tech: "#35c5e0", brand: "#e85fd0", scale: "#ffce4d", global: "#9b8cff" };
 
 export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
