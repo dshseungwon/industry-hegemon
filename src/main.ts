@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -123,6 +123,29 @@ const A: Actions = {
       ],
       okLabel: "조달",
       onOk: () => { if (!s) return; engineRaiseDebt(s, amt); s.ui.confirm = null; sfx("select"); render(s, A); },
+    };
+    render(s, A);
+  },
+  lobby(marketName) {
+    if (!s) return;
+    if (!canAct(s, "lobby:" + marketName)) { flash("아직 쿨다운입니다"); return; }
+    const cost = lobbyCost(s, marketName);
+    if (s.cash < cost) { flash("현금이 부족합니다"); return; }
+    const m = s.markets[marketName];
+    s.ui.confirm = {
+      title: "로비 — " + m.ko,
+      lines: [
+        "비용: <b>$" + cost + "B</b>",
+        "이 시장의 <b>KSF(소비자 선호)</b>를 우리의 최강 역량 쪽으로 끌어옵니다 — 적합도↑.",
+        "규제·표준에 영향을 주는 정치 행위입니다. 진행할까요?",
+      ],
+      okLabel: "로비",
+      onOk: () => {
+        if (!s) return;
+        if (s.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        s.cash -= cost; doLobby(s, marketName); setActCooldown(s, "lobby:" + marketName, 5);
+        recomputeLeaders(s); s.ui.confirm = null; sfx("select"); render(s, A);
+      },
     };
     render(s, A);
   },

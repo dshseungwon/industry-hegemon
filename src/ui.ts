@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute } from "./audio";
@@ -20,6 +20,7 @@ export interface Actions {
   toIndustry(): void;
   acquire(rivalKey: string): void;
   raiseDebt(): void;
+  lobby(marketName: string): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
@@ -199,8 +200,18 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>소비자 핵심 선호</span><b>' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율</div>' + shareRows +
     '<div class="sect">소비자 선호</div>' + CAPS.map(k => bar(CAPKO[k], (m.pref[k] || 0) * 100)).join("") +
-    '<div class="mute small" style="margin-top:6px">이 시장은 <b>' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>';
+    '<div class="mute small" style="margin-top:6px">이 시장은 <b>' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>' +
+    lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
+  const lb = document.getElementById("lobbyBtn") as HTMLButtonElement | null;
+  if (lb && !lb.disabled) lb.onclick = () => A.lobby(s.ui.country!);
+}
+// 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
+function lobbyBtn(s: GameState): string {
+  const n = s.ui.country!; const cost = lobbyCost(s, n); const ok = canAct(s, "lobby:" + n);
+  const cd = ok ? 0 : Math.max(0, (s.cooldowns["lobby:" + n] || 0) - s.date);
+  const dis = !ok || s.cash < cost;
+  return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — KSF를 우리 강점으로 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button>';
 }
 
 function renderConfirm(s: GameState, A: Actions) {

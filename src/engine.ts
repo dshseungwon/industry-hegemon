@@ -89,6 +89,20 @@ export function doAcquire(s: GameState, rivalKey: string) {
 // 부채 조달: 즉시 현금, 부채 증가(월 이자 + WACC 상승).
 export function raiseDebt(s: GameState, amount: number) { s.cash += amount; s.debt += amount; pushLog(s, "💵 부채 조달 +$" + amount + "B"); }
 
+function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if (t > 0) for (const p of CAPS) m.pref[p] /= t; }
+
+// ---- 로비: 선택 시장의 KSF를 우리 강점 쪽으로 유도(환경에 개입) ----
+export function lobbyCost(s: GameState, marketName: string) { const m = s.markets[marketName]; return m ? Math.max(8, Math.round(m.size * 0.08)) : 0; }
+export function doLobby(s: GameState, marketName: string) {
+  const you = s.firms[s.youIdx]; const m = s.markets[marketName]; if (!m) return;
+  let best: Cap = "tech"; for (const k of CAPS) if (you.caps[k] > you.caps[best]) best = k;
+  m.pref[best] = (m.pref[best] || 0) + 0.12; renorm(m);
+  pushLog(s, "🏛️ " + m.ko + " 로비 — KSF를 " + CAPKO[best] + " 쪽으로 유도");
+}
+// 벤처 외 행동 쿨다운
+export function canAct(s: GameState, key: string) { return (s.cooldowns[key] || 0) <= s.date; }
+export function setActCooldown(s: GameState, key: string, months: number) { s.cooldowns[key] = s.date + months; }
+
 // ---- real-time tick (1 month) ----
 const TRENDS: { bias: Cap; headline: string; note: string }[] = [
   { bias: "tech", headline: "AI·기술 경쟁 가열", note: "기술을 원하는 시장이 늘어납니다." },
@@ -102,6 +116,13 @@ export function tick(s: GameState) {
   s.date++;
   // trend cycle
   if (s.date >= s.trend.until) { const t = TRENDS[ri(0, TRENDS.length - 1)]; s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline); s.fx.push("trend"); }
+  // 정책/규제 이벤트 — 한 시장의 환경(규모·KSF)을 바꿈(법률·정치 흐름). 진단해서 대응해야 함.
+  if (s.date > 1 && Math.random() < 0.11) {
+    const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]];
+    if (Math.random() < 0.5) { m.size = Math.max(20, Math.round(m.size * 0.88)); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " 규제 강화 — 시장 위축·현지대응/컴플라이언스 중요"); }
+    else { m.size = Math.round(m.size * 1.12); const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " 시장 개방/부양 — 규모 확대, " + CAPKO[k] + " 수요↑"); }
+    s.fx.push("trend");
+  }
   // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)
   for (const n of s.marketOrder) {
     if (Math.random() < 0.18) {
