@@ -13,6 +13,11 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .country.active{cursor:pointer;}
 .country.inactive{fill:#22405d;}
 .country.sel{stroke:#fff;stroke-width:1.4;}
+/* 점령 연출: 리더가 바뀐 국가가 잠깐 번쩍임 */
+.country.flash-win{animation:flashWin .9s ease-out;}
+.country.flash-lose{animation:flashLose .9s ease-out;}
+@keyframes flashWin{0%{filter:brightness(2.6) drop-shadow(0 0 7px var(--gold));}60%{filter:brightness(1.6);}100%{filter:none;}}
+@keyframes flashLose{0%{filter:brightness(.45) drop-shadow(0 0 6px var(--red));}100%{filter:none;}}
 /* topbar */
 #topbar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:10px;padding:8px 12px;
   background:linear-gradient(#0a1c30ee,#0a1c3088);flex-wrap:wrap;}
@@ -65,6 +70,10 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .modalwrap{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#06121fcc;padding:20px;}
 .modal{background:#102844;border:1px solid var(--gold);border-radius:16px;padding:18px;max-width:360px;width:100%;}
 .modal h3{margin:0 0 8px;}.mrow{font-size:13.5px;padding:4px 0;color:#cfe0f3;}
+#banner .modal{animation:bannerPop .35s cubic-bezier(.2,1.4,.3,1);}
+#banner .modal.victory{box-shadow:0 0 26px #ffb81c88;animation:bannerPop .35s cubic-bezier(.2,1.4,.3,1),glow 1.5s ease-in-out .35s infinite alternate;}
+@keyframes bannerPop{from{transform:scale(.72);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes glow{from{box-shadow:0 0 18px #ffb81c55;}to{box-shadow:0 0 46px #ffb81cdd;}}
 .mbtns{display:flex;gap:8px;margin-top:12px;}
 .btn{flex:1;background:var(--gold);color:var(--navy);padding:12px;border-radius:11px;font-size:15px;}
 .btn.ghost{background:transparent;color:var(--mute);border:1px solid var(--line);}

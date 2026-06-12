@@ -3,6 +3,7 @@ import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
+import { sfx, isMuted, toggleMute } from "./audio";
 
 export interface Actions {
   setSpeed(n: 0 | 1 | 2 | 3): void;
@@ -24,6 +25,7 @@ const fmt = (x: number) => Math.round(x).toLocaleString();
 const esc = (s: string) => s.replace(/"/g, "&quot;");
 
 export function mountGame(app: HTMLElement, A: Actions) {
+  prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
     '<div id="topbar"></div>' +
@@ -39,12 +41,27 @@ export function mountGame(app: HTMLElement, A: Actions) {
     A.selectCountry(n || null);
   });
 }
+let prevLeaders: Record<string, string> = {};
 function recolor(s: GameState) {
+  const youKey = s.firms[s.youIdx].key;
+  const first = Object.keys(prevLeaders).length === 0;
+  let gained = 0, lost = 0;
   document.querySelectorAll<SVGPathElement>("#map path").forEach(p => {
     const n = p.getAttribute("data-n")!; const m = s.markets[n];
     p.setAttribute("fill", m ? colByKey(s, m.leader) : "#23415f");
-    p.setAttribute("class", "country" + (m ? " active" : " inactive") + (s.ui.country === n ? " sel" : ""));
+    let cls = "country" + (m ? " active" : " inactive") + (s.ui.country === n ? " sel" : "");
+    if (m && !first && prevLeaders[n] !== undefined && prevLeaders[n] !== m.leader) {
+      const win = m.leader === youKey;
+      cls += win ? " flash-win" : " flash-lose";
+      if (win) gained++; else if (prevLeaders[n] === youKey) lost++;
+      // 애니메이션 재생을 위해 클래스 제거(리플로우 후 재적용)
+      window.setTimeout(() => { const el = p; el.setAttribute("class", el.getAttribute("class")!.replace(/ flash-(win|lose)/g, "")); }, 900);
+    }
+    if (m) prevLeaders[n] = m.leader;
+    p.setAttribute("class", cls);
   });
+  if (gained > 0) sfx("conquer");
+  else if (lost > 0) sfx("lost");
 }
 
 export function render(s: GameState, A: Actions) {
@@ -65,10 +82,12 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(s.cash) + 'B</b></span>' + (s.debt > 0 ? '<span>부채 <b>$' + fmt(s.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("codex", "📖", s) +
+      '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (s.venture ? ' · 🚀 ' + CAPKO[s.venture.cap] + ' ' + Math.round(s.venture.progress) + '%' : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
-  t.querySelectorAll<HTMLElement>(".mbtn").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
+  t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
+  document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
 }
 const mbtn = (p: string, ic: string, s: GameState) => '<button class="mbtn' + (s.ui.panel === p ? " on" : "") + '" data-p="' + p + '">' + ic + '</button>';
 
@@ -162,7 +181,7 @@ function renderBanner(s: GameState, A: Actions) {
   const el = document.getElementById("banner")!;
   if (!s.ui.over) { el.className = "hide"; el.innerHTML = ""; return; }
   el.className = "modalwrap";
-  el.innerHTML = '<div class="modal"><h3 class="gold">' + (s.ui.over.won ? "🏆 " + s.ui.over.msg : s.ui.over.msg) + '</h3>' +
+  el.innerHTML = '<div class="modal' + (s.ui.over.won ? " victory" : "") + '"><h3 class="gold">' + (s.ui.over.won ? "🏆 " + s.ui.over.msg : s.ui.over.msg) + '</h3>' +
     '<div class="mrow">' + s.scenario.ko + ' · 최종 점유율 ' + (myShare(s) * 100).toFixed(0) + '%</div>' +
     '<div class="mbtns"><button class="btn ghost" id="toTitle">다른 산업 고르기</button><button class="btn" id="restart">같은 산업 다시</button></div></div>';
   document.getElementById("restart")!.onclick = () => A.restart();

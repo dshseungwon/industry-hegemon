@@ -71,9 +71,10 @@ const TRENDS: { bias: Cap; headline: string; note: string }[] = [
 ];
 export function tick(s: GameState) {
   if (s.ui.over) return;
+  s.fx = [];
   s.date++;
   // trend cycle
-  if (s.date >= s.trend.until) { const t = TRENDS[ri(0, TRENDS.length - 1)]; s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline); }
+  if (s.date >= s.trend.until) { const t = TRENDS[ri(0, TRENDS.length - 1)]; s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline); s.fx.push("trend"); }
   // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)
   for (const n of s.marketOrder) {
     if (Math.random() < 0.18) {
@@ -94,7 +95,7 @@ export function tick(s: GameState) {
     if (v.progress >= 100) {
       const you = s.firms[s.youIdx]; you.caps[v.cap] = clamp(you.caps[v.cap] + v.payoff, 0, 100);
       pushLog(s, "🚀 " + CAPKO[v.cap] + " 프로그램 완성! 시장 점령 확대");
-      s.venture = null;
+      s.venture = null; s.fx.push("complete");
     }
   }
   // monthly finance: 점유율 기반 수입 − 고정비, 이자
@@ -104,13 +105,14 @@ export function tick(s: GameState) {
   // victory (2조건)
   const youKey = s.firms[s.youIdx].key;
   if (s.marketOrder.every(n => s.markets[n].leader === youKey)) {
-    s.ui.over = { won: true, msg: "시장 완전 장악 — 모든 시장 1위!" }; s.speed = 0;
+    s.ui.over = { won: true, msg: "시장 완전 장악 — 모든 시장 1위!" }; s.speed = 0; s.fx.push("win");
   } else if (s.date >= END_MONTHS) {
     const rank = rankByCaptured(s); const top = rank[0].firm; const won = top.key === youKey;
     const sh = (myShare(s) * 100).toFixed(0);
     s.ui.over = won
       ? { won: true, msg: "🏁 마감 — 점유율 1위로 승리! (" + sh + "%)" }
       : { won: false, msg: "🏁 마감 — 패배. 최종 1위: " + top.name }; s.speed = 0;
+    s.fx.push(won ? "win" : "lose");
   }
 }
 // 경쟁사가 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음). 플레이어 strategyProjects와 동일 논리.

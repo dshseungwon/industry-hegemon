@@ -4,6 +4,7 @@ import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCoold
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
+import { sfx, unlockAudio } from "./audio";
 
 const app = document.getElementById("app")!;
 
@@ -15,10 +16,11 @@ let s: GameState | null = null;
 
 const stepMs = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
 let timer: number | undefined;
+function drainFx() { if (!s) return; for (const e of s.fx) sfx(e); s.fx = []; }
 function schedule() {
   if (timer) clearTimeout(timer);
   if (phase !== "game" || !s || s.speed === 0 || s.ui.over) return;
-  timer = window.setTimeout(() => { tick(s!); render(s!, A); schedule(); }, stepMs(s.speed));
+  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); schedule(); }, stepMs(s.speed));
 }
 
 function paint() {
@@ -39,18 +41,18 @@ function startGame(youIdx: number) {
 
 const A: Actions = {
   // ----- 사전 화면 흐름 -----
-  toTitle() { if (timer) clearTimeout(timer); phase = "title"; s = null; pickedScenario = null; paint(); },
-  toIndustry() { if (timer) clearTimeout(timer); phase = "industry"; s = null; paint(); },
+  toTitle() { if (timer) clearTimeout(timer); phase = "title"; s = null; pickedScenario = null; sfx("click"); paint(); },
+  toIndustry() { unlockAudio(); if (timer) clearTimeout(timer); phase = "industry"; s = null; sfx("select"); paint(); },
   pickIndustry(meta: BriefMeta) {
     pickedScenario = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
-    phase = "company"; paint();
+    phase = "company"; sfx("select"); paint();
   },
-  pickCompany(youIdx: number) { startGame(youIdx); },
+  pickCompany(youIdx: number) { sfx("invest"); startGame(youIdx); },
 
   // ----- 인게임 -----
-  setSpeed(n) { if (!s) return; s.speed = n; render(s, A); schedule(); },
-  togglePanel(p) { if (!s) return; s.ui.panel = s.ui.panel === p ? "none" : p; render(s, A); },
-  selectCountry(n) { if (!s) return; s.ui.country = n; render(s, A); },
+  setSpeed(n) { if (!s) return; s.speed = n; sfx("click"); render(s, A); schedule(); },
+  togglePanel(p) { if (!s) return; s.ui.panel = s.ui.panel === p ? "none" : p; sfx("click"); render(s, A); },
+  selectCountry(n) { if (!s) return; s.ui.country = n; if (n) sfx("click"); render(s, A); },
   startStrategy(cap) {
     if (!s) return;
     const p = strategyProjects(s).find(x => x.cap === cap)!;
@@ -70,7 +72,7 @@ const A: Actions = {
         s.venture = { name: CAPKO[cap] + " 역량 프로그램", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} };
         s.ui.confirm = null; s.ui.panel = "projects";
         pushLog(s, "투자 착수: " + p.h);
-        render(s, A);
+        sfx("invest"); render(s, A);
       },
     };
     render(s, A);
@@ -79,10 +81,10 @@ const A: Actions = {
     if (!s || !s.venture) return;
     if (!canOperate(s, action)) { flash("아직 쿨다운입니다"); return; }
     const v = s.venture;
-    if (action === "accel") { if (s.cash < 10) { flash("현금 부족"); return; } s.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, "accel", 2); flash("가속 +14"); }
-    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, "risk", 2); flash("리스크 해소"); }
-    else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); }
-    else if (action === "cancel") { s.cash += 15; s.venture = null; flash("취소 — 자금 회수"); }
+    if (action === "accel") { if (s.cash < 10) { flash("현금 부족"); return; } s.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, "accel", 2); flash("가속 +14"); sfx("accel"); }
+    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, "risk", 2); flash("리스크 해소"); sfx("select"); }
+    else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); sfx("select"); }
+    else if (action === "cancel") { s.cash += 15; s.venture = null; flash("취소 — 자금 회수"); sfx("cancel"); }
     render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
@@ -96,4 +98,6 @@ function flash(msg: string) {
   t.textContent = msg; t.className = "show"; clearTimeout((t as any)._t); (t as any)._t = setTimeout(() => { t!.className = ""; }, 1100);
 }
 
+// 브라우저 정책: 첫 사용자 제스처에 오디오 컨텍스트 언락
+document.addEventListener("pointerdown", () => unlockAudio(), { once: true });
 paint();
