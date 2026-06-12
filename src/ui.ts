@@ -1,6 +1,8 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS } from "./engine";
+import { BRIEFS, BriefMeta } from "./reports.data";
+import { BUILTIN_META } from "./scenario";
 
 export interface Actions {
   setSpeed(n: 0 | 1 | 2 | 3): void;
@@ -11,12 +13,17 @@ export interface Actions {
   confirmOk(): void;
   confirmCancel(): void;
   restart(): void;
+  pickIndustry(meta: BriefMeta): void;
+  pickCompany(youIdx: number): void;
+  toTitle(): void;
+  toIndustry(): void;
 }
-const colOf = (k: string) => k === "you" ? "#ffb81c" : k === "apple" ? "#5aa9e6" : k === "xiaomi" ? "#36c98e" : "#23415f";
+// 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
+const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
 const fmt = (x: number) => Math.round(x).toLocaleString();
 const esc = (s: string) => s.replace(/"/g, "&quot;");
 
-export function mount(app: HTMLElement, A: Actions) {
+export function mountGame(app: HTMLElement, A: Actions) {
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
     '<div id="topbar"></div>' +
@@ -33,10 +40,9 @@ export function mount(app: HTMLElement, A: Actions) {
   });
 }
 function recolor(s: GameState) {
-  const youKey = s.firms[s.youIdx].key;
   document.querySelectorAll<SVGPathElement>("#map path").forEach(p => {
     const n = p.getAttribute("data-n")!; const m = s.markets[n];
-    p.setAttribute("fill", m ? colOf(m.leader) : "#23415f");
+    p.setAttribute("fill", m ? colByKey(s, m.leader) : "#23415f");
     p.setAttribute("class", "country" + (m ? " active" : " inactive") + (s.ui.country === n ? " sel" : ""));
   });
 }
@@ -156,6 +162,67 @@ function renderBanner(s: GameState, A: Actions) {
   const el = document.getElementById("banner")!;
   if (!s.ui.over) { el.className = "hide"; el.innerHTML = ""; return; }
   el.className = "modalwrap";
-  el.innerHTML = '<div class="modal"><h3 class="gold">' + (s.ui.over.won ? "🏆 " + s.ui.over.msg : s.ui.over.msg) + '</h3><div class="mrow">최종 점유율 ' + (myShare(s) * 100).toFixed(0) + '%</div><div class="mbtns"><button class="btn" id="restart">다시 시작</button></div></div>';
+  el.innerHTML = '<div class="modal"><h3 class="gold">' + (s.ui.over.won ? "🏆 " + s.ui.over.msg : s.ui.over.msg) + '</h3>' +
+    '<div class="mrow">' + s.scenario.ko + ' · 최종 점유율 ' + (myShare(s) * 100).toFixed(0) + '%</div>' +
+    '<div class="mbtns"><button class="btn ghost" id="toTitle">다른 산업 고르기</button><button class="btn" id="restart">같은 산업 다시</button></div></div>';
   document.getElementById("restart")!.onclick = () => A.restart();
+  document.getElementById("toTitle")!.onclick = () => A.toTitle();
+}
+
+// ===== 사전 화면(타이틀 → 산업 선택 → 기업 선택) =====
+const sectorKo: Record<string, string> = {
+  "Information Technology": "IT", "Communication Services": "통신", "Consumer Discretionary": "경기소비재",
+  "Consumer Staples": "필수소비재", "Health Care": "헬스케어", "Financials": "금융", "Industrials": "산업재",
+  "Materials": "소재", "Energy": "에너지", "Utilities": "유틸리티", "Real Estate": "부동산",
+};
+
+export function renderTitle(app: HTMLElement, A: Actions) {
+  app.innerHTML =
+    '<div class="screen title"><div class="hero">' +
+    '<div class="logo">🌐 산업 패권</div><div class="tag">Industry Hegemon</div>' +
+    '<p class="lede">오늘의 산업을 골라, 한 기업을 운영해 세계 시장을 점령하라.<br>' +
+    '시장이 무엇을 원하는지 <b>읽고</b>, 역량에 <b>투자</b>해 1위에 오르는 실시간 경영 전략.</p>' +
+    '<button class="btn big" id="toIndustry">산업 선택 →</button>' +
+    '<p class="src">데이터: <a href="https://dshseungwon.github.io/daily-industry-report/" target="_blank" rel="noopener">The Industry Brief</a></p>' +
+    '</div></div>';
+  document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
+}
+
+export function renderIndustry(app: HTMLElement, A: Actions) {
+  const all: BriefMeta[] = [BUILTIN_META, ...BRIEFS];
+  const card = (m: BriefMeta, featured: boolean) => {
+    const link = m.file ? '<a class="rlink" href="https://dshseungwon.github.io/daily-industry-report/' + esc(m.file) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">리포트 ↗</a>' : '';
+    return '<button class="icard' + (featured ? ' feat' : '') + '" data-gics="' + esc(m.gics) + '">' +
+      '<div class="ih"><span class="chip">' + (sectorKo[m.sector] || m.sector) + '</span>' + (featured ? '<span class="bdg go">기준 시나리오</span>' : '') + link + '</div>' +
+      '<div class="iname">' + m.industry_ko + '</div>' +
+      '<div class="ihead">' + m.headline_ko + '</div>' +
+      '<div class="ico"><span>🌐 ' + m.global_company + '</span><span>🇰🇷 ' + m.korea_company + '</span></div>' +
+      '</button>';
+  };
+  app.innerHTML =
+    '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
+    '<div><h2>산업 선택</h2><div class="mute small">The Industry Brief의 ' + BRIEFS.length + '개 산업 · 매일 갱신</div></div></div>' +
+    '<div class="igrid">' + card(all[0], true) + all.slice(1).map(m => card(m, false)).join("") + '</div></div>';
+  document.getElementById("back")!.onclick = () => A.toTitle();
+  app.querySelectorAll<HTMLElement>(".icard").forEach(b => b.onclick = () => {
+    const g = b.dataset.gics!; const meta = all.find(m => m.gics === g)!; A.pickIndustry(meta);
+  });
+}
+
+export function renderCompany(app: HTMLElement, sc: import("./state").IndustryScenario, A: Actions) {
+  const roleKo = (k: string) => k === "global" ? "글로벌 1위" : k === "challenger" ? "신흥 도전자" : "한국 1위 · 추천";
+  const firmCard = (f: import("./state").FirmDef, idx: number) =>
+    '<div class="ccard"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f.key) + '</span></div>' +
+    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k])).join("") + '</div>' +
+    '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
+  app.innerHTML =
+    '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
+    '<div><h2>' + sc.ko + '</h2><div class="mute small">' + (sectorKo[sc.sector] || sc.sector) + '</div></div></div>' +
+    '<div class="card"><div class="ihead">' + sc.headline + '</div>' +
+    '<div class="ico"><a class="rlink" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
+    (sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div></div>' +
+    '<div class="sect">어느 기업을 운영할까요?</div>' +
+    sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div>';
+  document.getElementById("back")!.onclick = () => A.toIndustry();
+  app.querySelectorAll<HTMLElement>(".ccard .btn").forEach(b => b.onclick = () => A.pickCompany(Number(b.dataset.idx)));
 }

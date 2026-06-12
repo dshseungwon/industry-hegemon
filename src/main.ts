@@ -1,25 +1,58 @@
 import "./style.css";
-import { GameState, newGame, Cap, CAPKO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, clamp, canOperate, setCooldown, npv, irr, waccOf } from "./engine";
-import { mount, render, Actions } from "./ui";
+import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown } from "./engine";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
+import { BriefMeta } from "./reports.data";
+import { buildScenario, BUILTIN_META } from "./scenario";
 
 const app = document.getElementById("app")!;
-let s: GameState = newGame(0);
-recomputeLeaders(s);
+
+// 앱 단계: 인게임 전에는 GameState가 없음. 시나리오를 고른 뒤 newGame으로 생성.
+type Phase = "title" | "industry" | "company" | "game";
+let phase: Phase = "title";
+let pickedScenario: IndustryScenario | null = null;
+let s: GameState | null = null;
 
 const stepMs = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
 let timer: number | undefined;
 function schedule() {
   if (timer) clearTimeout(timer);
-  if (s.speed === 0 || s.ui.over) return;
-  timer = window.setTimeout(() => { tick(s); render(s, A); schedule(); }, stepMs(s.speed));
+  if (phase !== "game" || !s || s.speed === 0 || s.ui.over) return;
+  timer = window.setTimeout(() => { tick(s!); render(s!, A); schedule(); }, stepMs(s.speed));
+}
+
+function paint() {
+  if (phase === "title") renderTitle(app, A);
+  else if (phase === "industry") renderIndustry(app, A);
+  else if (phase === "company") renderCompany(app, pickedScenario!, A);
+  else if (phase === "game" && s) render(s, A);
+}
+
+function startGame(youIdx: number) {
+  s = newGame(pickedScenario!, youIdx);
+  recomputeLeaders(s);
+  phase = "game";
+  mountGame(app, A);   // 인게임 DOM 재구성
+  render(s, A);
+  schedule();
 }
 
 const A: Actions = {
-  setSpeed(n) { s.speed = n; render(s, A); schedule(); },
-  togglePanel(p) { s.ui.panel = s.ui.panel === p ? "none" : p; render(s, A); },
-  selectCountry(n) { s.ui.country = n; render(s, A); },
+  // ----- 사전 화면 흐름 -----
+  toTitle() { if (timer) clearTimeout(timer); phase = "title"; s = null; pickedScenario = null; paint(); },
+  toIndustry() { if (timer) clearTimeout(timer); phase = "industry"; s = null; paint(); },
+  pickIndustry(meta: BriefMeta) {
+    pickedScenario = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
+    phase = "company"; paint();
+  },
+  pickCompany(youIdx: number) { startGame(youIdx); },
+
+  // ----- 인게임 -----
+  setSpeed(n) { if (!s) return; s.speed = n; render(s, A); schedule(); },
+  togglePanel(p) { if (!s) return; s.ui.panel = s.ui.panel === p ? "none" : p; render(s, A); },
+  selectCountry(n) { if (!s) return; s.ui.country = n; render(s, A); },
   startStrategy(cap) {
+    if (!s) return;
     const p = strategyProjects(s).find(x => x.cap === cap)!;
     s.ui.confirm = {
       title: "전략 실행 — " + p.h,
@@ -31,6 +64,7 @@ const A: Actions = {
       ],
       okLabel: "진행",
       onOk: () => {
+        if (!s) return;
         if (s.cash < p.capex) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
         s.cash -= p.capex;
         s.venture = { name: CAPKO[cap] + " 역량 프로그램", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} };
@@ -42,7 +76,7 @@ const A: Actions = {
     render(s, A);
   },
   operate(action) {
-    if (!s.venture) return;
+    if (!s || !s.venture) return;
     if (!canOperate(s, action)) { flash("아직 쿨다운입니다"); return; }
     const v = s.venture;
     if (action === "accel") { if (s.cash < 10) { flash("현금 부족"); return; } s.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, "accel", 2); flash("가속 +14"); }
@@ -51,9 +85,9 @@ const A: Actions = {
     else if (action === "cancel") { s.cash += 15; s.venture = null; flash("취소 — 자금 회수"); }
     render(s, A);
   },
-  confirmOk() { const f = s.ui.confirm?.onOk; if (f) f(); },
-  confirmCancel() { s.ui.confirm = null; render(s, A); },
-  restart() { s = newGame(0); recomputeLeaders(s); render(s, A); schedule(); },
+  confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
+  confirmCancel() { if (!s) return; s.ui.confirm = null; render(s, A); },
+  restart() { if (!pickedScenario) { A.toTitle(); return; } startGame(s ? s.youIdx : 0); },
 };
 
 function flash(msg: string) {
@@ -62,6 +96,4 @@ function flash(msg: string) {
   t.textContent = msg; t.className = "show"; clearTimeout((t as any)._t); (t as any)._t = setTimeout(() => { t!.className = ""; }, 1100);
 }
 
-mount(app, A);
-render(s, A);
-schedule();
+paint();

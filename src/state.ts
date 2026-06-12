@@ -5,14 +5,28 @@ export const WANTIC: Record<Cap, string> = { tech: "🧠", brand: "✨", scale: 
 
 export interface Firm { key: string; name: string; col: string; caps: Record<Cap, number>; ai: string; }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
+
+// 한 산업의 게임 시나리오 — 파이프라인(daily-industry-report 확장) 출력 계약.
+// 지금은 scenario.ts가 섹터 프리셋으로 생성(임시 브리지). 나중에 리포트 JSON에서 직접 구성.
+export interface MarketDef { name: string; ko: string; pref: Partial<Record<Cap, number>>; size: number; }
+export interface FirmDef { key: string; name: string; col: string; caps: Record<Cap, number>; ai: string; }
+export interface IndustryScenario {
+  key: string; name: string; ko: string; sector: string;
+  headline: string; reportUrl: string;
+  preset: boolean;                 // true = 섹터 프리셋(임시), false = 실데이터(파이프라인)
+  markets: MarketDef[];
+  firms: FirmDef[];                // [0]은 기본 플레이어 후보(보통 한국 1위)
+}
 export interface Venture {
   name: string; cap: Cap; payoff: number; progress: number; risk: number;
   cooldown: Record<string, number>; // action -> date it becomes available again
 }
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
+export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; }
 export interface GameState {
   date: number;              // months since start
   speed: 0 | 1 | 2 | 3;      // 0 = paused
+  scenario: ScenarioMeta;    // 선택한 산업(브리프) 정보
   firms: Firm[];
   youIdx: number;
   markets: Record<string, Market>;
@@ -45,11 +59,24 @@ const MARKET_DEFS: { name: string; ko: string; pref: Partial<Record<Cap, number>
   { name: "Russia", ko: "러시아", pref: { scale: .4, tech: .2, brand: .2, global: .2 }, size: 60 },
 ];
 
-const FIRM_DEFS: Firm[] = [
+const FIRM_DEFS: FirmDef[] = [
   { key: "you", name: "Samsung", col: "#ffb81c", caps: { tech: 80, brand: 64, scale: 90, global: 70 }, ai: "balanced" },
   { key: "apple", name: "Apple", col: "#5aa9e6", caps: { tech: 82, brand: 95, scale: 70, global: 82 }, ai: "brand" },
   { key: "xiaomi", name: "Xiaomi", col: "#36c98e", caps: { tech: 60, brand: 50, scale: 80, global: 55 }, ai: "scale" },
 ];
+
+// 공유 지리(세계지도). 산업마다 동일 국가·규모, KSF(pref)만 산업별로 달라짐. scenario.ts가 사용.
+export const WORLD_MARKETS: { name: string; ko: string; size: number }[] =
+  MARKET_DEFS.map(m => ({ name: m.name, ko: m.ko, size: m.size }));
+
+// 빌트인 기준 시나리오 — 손수 밸런스 튜닝된 "소비자 전자/스마트폰"(로드맵 #1 검증 완료). preset=false.
+export const BUILTIN_SCENARIO: IndustryScenario = {
+  key: "consumer-electronics", name: "Consumer Electronics", ko: "소비자 전자·스마트폰",
+  sector: "Information Technology",
+  headline: "프리미엄·가성비·기술이 맞붙는 글로벌 스마트폰 패권전.",
+  reportUrl: "https://dshseungwon.github.io/daily-industry-report/",
+  preset: false, markets: MARKET_DEFS, firms: FIRM_DEFS,
+};
 
 export const CODEX = [
   { t: "NPV", en: "순현재가치", d: "미래 현금흐름을 할인율로 현재가치화해 합산하고 초기 투자를 뺀 값. 0보다 크면 가치를 창출하는 투자입니다." },
@@ -61,13 +88,16 @@ export const CODEX = [
   { t: "M&A", en: "인수합병", d: "경쟁사를 사들여 역량·점유율을 흡수·제거하는 전략. 비싸고 통합 리스크가 있습니다." },
 ];
 
-export function newGame(youIdx = 0): GameState {
-  const firms = FIRM_DEFS.map(f => ({ ...f, caps: { ...f.caps } }));
+export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 0): GameState {
+  const firms: Firm[] = scenario.firms.map(f => ({ ...f, caps: { ...f.caps } }));
+  const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};
   const order: string[] = [];
-  for (const m of MARKET_DEFS) { markets[m.name] = { name: m.name, ko: m.ko, pref: full(m.pref), size: m.size, leader: "you" }; order.push(m.name); }
+  for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: full(m.pref), size: m.size, leader: youKey }; order.push(m.name); }
   return {
-    date: 0, speed: 2, firms, youIdx, markets, marketOrder: order,
+    date: 0, speed: 2,
+    scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset },
+    firms, youIdx, markets, marketOrder: order,
     cash: 60, debt: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
     log: [], ui: { panel: "none", country: null, confirm: null, over: null },

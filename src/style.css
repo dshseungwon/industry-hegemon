@@ -70,3 +70,32 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .btn.ghost{background:transparent;color:var(--mute);border:1px solid var(--line);}
 #toast{position:fixed;left:50%;top:12%;transform:translateX(-50%);background:#0a1c30f0;border:1px solid var(--gold);color:var(--gold);padding:8px 16px;border-radius:999px;font-weight:800;z-index:60;opacity:0;transition:.2s;pointer-events:none;}
 #toast.show{opacity:1;}
+/* ===== 사전 화면 (타이틀 / 산업 선택 / 기업 선택) ===== */
+.screen{position:absolute;inset:0;overflow:auto;background:radial-gradient(120% 130% at 50% -10%,#13355a,#061320 70%);}
+.screen.title{display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;}
+.hero{max-width:460px;}
+.hero .logo{font-size:42px;font-weight:800;color:var(--gold);letter-spacing:1px;}
+.hero .tag{font-size:13px;letter-spacing:4px;color:var(--mute);text-transform:uppercase;margin-top:2px;}
+.hero .lede{font-size:14px;color:#cfe0f3;margin:22px 0 26px;}
+.btn.big{display:inline-block;width:auto;flex:none;padding:14px 34px;font-size:16px;}
+.hero .src{margin-top:22px;font-size:12px;color:var(--mute);}
+.hero .src a,.rlink{color:var(--gold);text-decoration:none;}
+.screen.list{padding:16px 14px 40px;}
+.lhead{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.lhead h2{margin:0;font-size:20px;}
+.back{background:#1c3e63;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:16px;}
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;max-width:1100px;}
+.icard{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,transform .1s;}
+.icard:hover{border-color:var(--gold);transform:translateY(-2px);}
+.icard.feat{border-color:var(--gold);background:linear-gradient(160deg,#1a3a2e,#15314f);grid-column:1/-1;}
+.icard .ih{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.icard .iname{font-weight:800;font-size:15px;}
+.icard .ihead{font-size:12px;color:#cfe0f3;}
+.icard .ico,.ccard .ch{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);align-items:center;}
+.rlink{margin-left:auto;font-size:11px;font-weight:800;}
+.ccard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:10px;}
+.ccard .ch{justify-content:flex-start;font-size:15px;margin-bottom:8px;}
+.ccard .ch b{font-size:15px;}
+.ccard .cbars{margin-bottom:10px;}
+.ccard .btn{width:100%;padding:11px;}
+.screen .chip{background:#1c3e63;border:1px solid var(--line);color:var(--mute);font-size:10.5px;}
