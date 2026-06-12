@@ -147,6 +147,8 @@ function renderTop(s: GameState, A: Actions) {
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
   t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
   document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
+  // 드로어가 상단바(트렌드 줄) 아래에서 시작하도록 실제 높이를 반영(겹침 방지)
+  document.documentElement.style.setProperty("--topbar-h", (t.offsetHeight + 2) + "px");
 }
 const mbtn = (p: string, ic: string, s: GameState) => {
   const on = p === "company" ? s.ui.leftPanel === p : s.ui.panel === p;
@@ -156,6 +158,13 @@ const mbtn = (p: string, ic: string, s: GameState) => {
 function bar(label: string, v: number, color?: string) {
   const fill = color ? ';background:' + color : '';
   return '<div class="barrow"><span class="bl">' + label + '</span><div class="bt"><div class="bf" style="width:' + Math.round(v) + '%' + fill + '"></div></div><span class="bv">' + Math.round(v) + '</span></div>';
+}
+// 세로 능력치 게이지 — 4역량을 컬럼 차트로(가로로 길지 않게). val(k)=0~100.
+function capGauge(val: (k: Cap) => number): string {
+  return '<div class="vbars">' + CAPS.map(k => {
+    const v = Math.max(0, Math.min(100, Math.round(val(k))));
+    return '<div class="vcol"><span class="vv">' + v + '</span><div class="vtrack"><div class="vfill" style="height:' + v + '%;background:' + CAPCOL[k] + '"></div></div><span class="vl">' + CAPKO[k] + '</span></div>';
+  }).join("") + '</div>';
 }
 
 function renderPanel(s: GameState, A: Actions) {
@@ -187,11 +196,11 @@ function panelBody(s: GameState, panel: string): string {
   if (panel === "company") {
     const cf = monthlyCashflow(s);
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
-    h += '<div class="sect">역량</div><div class="card">' + CAPS.map(k => bar(CAPKO[k], you.caps[k], CAPCOL[k])).join("") + '</div>';
+    h += '<div class="sect">역량</div><div class="card">' + capGauge(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
-      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + CAPS.map(k => bar(CAPKO[k], f.caps[k], CAPCOL[k])).join("") + '</div>';
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capGauge(k => f.caps[k]) + '</div>';
     }).join("");
   } else if (panel === "projects") {
     if (!s.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
@@ -306,7 +315,7 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>현재 1위</span><b style="color:' + lead.col + '">' + lead.name + '</b></div>' +
     '<div class="kv"><span>소비자 핵심 선호</span><b>' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율</div>' + shareRows +
-    '<div class="sect">소비자 선호</div>' + CAPS.map(k => bar(CAPKO[k], (m.pref[k] || 0) * 100, CAPCOL[k])).join("") +
+    '<div class="sect">소비자 선호(KSF)</div>' + capGauge(k => (m.pref[k] || 0) * 100) +
     '<div class="mute small" style="margin-top:6px">이 시장은 <b>' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>' +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
@@ -382,10 +391,10 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
 }
 
 export function renderCompany(app: HTMLElement, sc: import("./state").IndustryScenario, A: Actions) {
-  const roleKo = (k: string) => k === "global" ? "글로벌 1위" : k === "challenger" ? "신흥 도전자" : "한국 1위 · 추천";
+  const roleKo = (f: import("./state").FirmDef, i: number) => i === 0 ? "추천 · 우리 기업" : f.key === "global" ? "글로벌 1위" : "글로벌 경쟁사";
   const firmCard = (f: import("./state").FirmDef, idx: number) =>
-    '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f.key) + '</span></div>' +
-    '<div class="cbars">' + CAPS.map(k => bar(CAPKO[k], f.caps[k], CAPCOL[k])).join("") + '</div>' +
+    '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f, idx) + '</span></div>' +
+    '<div class="cbars">' + capGauge(k => f.caps[k]) + '</div>' +
     '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +

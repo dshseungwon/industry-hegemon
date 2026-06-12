@@ -117,6 +117,6 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     firms, youIdx, markets, marketOrder: order,
     cash: 60, debt: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
-    log: [], fx: [], cooldowns: {}, tech: [], ui: { panel: "none", leftPanel: "none", country: null, confirm: null, over: null },
+    log: [], fx: [], cooldowns: {}, tech: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
   };
 }

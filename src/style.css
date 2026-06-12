@@ -38,7 +38,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .mbtn.on{background:var(--gold);}
 .trend{width:100%;font-size:11.5px;color:#cfe0f3;background:#0e2745aa;border:1px solid var(--line);border-radius:8px;padding:4px 9px;margin-top:2px;}
 /* drawer overlay (map stays visible) */
-.drawer{position:absolute;top:68px;right:0;bottom:0;width:min(360px,86%);z-index:20;background:#0d2238f2;border-left:1px solid var(--gold);
+.drawer{position:absolute;top:var(--topbar-h,68px);right:0;bottom:0;width:min(360px,86%);z-index:20;background:#0d2238f2;border-left:1px solid var(--gold);
   box-shadow:-10px 0 30px #0007;display:flex;flex-direction:column;animation:slidein .2s ease;}
 /* 기업 내부 — 왼쪽 드로어(투자/전략 패널과 동시에 열림) */
 .drawer.left{left:0;right:auto;border-left:none;border-right:1px solid var(--gold);box-shadow:10px 0 30px #0007;animation:slideinL .2s ease;}
@@ -53,6 +53,13 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .barrow{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:11.5px;}
 .bl{width:48px;color:var(--mute);}.bt{flex:1;height:11px;background:#0a1c30;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
 .bf{height:100%;background:var(--gold);}.bv{width:26px;text-align:right;}
+/* 세로 능력치 게이지 */
+.vbars{display:flex;gap:7px;align-items:flex-end;padding:5px 2px 2px;}
+.vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.vtrack{width:100%;max-width:38px;height:62px;background:#0a1c30;border:1px solid var(--line);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;}
+.vfill{width:100%;transition:height .35s ease;}
+.vv{font-size:11px;font-weight:800;}
+.vl{font-size:10.5px;color:var(--mute);}
 .venture{background:linear-gradient(160deg,#23163a,#160e22);border:1px solid #5a3a8a;border-radius:13px;padding:12px;position:relative;}
 .venture .vt{font-weight:800;color:#cbb3ff;font-size:14px;}.venture .vd{font-size:11.5px;color:#e7ddff;margin-top:1px;}
 .ring{position:absolute;right:10px;top:8px;}

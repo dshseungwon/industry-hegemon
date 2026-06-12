@@ -92,7 +92,7 @@ export function buildScenario(meta: BriefMeta): IndustryScenario {
   const preset = gd ? normalize(full(gd.ksf_weights)) : normalize(full(SECTOR_PRESET[meta.sector] || DEFAULT_PRESET));
   // 경쟁사 이름: 실데이터의 글로벌 pie(리더/도전자) + 한국 1위(플레이어)
   const leaderName = gd?.global_firms?.[0]?.name || meta.global_company;
-  const challengerName = gd?.global_firms?.[1]?.name || gd?.global_firms?.[2]?.name || "신흥 도전자";
+  const challengerName = gd?.global_firms?.[1]?.name || gd?.global_firms?.[2]?.name || "글로벌 경쟁사";
   // 3사 구도: 한국 1위(플레이어, KSF 갭) / 글로벌 1위(리더, KSF 강함) / 도전자(가성비).
   // 기업 색: CI 알려진 곳은 CI, 아니면 역할별 구분 팔레트(캡 색과 비충돌).
   const firms: FirmDef[] = [
@@ -100,8 +100,8 @@ export function buildScenario(meta: BriefMeta): IndustryScenario {
       caps: capsFor(preset, 70, -55, g, 10) },
     { key: "global", name: leaderName, col: ciColor(leaderName, "#ff5a5f"), ai: "leader",
       caps: capsFor(preset, 80, 65, g, 40) },
-    { key: "challenger", name: challengerName, col: ciColor(challengerName, "#ff8a3d"), ai: "scale",
-      caps: capsFor({ tech: .15, brand: .15, scale: .5, global: .2 } as Record<Cap, number>, 58, 40, g, 70) },
+    { key: "challenger", name: challengerName, col: ciColor(challengerName, "#ff8a3d"), ai: "balanced",
+      caps: capsFor(preset, 64, 25, g, 70) },   // 산업 KSF 기반의 신빙성 있는 글로벌 경쟁사
   ];
   ensureDistinct(firms);
   return {
