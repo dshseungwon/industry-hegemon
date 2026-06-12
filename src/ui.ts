@@ -1,9 +1,9 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
-import { sfx, isMuted, toggleMute } from "./audio";
+import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
 
 export interface Actions {
   setSpeed(n: 0 | 1 | 2 | 3): void;
@@ -47,37 +47,35 @@ export function mountGame(app: HTMLElement, A: Actions) {
   setupMapNav(svg, A);
 }
 
-// ---- 지도 팬/줌(스크롤) — viewBox 조작 ----
-const VB0 = { x: 0, y: 0, w: 800, h: 420 };
-let vb = { x: 0, y: 0, w: 800, h: 420 };
+// ---- 지도 팬/줌(스크롤) — CSS transform(스크린 좌표). 드래그 px = 이동 px. ----
 const clampN = (x: number, a: number, b: number) => x < a ? a : x > b ? b : x;
-function applyVB(svg: SVGSVGElement) { svg.setAttribute("viewBox", vb.x + " " + vb.y + " " + vb.w + " " + vb.h); }
-function clampVB() {
-  vb.w = clampN(vb.w, VB0.w / 5, VB0.w); vb.h = vb.w * (VB0.h / VB0.w);
-  vb.x = clampN(vb.x, 0, VB0.w - vb.w); vb.y = clampN(vb.y, 0, VB0.h - vb.h);
+let mk = 1, mtx = 0, mty = 0;     // scale, translate(px)
+function applyXform(svg: SVGSVGElement) { svg.style.transformOrigin = "0 0"; svg.style.transform = "translate(" + mtx + "px," + mty + "px) scale(" + mk + ")"; }
+function clampXform() {
+  const W = window.innerWidth, H = window.innerHeight;
+  mk = clampN(mk, 1, 5);
+  mtx = clampN(mtx, (1 - mk) * W, 0);   // 가장자리에 빈 공간 안 생기게
+  mty = clampN(mty, (1 - mk) * H, 0);
 }
-function zoomAt(svg: SVGSVGElement, fx: number, fy: number, factor: number) {
-  const nw = clampN(vb.w * factor, VB0.w / 5, VB0.w);
-  const px = vb.x + fx * vb.w, py = vb.y + fy * vb.h;   // 고정점(viewBox 좌표)
-  vb.x = px - fx * nw; vb.y = py - fy * (nw * (VB0.h / VB0.w)); vb.w = nw;
-  clampVB(); applyVB(svg);
+function zoomAround(svg: SVGSVGElement, cx: number, cy: number, factor: number) {
+  const nk = clampN(mk * factor, 1, 5), r = nk / mk;
+  mtx = cx - r * (cx - mtx); mty = cy - r * (cy - mty); mk = nk;
+  clampXform(); applyXform(svg);
 }
 function setupMapNav(svg: SVGSVGElement, A: Actions) {
-  vb = { ...VB0 }; applyVB(svg);
-  const rect = () => svg.getBoundingClientRect();
-  let drag = false, moved = false, sx = 0, sy = 0, sX = 0, sY = 0;
+  mk = 1; mtx = 0; mty = 0; applyXform(svg);
+  let drag = false, moved = false, sx = 0, sy = 0, tx0 = 0, ty0 = 0;
 
   svg.addEventListener("wheel", (e) => {
-    e.preventDefault(); const r = rect();
-    zoomAt(svg, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, e.deltaY > 0 ? 1.15 : 1 / 1.15);
+    e.preventDefault();
+    zoomAround(svg, e.clientX, e.clientY, e.deltaY > 0 ? 1 / 1.15 : 1.15);
   }, { passive: false });
 
-  // 드래그 = 팬. window 리스너로 svg 밖으로 나가도 끊기지 않게(견고).
   const onMove = (e: PointerEvent) => {
-    if (!drag) return; const r = rect();
+    if (!drag) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-    if (moved) { vb.x = sX - dx / r.width * vb.w; vb.y = sY - dy / r.height * vb.h; clampVB(); applyVB(svg); }
+    if (moved) { mtx = tx0 + dx; mty = ty0 + dy; clampXform(); applyXform(svg); }
   };
   const onUp = (e: PointerEvent) => {
     window.removeEventListener("pointermove", onMove);
@@ -86,15 +84,15 @@ function setupMapNav(svg: SVGSVGElement, A: Actions) {
     if (!moved) { const t = e.target as Element; const n = t && t.getAttribute ? t.getAttribute("data-n") : null; A.selectCountry(n || null); }
   };
   svg.addEventListener("pointerdown", (e) => {
-    drag = true; moved = false; sx = e.clientX; sy = e.clientY; sX = vb.x; sY = vb.y;
+    drag = true; moved = false; sx = e.clientX; sy = e.clientY; tx0 = mtx; ty0 = mty;
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   });
 
   document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
     const z = b.dataset.z;
-    if (z === "reset") { vb = { ...VB0 }; applyVB(svg); }
-    else zoomAt(svg, 0.5, 0.5, z === "in" ? 1 / 1.4 : 1.4);
+    if (z === "reset") { mk = 1; mtx = 0; mty = 0; clampXform(); applyXform(svg); }
+    else zoomAround(svg, window.innerWidth / 2, window.innerHeight / 2, z === "in" ? 1.4 : 1 / 1.4);
   });
 }
 let prevLeaders: Record<string, string> = {};
@@ -124,6 +122,8 @@ function recolor(s: GameState) {
 }
 
 export function render(s: GameState, A: Actions) {
+  const sh = myShare(s);                       // 점유율 상황 → 배경음악 분위기
+  setBgmMood(sh < 0.12 ? "crisis" : sh >= 0.55 ? "strong" : "calm");
   recolor(s);
   renderTop(s, A);
   renderPanel(s, A);
@@ -188,7 +188,11 @@ function panelBody(s: GameState, panel: string): string {
     const cf = monthlyCashflow(s);
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + CAPS.map(k => bar(CAPKO[k], you.caps[k], CAPCOL[k])).join("") + '</div>';
-    h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span>' + CAPS.map(k => CAPKO[k][0] + f.caps[k]).join(" ") + '</span></div></div>').join("");
+    const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
+    h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
+      const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + CAPS.map(k => bar(CAPKO[k], f.caps[k], CAPCOL[k])).join("") + '</div>';
+    }).join("");
   } else if (panel === "projects") {
     if (!s.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
     else {

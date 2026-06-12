@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -17,10 +17,17 @@ let s: GameState | null = null;
 const stepMs = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
 let timer: number | undefined;
 function drainFx() { if (!s) return; for (const e of s.fx) sfx(e); s.fx = []; }
+let wasCrisis = false;
+function crisisCheck() {
+  if (!s) return;
+  const sh = myShare(s);
+  if (sh < 0.10 && !wasCrisis) { wasCrisis = true; flash("⚠️ 위기 — 점유율 10% 미만! 전략을 재정비하세요"); sfx("lost"); }
+  else if (sh > 0.13 && wasCrisis) { wasCrisis = false; }   // 히스테리시스(반복 경고 방지)
+}
 function schedule() {
   if (timer) clearTimeout(timer);
   if (phase !== "game" || !s || s.speed === 0 || s.ui.over) return;
-  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); schedule(); }, stepMs(s.speed));
+  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); crisisCheck(); schedule(); }, stepMs(s.speed));
 }
 
 function paint() {
@@ -33,6 +40,7 @@ function paint() {
 function startGame(youIdx: number) {
   s = newGame(pickedScenario!, youIdx);
   recomputeLeaders(s);
+  wasCrisis = false;
   phase = "game";
   mountGame(app, A);   // 인게임 DOM 재구성
   render(s, A);

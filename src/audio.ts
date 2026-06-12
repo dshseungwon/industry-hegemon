@@ -57,15 +57,22 @@ export function sfx(name: string) {
   }
 }
 
-// ---- 배경음악: 잔잔한 앰비언트 패드 진행을 합성해 루프(오디오 파일 없음) ----
-// Am – F – C – G (vi–IV–I–V) 느린 코드 진행, 각 코드에 디튠 패드 2겹 + 저음 루트.
-const PROG: { triad: number[]; bass: number }[] = [
-  { triad: [220.00, 261.63, 329.63], bass: 110.00 }, // Am
-  { triad: [174.61, 220.00, 261.63], bass: 87.31 },  // F
-  { triad: [261.63, 329.63, 392.00], bass: 130.81 }, // C
-  { triad: [196.00, 246.94, 293.66], bass: 98.00 },  // G
-];
-const CHORD_DUR = 5.0; // 코드당 초
+// ---- 배경음악: 점유율 상황에 따라 분위기가 바뀌는 앰비언트 패드 루프(오디오 파일 없음) ----
+type Chord = { triad: number[]; bass: number };
+const Am: Chord = { triad: [220.00, 261.63, 329.63], bass: 110.00 };
+const F:  Chord = { triad: [174.61, 220.00, 261.63], bass: 87.31 };
+const C:  Chord = { triad: [261.63, 329.63, 392.00], bass: 130.81 };
+const G:  Chord = { triad: [196.00, 246.94, 293.66], bass: 98.00 };
+const Dm: Chord = { triad: [293.66, 349.23, 440.00], bass: 146.83 };
+const E:  Chord = { triad: [329.63, 415.30, 493.88], bass: 164.81 }; // E major — 긴장
+type Mood = "calm" | "crisis" | "strong";
+const MOODS: Record<Mood, { prog: Chord[]; dur: number }> = {
+  calm:   { prog: [Am, F, C, G], dur: 5.0 },   // vi–IV–I–V, 차분
+  crisis: { prog: [Am, F, Dm, E], dur: 2.8 },  // i–VI–iv–V 단조 긴장, 빠르게
+  strong: { prog: [C, G, Am, F], dur: 5.2 },   // I–V–vi–IV 밝고 당당
+};
+let mood: Mood = "calm";
+export function setBgmMood(m: "calm" | "crisis" | "strong") { mood = m; }
 let bgmGain: GainNode | null = null;
 let bgmTimer: number | undefined;
 let bgmOn = false;
@@ -83,11 +90,11 @@ function pad(c: AudioContext, freq: number, t0: number, dur: number, peak: numbe
 }
 function scheduleChord(c: AudioContext) {
   if (!bgmOn || !bgmGain) return;
-  const ch = PROG[progIdx % PROG.length]; progIdx++;
-  const t0 = c.currentTime + 0.05;
-  for (const f of ch.triad) { pad(c, f, t0, CHORD_DUR, 0.045, "sine", -3); pad(c, f, t0, CHORD_DUR, 0.045, "sine", 3); }
-  pad(c, ch.bass, t0, CHORD_DUR, 0.06, "triangle", 0);            // 저음 루트
-  bgmTimer = window.setTimeout(() => scheduleChord(c), CHORD_DUR * 1000 - 250); // 살짝 겹쳐 끊김 없이
+  const m = MOODS[mood]; const ch = m.prog[progIdx % m.prog.length]; progIdx++;
+  const dur = m.dur; const t0 = c.currentTime + 0.05;
+  for (const f of ch.triad) { pad(c, f, t0, dur, 0.045, "sine", -3); pad(c, f, t0, dur, 0.045, "sine", 3); }
+  pad(c, ch.bass, t0, dur, 0.06, "triangle", 0);                 // 저음 루트
+  bgmTimer = window.setTimeout(() => scheduleChord(c), dur * 1000 - 250); // 살짝 겹쳐 끊김 없이
 }
 export function startBgm() {
   if (muted || bgmOn) return;
