@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -43,8 +43,25 @@ function startGame(youIdx: number) {
   wasCrisis = false;
   phase = "game";
   mountGame(app, A);   // 인게임 DOM 재구성
+  // 첫 플레이엔 시작 가이드 1회 노출(이후엔 상단 ❓에서 다시 볼 수 있음)
+  let seen = false; try { seen = localStorage.getItem("ih_guide_seen") === "1"; } catch { /* noop */ }
+  if (!seen) { s.ui.confirm = introSpec(); try { localStorage.setItem("ih_guide_seen", "1"); } catch { /* noop */ } }
   render(s, A);
   schedule();
+}
+function introSpec() {
+  return {
+    title: "🌐 산업 패권 — 처음이신가요?",
+    lines: [
+      "한 기업을 키워 <b>세계 시장을 장악</b>하는 실시간 경영 전략입니다.",
+      "🏆 <b>승리①</b> 모든 시장에서 점유율 1위 (지도 전체가 내 색)",
+      "🏆 <b>승리②</b> " + dateLabel(END_MONTHS) + " 마감 시점에 <b>점유율 1위</b>",
+      "방법: 국가를 클릭해 그 시장이 원하는 <b>역량(KSF)</b>을 읽고, 📈[전략]에서 약한 역량에 투자하세요.",
+      "<b>▶</b> 진행 · <b>⏸</b> 멈춰 판단 · 환경은 계속 변합니다. 자세한 건 상단 <b>❓</b> 가이드.",
+    ],
+    okLabel: "시작하기",
+    onOk: () => { if (s) { s.ui.confirm = null; render(s, A); } },
+  };
 }
 
 const A: Actions = {

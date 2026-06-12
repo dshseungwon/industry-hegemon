@@ -140,7 +140,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(s.cash) + 'B</b></span>' + (s.debt > 0 ? '<span>부채 <b>$' + fmt(s.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("codex", "📖", s) +
+      mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("guide", "❓", s) + mbtn("codex", "📖", s) +
       '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (s.venture ? ' · 🚀 ' + CAPKO[s.venture.cap] + ' ' + Math.round(s.venture.progress) + '%' : '') + '</div>';
@@ -246,6 +246,22 @@ function panelBody(s: GameState, panel: string): string {
       else if (o.available) { const can = s.cash >= n.cost; h += '<button class="proj tech" data-key="' + n.key + '"><div class="h">' + n.name + '<span class="bdg ' + (can ? 'go' : 'no') + '">$' + n.cost + 'B</span></div><div class="e">' + n.desc + '</div></button>'; }
       else h += '<div class="proj tech locked"><div class="h">🔒 ' + n.name + '</div><div class="e">선행 필요: ' + n.req.map(r => TECH_NODES.find(x => x.key === r)?.name || r).join(", ") + '</div></div>';
     });
+  } else if (panel === "guide") {
+    h += '<div class="card">한 기업을 운영해 <b>세계 시장 점유율 1위</b>에 오르는 실시간 경영 전략 게임입니다.</div>';
+    h += '<div class="sect">🏆 승리 조건 (둘 중 하나)</div><div class="card">' +
+      '<div class="kv"><span>① 완전 장악</span><b class="gold">모든 시장 1위</b></div>' +
+      '<div class="kv"><span>② 마감 시 1위</span><b class="gold">~' + dateLabel(END_MONTHS) + '</b></div>' +
+      '<div class="mute small" style="margin-top:4px">지도 전체가 내 색이 되면 즉시 승리. 아니면 마감(' + dateLabel(END_MONTHS) + ') 시점에 점유율 1위인 기업이 승리합니다.</div></div>';
+    h += '<div class="sect">플레이 방법</div><div class="card mute small" style="line-height:1.7">' +
+      '① <b>국가를 클릭</b> → 그 시장이 원하는 역량(KSF)과 기업별 점유율 확인<br>' +
+      '② 📈<b>전략</b>에서 약한 역량에 투자 — NPV가 +면 적격. 시장이 원하는 역량을 키우면 점유율↑<br>' +
+      '③ <b>▶</b> 시간 진행 · <b>⏸</b> 멈춰 판단 — 트렌드·규제로 환경이 계속 변합니다<br>' +
+      '④ 수입(월 현금흐름)은 점유율에서 나옵니다 — 벌어서 재투자하는 선순환' + '</div>';
+    h += '<div class="sect">전략 메뉴</div><div class="card mute small" style="line-height:1.7">' +
+      '🏢 기업 내부(역량·현금) · 🚀 진행 프로젝트(가속·리스크대응) · 🔬 테크트리(영구 업글)<br>' +
+      '📈 전략: <b>내부개발</b>(역량 투자) · <b>M&A</b>(경쟁사 인수) · <b>재무</b>(부채 조달) · <b>해외진출</b><br>' +
+      '국가 시트의 🏛️ <b>로비</b> — 그 시장 KSF를 내 강점 쪽으로' + '</div>';
+    h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
   } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
   }
@@ -256,7 +272,7 @@ function opbtn(s: GameState, action: string, h: string, e: string) {
   const cd = s.venture && !ok ? Math.max(0, (s.venture.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", tech: "🔬 테크트리", codex: "📖 용어집" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", tech: "🔬 테크트리", guide: "❓ 플레이 가이드", codex: "📖 용어집" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 function renderSheet(s: GameState, A: Actions) {
