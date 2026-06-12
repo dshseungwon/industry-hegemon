@@ -34,6 +34,7 @@ export interface GameState {
   marketOrder: string[];
   cash: number;
   debt: number;
+  distress: number;          // 현금 음수(채무불이행) 지속 개월 수 — 파산 카운터
   venture: Venture | null;
   trend: Trend;
   log: string[];
@@ -115,7 +116,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real },
     firms, youIdx, markets, marketOrder: order,
-    cash: 60, debt: 0, venture: null,
+    cash: 60, debt: 0, distress: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
     log: [], fx: [], cooldowns: {}, tech: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
   };

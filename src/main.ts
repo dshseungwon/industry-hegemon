@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -138,13 +138,14 @@ const A: Actions = {
   },
   raiseDebt() {
     if (!s) return;
-    const amt = 40;
+    const room = borrowRoom(s); const amt = Math.min(40, Math.floor(room));
+    if (amt < 5) { flash("차입여력 소진 — 점유율(벌이)을 키워야 빌릴 수 있습니다"); return; }
     s.ui.confirm = {
       title: "재무 — 부채 조달",
       lines: [
-        "조달: <b>+$" + amt + "B</b> 현금 (부채 +$" + amt + "B)",
-        "월 이자(연 5%)가 나가고, 부채가 늘면 <b>WACC(할인율)</b>가 올라 투자 문턱이 높아집니다.",
-        "진행할까요?",
+        "조달: <b>+$" + amt + "B</b> 현금 (차입여력 $" + Math.round(room) + "B)",
+        "신용등급 <b>" + creditRating(s) + "</b> · 이자율 " + (debtRate(s) * 100).toFixed(1) + "% — 레버리지가 오르면 등급↓·이자↑.",
+        "현금 음수가 12개월 지속되면 <b class='red'>파산</b>합니다. 진행할까요?",
       ],
       okLabel: "조달",
       onOk: () => { if (!s) return; engineRaiseDebt(s, amt); s.ui.confirm = null; sfx("select"); render(s, A); },

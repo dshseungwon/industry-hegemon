@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize, borrowRoom, creditRating, leverage, debtRate } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -195,7 +195,7 @@ function panelBody(s: GameState, panel: string): string {
   const you = s.firms[s.youIdx];
   if (panel === "company") {
     const cf = monthlyCashflow(s);
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + capGauge(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
@@ -234,11 +234,16 @@ function panelBody(s: GameState, panel: string): string {
       const can = s.cash >= t.price;
       h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e">역량 흡수(더 높은 값 채택) + <b>경쟁자 제거</b> · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
     });
-    // 3) 재무(자금 조달)
+    // 3) 재무(자금 조달) — 차입여력은 벌이(EBITDA)에 비례
+    const room = borrowRoom(s); const tranche = Math.min(40, Math.floor(room)); const canB = tranche >= 5;
     h += '<div class="sect">재무 — 자금 조달</div>';
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
-      '<button class="actbtn" id="raiseDebt"' + (s.debt >= 250 ? ' disabled' : '') + '>부채로 +$40B 조달</button>' +
-      '<div class="mute small" style="margin-top:6px">부채는 즉시 현금이 되지만 월 이자·WACC 상승을 부릅니다. 큰 인수의 실탄.</div></div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div>' +
+      '<div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div>' +
+      '<div class="kv"><span>레버리지(순부채/EBITDA)</span><b>' + leverage(s).toFixed(1) + 'x</b></div>' +
+      '<div class="kv"><span>차입여력</span><b>$' + fmt(room) + 'B</b></div>' +
+      '<div class="kv"><span>이자율 · WACC</span><b>' + (debtRate(s) * 100).toFixed(1) + '% · ' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
+      '<button class="actbtn" id="raiseDebt"' + (canB ? '' : ' disabled') + '>' + (canB ? '부채로 +$' + tranche + 'B 조달' : '차입여력 소진 — 점유율(벌이)을 키우세요') + '</button>' +
+      '<div class="mute small" style="margin-top:6px">대출 한도 = 4 × 연 EBITDA. 레버리지가 오르면 신용등급↓·이자↑. 현금 음수가 12개월 지속되면 파산합니다.</div></div>';
     // 4) 해외진출(프론티어 시장 개척)
     h += '<div class="sect">해외진출 — 신규 시장 개척</div>';
     const fr = frontierMarkets(s);

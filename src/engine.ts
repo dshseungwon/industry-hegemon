@@ -43,7 +43,15 @@ export function irr(cf: number[]): number | null {
   for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2, fm = npv(m, cf); if (Math.abs(fm) < 1e-6) return m; if (flo * fm < 0) hi = m; else { lo = m; flo = fm; } }
   return (lo + hi) / 2;
 }
-export function waccOf(s: GameState) { const lev = s.debt / Math.max(80, myShare(s) * 1500); return 0.05 + 0.04 + Math.min(0.08, lev * 0.1); }
+// ---- 재무: 차입여력은 벌이(EBITDA)에 비례. 순부채/EBITDA로 신용등급·이자율 결정 ----
+const LEV_MAX = 4;        // 대출 한도 = 4 × 연 EBITDA (Net Debt/EBITDA ≤ 4)
+export function annualEbitda(s: GameState) { return Math.max(0, monthlyCashflow(s) * 12); }
+export function leverage(s: GameState) { const e = annualEbitda(s); return e > 0 ? s.debt / e : (s.debt > 0 ? 99 : 0); }
+export function debtCapacity(s: GameState) { return LEV_MAX * annualEbitda(s); }
+export function borrowRoom(s: GameState) { return Math.max(0, debtCapacity(s) - s.debt); }
+export function creditRating(s: GameState) { const l = leverage(s); return l <= 1 ? "AAA" : l <= 2 ? "AA" : l <= 3 ? "A" : l <= 4 ? "BBB" : l <= 5 ? "BB" : l <= 6 ? "B" : l <= 8 ? "CCC" : "D"; }
+export function debtRate(s: GameState) { return 0.04 + Math.min(0.16, leverage(s) * 0.025); }   // 레버리지↑ → 이자↑
+export function waccOf(s: GameState) { return 0.08 + Math.min(0.08, leverage(s) * 0.012); }
 
 export interface Project { cap: Cap; h: string; e: string; capex: number; P: number; npv: number; irr: number | null; gain: number; dShare: number; }
 export function strategyProjects(s: GameState): Project[] {
@@ -86,8 +94,8 @@ export function doAcquire(s: GameState, rivalKey: string) {
   recomputeLeaders(s);
   pushLog(s, "🤝 " + rival.name + " 인수 완료 — 역량 흡수·경쟁자 제거");
 }
-// 부채 조달: 즉시 현금, 부채 증가(월 이자 + WACC 상승).
-export function raiseDebt(s: GameState, amount: number) { s.cash += amount; s.debt += amount; pushLog(s, "💵 부채 조달 +$" + amount + "B"); }
+// 부채 조달: 차입여력(4×EBITDA) 내에서만. 즉시 현금, 부채 증가(이자·WACC 상승).
+export function raiseDebt(s: GameState, amount: number) { const a = Math.min(amount, borrowRoom(s)); if (a <= 0) return; s.cash += a; s.debt += a; pushLog(s, "💵 부채 조달 +$" + Math.round(a) + "B"); }
 
 function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if (t > 0) for (const p of CAPS) m.pref[p] /= t; }
 
@@ -197,13 +205,18 @@ export function tick(s: GameState) {
       s.venture = null; s.fx.push("complete");
     }
   }
-  // monthly finance: 점유율 기반 수입 − 고정비, 이자
+  // monthly finance: 점유율 기반 수입 − 고정비, 이자(레버리지 연동)
   s.cash += monthlyCashflow(s);
-  if (s.debt > 0) s.cash -= s.debt * (0.05 / 12);
+  if (s.debt > 0) s.cash -= s.debt * (debtRate(s) / 12);
   recomputeLeaders(s);
-  // victory (2조건)
+  // 파산: 채무 불이행(현금 음수)이 12개월 지속되면 게임오버(패배)
+  if (s.cash < 0) { s.distress++; if (s.distress === 6) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 자산매각·점유율 회복 필요"); }
+  else s.distress = 0;
+  // victory (2조건) / 파산
   const youKey = s.firms[s.youIdx].key;
-  if (s.marketOrder.every(n => s.markets[n].leader === youKey)) {
+  if (s.distress >= 12) {
+    s.ui.over = { won: false, msg: "💸 파산 — 채무 불이행으로 경영권 상실" }; s.speed = 0; s.fx.push("lose");
+  } else if (s.marketOrder.every(n => s.markets[n].leader === youKey)) {
     s.ui.over = { won: true, msg: "시장 완전 장악 — 모든 시장 1위!" }; s.speed = 0; s.fx.push("win");
   } else if (s.date >= END_MONTHS) {
     const rank = rankByCaptured(s); const top = rank[0].firm; const won = top.key === youKey;
