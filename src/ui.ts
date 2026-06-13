@@ -472,17 +472,21 @@ const sectorKo: Record<string, string> = {
 };
 
 export function renderTitle(app: HTMLElement, A: Actions) {
+  // 정적 배포(GitHub Pages 등, VITE_STATIC=1)에는 WS 게임 서버가 없어 온라인 버튼을 숨긴다.
+  const staticBuild = (import.meta as any).env?.VITE_STATIC === "1";
   app.innerHTML =
     '<div class="screen title"><div class="hero">' +
     '<div class="logo">🌐 산업 패권</div><div class="tag">Industry Hegemon</div>' +
     '<p class="lede">오늘의 산업을 골라, 한 기업을 운영해 세계 시장을 점령하라.<br>' +
     '시장이 무엇을 원하는지 <b>읽고</b>, 역량에 <b>투자</b>해 1위에 오르는 실시간 경영 전략.</p>' +
     '<button class="btn big" id="toIndustry">산업 선택 →</button>' +
-    '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>' +
+    (staticBuild
+      ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
+      : '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>') +
     '<p class="src">데이터: <a href="https://dshseungwon.github.io/daily-industry-report/" target="_blank" rel="noopener">The Industry Brief</a></p>' +
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
-  document.getElementById("toOnline")!.onclick = () => A.goOnline();
+  const ob = document.getElementById("toOnline"); if (ob) ob.onclick = () => A.goOnline();
 }
 
 export function renderLobby(app: HTMLElement, A: Actions) {

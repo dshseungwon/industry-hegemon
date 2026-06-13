@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+# 빌드된 싱글플레이 게임(dist/)을 GitHub Pages에 배포 → localhost 없이 URL로 플레이.
+# 온라인(멀티)은 WS 서버가 필요해 정적 배포엔 빠짐(VITE_STATIC=1로 버튼 숨김).
+# 사전 설정(1회): 레포 Settings → Pages → Source = "GitHub Actions".
+#                무료 Pages는 public 레포만 가능(또는 Pro/Team 플랜).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - name: Build (static, no online)
+        run: npm run build
+        env:
+          VITE_STATIC: "1"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
