@@ -258,7 +258,7 @@ function panelBody(s: GameState, panel: string): string {
     if (!tgts.length) h += '<div class="card mute small">인수할 경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
     else tgts.forEach(t => {
       const can = you.cash >= t.price;
-      h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e">역량 흡수(더 높은 값 채택) + <b>경쟁자 제거</b> · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
+      h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e"><b>경쟁자 제거</b> + 점유율 흡수(역량은 안 합쳐짐) · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
     });
     // 3) 재무(자금 조달) — 차입여력은 벌이(EBITDA)에 비례
     const room = borrowRoom(s); const tranche = Math.min(40, Math.floor(room)); const canB = tranche >= 5;

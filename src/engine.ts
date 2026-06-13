@@ -145,16 +145,16 @@ export function acquireTargets(s: GameState, fi: number = s.youIdx): MnaTarget[]
     share: tot > 0 ? capturedSize(s, f.key) / tot : 0,
   }));
 }
-// 인수 실행: 각 역량을 더 높은 값으로 흡수하고, 경쟁자를 제거(점유율 분모 축소 → 내 점유율 급등).
+// 인수 실행: 경쟁자만 제거(점유율 분모 축소 → 그 시장 점유율이 남은 기업에 재분배).
+// 역량은 흡수하지 않음 — 그래야 강자가 약체를 사서 약점 역량까지 메워 전 시장을 석권하는 조기 완전장악 허점이 사라짐.
 export function doAcquire(s: GameState, fi: number, rivalKey: string) {
   const you = s.firms[fi];
   const idx = s.firms.findIndex(f => f.key === rivalKey);
   if (idx < 0 || s.firms[idx].key === you.key) return;
   const rival = s.firms[idx];
-  for (const k of CAPS) you.caps[k] = clamp(Math.max(you.caps[k], rival.caps[k]), 0, 100);
   s.firms.splice(idx, 1);                 // 경쟁자 제거 — 호출측이 각자 youIdx를 키로 재해결해야 함
   recomputeLeaders(s);
-  pushLog(s, "🤝 " + rival.name + " 인수 완료 — 역량 흡수·경쟁자 제거");
+  pushLog(s, "🤝 " + rival.name + " 인수 완료 — 경쟁자 제거(점유율 흡수, 역량은 합쳐지지 않음)");
 }
 // 부채 조달: 차입여력(4×EBITDA) 내에서만. 즉시 현금, 부채 증가(이자·WACC 상승).
 export function raiseDebt(s: GameState, fi: number, amount: number) { const f = s.firms[fi]; const a = Math.min(amount, borrowRoom(s, fi)); if (a <= 0) return; f.cash += a; f.debt += a; pushLog(s, "💵 " + f.name + " 부채 조달 +$" + Math.round(a) + "B"); }
