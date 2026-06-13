@@ -110,9 +110,11 @@ export function irr(cf: number[]): number | null {
 // ---- 재무: 차입여력은 벌이(EBITDA)에 비례. 순부채/EBITDA로 신용등급·이자율 결정 ----
 const LEV_MAX = 4;        // 대출 한도 = 4 × 연 EBITDA (Net Debt/EBITDA ≤ 4)
 export function annualEbitda(s: GameState, fi: number = s.youIdx) { return Math.max(0, monthlyCashflow(s, fi) * 12); }
-export function leverage(s: GameState, fi: number = s.youIdx) { const e = annualEbitda(s, fi), d = s.firms[fi].debt; return e > 0 ? d / e : (d > 0 ? 99 : 0); }
+// 증자 신용 드래그: 유상증자 횟수×계수만큼 '유령 부채'로 신용에 부담(leverage·차입여력에 반영).
+export function creditDrag(s: GameState, fi: number = s.youIdx) { return s.firms[fi].equityRaises * EQUITY_CREDIT_DRAG; }
+export function leverage(s: GameState, fi: number = s.youIdx) { const e = annualEbitda(s, fi), d = s.firms[fi].debt + creditDrag(s, fi); return e > 0 ? d / e : (d > 0 ? 99 : 0); }
 export function debtCapacity(s: GameState, fi: number = s.youIdx) { return LEV_MAX * annualEbitda(s, fi); }
-export function borrowRoom(s: GameState, fi: number = s.youIdx) { return Math.max(0, debtCapacity(s, fi) - s.firms[fi].debt); }
+export function borrowRoom(s: GameState, fi: number = s.youIdx) { return Math.max(0, debtCapacity(s, fi) - s.firms[fi].debt - creditDrag(s, fi)); }
 export function creditRating(s: GameState, fi: number = s.youIdx) { const l = leverage(s, fi); return l <= 1 ? "AAA" : l <= 2 ? "AA" : l <= 3 ? "A" : l <= 4 ? "BBB" : l <= 5 ? "BB" : l <= 6 ? "B" : l <= 8 ? "CCC" : "D"; }
 export function debtRate(s: GameState, fi: number = s.youIdx) { return 0.04 + Math.min(0.16, leverage(s, fi) * 0.025); }   // 레버리지↑ → 이자↑
 export function waccOf(s: GameState, fi: number = s.youIdx) { return 0.08 + Math.min(0.08, leverage(s, fi) * 0.012); }
@@ -163,18 +165,21 @@ export function raiseDebt(s: GameState, fi: number, amount: number) { const f = 
 // ===== 비상 경영(현금<0): 유동성 위기 회생 수단 =====
 const BANKRUPT_MONTHS = 12;        // 현금 음수가 이만큼 지속되면 파산
 const EQUITY_CD = 18;              // 유상증자 쿨다운(개월) — 남발 방지
+const EQUITY_DECAY = 0.65;         // 증자 1회당 기준액 ×0.65 체감(투자자 경계)
+const EQUITY_CREDIT_DRAG = 25;     // 증자 1회당 유령부채(신용 부담) — 등급↓·이자/WACC↑·차입여력↓
 const AUSTERITY_KEEP = 4;          // 비상 긴축 시 유지할 강세 시장 수
 export function insolvent(s: GameState, fi: number = s.youIdx) { return s.firms[fi].cash < 0; }
 export function bankruptcyIn(s: GameState, fi: number = s.youIdx) { return Math.max(0, BANKRUPT_MONTHS - (s.firms[fi].distress || 0)); }
 
 // 유상증자: 회사 규모(점령 매출 기반)에 비례한 일회성 자본 투입. 부채 아님(이자 없음), 쿨다운이 유일 제약.
-export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3), 25, 200); }
+export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3 * Math.pow(EQUITY_DECAY, s.firms[fi].equityRaises)), 15, 200); }
 export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity"); }
 export function equityCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["equity"] || 0) - s.date); }
 export function raiseEquity(s: GameState, fi: number = s.youIdx) {
   if (!canRaiseEquity(s, fi)) return;
-  const amt = equityRaiseAmount(s, fi); s.firms[fi].cash += amt; setActCooldown(s, fi, "equity", EQUITY_CD);
-  pushLog(s, "🏦 " + s.firms[fi].name + " 유상증자 — 자본 +$" + amt + "B (주주 자본 투입)");
+  const f = s.firms[fi]; const amt = equityRaiseAmount(s, fi);
+  f.cash += amt; f.equityRaises++; setActCooldown(s, fi, "equity", EQUITY_CD);
+  pushLog(s, "🏦 " + f.name + " 유상증자 +$" + amt + "B (지분 희석·신용 부담↑, " + f.equityRaises + "회차)");
 }
 // 비상 긴축: 적합도 상위 강세 시장만 남기고 나머지 할당을 1로 → 월 유지비 급감(점유율 일부 희생).
 function nonCoreMarkets(s: GameState, fi: number) {

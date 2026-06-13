@@ -7,6 +7,7 @@ export interface Firm {
   key: string; name: string; col: string; caps: Record<Cap, number>; ai: string;
   // 플레이어별 경제(멀티: 각 firm이 자기 회사를 독립적으로 운영)
   cash: number; debt: number; distress: number;
+  equityRaises: number;             // 유상증자 누적 횟수 — 증자할수록 금액 체감 + 신용 부담↑
   ventures: Venture[];              // 동시 진행 내부개발(역량별 최대 1개)
   cooldowns: Record<string, number>; tech: string[];
   home: string;                     // 본진(HQ) 시장명 — 자원 전송의 출발지
@@ -123,7 +124,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).

@@ -230,7 +230,7 @@ function renderEmergency(s: GameState, A: Actions) {
   el.innerHTML =
     '<div class="emhead">🚨 비상 경영 — 파산까지 <b>' + months + '개월</b> <span class="emcash">현금 $' + fmt(me.cash) + 'B</span></div>' +
     '<div class="embtns">' +
-    b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + eqCd + '개월' : '+$' + eqAmt + 'B')) +
+    b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + eqCd + '개월' : '+$' + eqAmt + 'B' + (me.equityRaises > 0 ? ' (' + (me.equityRaises + 1) + '회차·체감)' : ''))) +
     b("emLoan", room < 5, '💵 긴급 대출 ' + (room < 5 ? '여력 없음' : '+$' + room + 'B')) +
     b("emAusterity", save <= 0.05, '✂️ 비상 긴축 ' + (save > 0.05 ? '−$' + save.toFixed(1) + '/월' : '여지 없음')) +
     b("emLiquidate", liq <= 0, '🛑 개발 중단 ' + (liq > 0 ? '+$' + liq + 'B' : '없음')) +
@@ -322,7 +322,7 @@ function panelBody(s: GameState, panel: string): string {
   const you = s.firms[s.youIdx];
   if (panel === "company") {
     const cf = monthlyCashflow(s); const upk = allocUpkeep(s, s.youIdx); const net = cf - upk;
-    h += '<div class="card"><div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div><div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div><div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' + (you.equityRaises > 0 ? '<div class="kv"><span>유상증자</span><b class="red">' + you.equityRaises + '회 · 신용 부담↑</b></div>' : '') + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
