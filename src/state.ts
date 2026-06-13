@@ -111,18 +111,36 @@ export const CODEX = [
   { t: "M&A", en: "인수합병", d: "경쟁사를 사들여 역량·점유율을 흡수·제거하는 전략. 비싸고 통합 리스크가 있습니다." },
 ];
 
+// 시작 기반 영향력 시딩용 적합도(engine.gcap/matchScore와 동일식; 순환 import 방지 위해 로컬 복제).
+const _gcap = (c: number) => Math.pow(Math.max(0, Math.min(100, c)) / 100, 0.7) * 100;
+const _fit = (caps: Record<Cap, number>, pref: Record<Cap, number>) => { let s = 0; for (const k of CAPS) s += (pref[k] || 0) * _gcap(caps[k]); return s; };
+const INCUMBENCY = 1.0;   // 적합도 1위 기업이 받는 추가 기반 영향력(단계). 0이면 모두 균일하게 1단계로 시작.
+                          // 1.0이면 시장별 최강 기업이 영향력 2.0, 최약 1.0으로 시작(점유율↑=기반 영향력↑).
+
 export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 0): GameState {
   const homePref = ["South Korea", "United States of America", "China", "Japan", "Germany", "India"];
+  const mpref: Record<string, Record<Cap, number>> = {};
+  for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
-    const alloc: Record<string, number> = {}, effort: Record<string, number> = {};
-    for (const m of scenario.markets) { alloc[m.name] = 1; effort[m.name] = 1; }   // 기존 12개 시장엔 기본 할당 1로 진출. 프론티어는 미진출.
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, ventures: [], cooldowns: {}, tech: [], home, alloc, effort, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, auto: i !== youIdx };
   });
+  // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
+  // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).
+  for (const m of scenario.markets) {
+    const fits = firms.map(f => _fit(f.caps, mpref[m.name]));
+    const mn = Math.min(...fits), mx = Math.max(...fits);
+    firms.forEach((f, i) => {
+      const r = mx > mn ? (fits[i] - mn) / (mx - mn) : 0;   // 0(최약)~1(최강)
+      const lvl = 1 + INCUMBENCY * r;
+      f.effort[m.name] = lvl;                       // 시작 영향력 = 강할수록 큼(부드러운 단계, 바에 바로 보임)
+      f.alloc[m.name] = Math.max(1, Math.round(lvl)); // 할당(유지비)은 반올림 단계 — 약체는 1(유지비 0)로 부담 없이 시작
+    });
+  }
   const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};
   const order: string[] = [];
-  for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: full(m.pref), size: m.size, leader: youKey }; order.push(m.name); }
+  for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: mpref[m.name], size: m.size, leader: youKey }; order.push(m.name); }
   // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방.
   for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: f.size, leader: youKey }; }
   return {
