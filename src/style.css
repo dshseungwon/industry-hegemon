@@ -171,6 +171,15 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .logitem:first-child{color:#fff;}
 .menucol{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
 .menucol .btn{width:100%;}
+.ksfchips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0;}
+.ksfchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#cfe0f3;background:#0e2745;border:1px solid var(--line);border-radius:999px;padding:2px 8px;}
+.ksfchip i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.ksfchip b{color:#fff;}
+.ksfwhy{font-size:12.5px;color:#dCEBFb;background:#102a48;border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin:8px 0;line-height:1.5;}
+.firmrows{display:flex;flex-direction:column;}
+.firmrow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 6px;border-bottom:1px solid #122a45;}
+.firmrow b{color:var(--gold);}
+a.rlink.big{display:block;text-align:center;margin-top:10px;padding:9px;background:#16314f;border:1px solid var(--line);border-radius:9px;}
 .icard{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,transform .1s;}
 .icard:hover{border-color:var(--gold);transform:translateY(-2px);}
 .icard.feat{border-color:var(--gold);background:linear-gradient(160deg,#1a3a2e,#15314f);grid-column:1/-1;}

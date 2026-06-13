@@ -3,6 +3,7 @@ import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
+import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
 
 export interface Actions {
@@ -19,6 +20,7 @@ export interface Actions {
   toTitle(): void;
   toIndustry(): void;
   toCompany(): void;
+  studyIntel(gics: string): void;
   goOnline(): void;
   createRoom(name: string): void;
   joinRoom(code: string, name: string): void;
@@ -181,7 +183,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
-      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) +
+      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("intel", "📊", s) +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
@@ -241,6 +243,7 @@ function renderPanel(s: GameState, A: Actions) {
   const reC = document.getElementById("mReCompany"); if (reC) reC.onclick = () => A.toCompany();
   const reI = document.getElementById("mReIndustry"); if (reI) reI.onclick = () => A.toIndustry();
   const reT = document.getElementById("mToTitle"); if (reT) reT.onclick = () => A.toTitle();
+  o.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
 }
 
 function panelBody(s: GameState, panel: string): string {
@@ -330,7 +333,17 @@ function panelBody(s: GameState, panel: string): string {
       '🏢 기업 내부 · 🔬 연구개발(역량·테크) · 🏛️ 로비(시장 선호를 우리에게 유리하게)<br>' +
       '📈 전략: <b>내부개발</b>(역량) · <b>M&A</b>(인수) · <b>재무</b>(부채) · <b>해외진출</b>' + '</div>';
     h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
+  } else if (panel === "intel") {
+    const it = industryIntel(scenarioGics(s.scenario.key));
+    h += '<div class="card mute small">현재 산업 <b>' + esc(it.ko) + '</b> — The Industry Brief 실데이터. KSF·실제 1위 기업을 읽고 어디에 투자할지 판단하세요.</div>';
+    h += intelBlock(it);
+    if (it.reportFile) h += '<a class="rlink big" data-gics="' + esc(it.gics) + '" href="https://dshseungwon.github.io/daily-industry-report/' + esc(it.reportFile) + '" target="_blank" rel="noopener">📖 브리프 리포트 전문 읽기 ↗</a>';
   } else if (panel === "codex") {
+    const got = unlockedGics();
+    h += '<div class="sect">📚 수집한 산업 인텔 ' + got.length + '/' + intelTotal() + '</div>';
+    if (got.length) h += got.map(g => { const it = industryIntel(g); return '<div class="codex"><div class="t">' + esc(it.ko) + (it.sector ? ' <span class="en">' + esc(it.sector) + '</span>' : '') + '</div>' + (it.ksf ? ksfChips(it.ksf) + '<div class="d">' + it.why + '</div>' : '<div class="d mute">KSF 데이터 준비중</div>') + '</div>'; }).join("");
+    else h += '<div class="card mute small">📊 산업 인텔을 열거나 브리프 리포트를 읽으면 여기에 수집됩니다.</div>';
+    h += '<div class="sect">용어</div>';
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
   } else if (panel === "log") {
     h += '<div class="card mute small">시장에서 일어난 일들 — 트렌드·규제, 개발 완성, 경쟁사 인수·파산, 진출 등(최근 40건).</div>';
@@ -353,7 +366,7 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 function renderSheet(s: GameState, A: Actions) {
@@ -510,11 +523,13 @@ export function setRoomBadge(text: string | null) {
 export function renderIndustry(app: HTMLElement, A: Actions) {
   const all: BriefMeta[] = [BUILTIN_META, ...BRIEFS];
   const card = (m: BriefMeta, featured: boolean) => {
-    const link = m.file ? '<a class="rlink" href="https://dshseungwon.github.io/daily-industry-report/' + esc(m.file) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">리포트 ↗</a>' : '';
+    const link = m.file ? '<a class="rlink" data-gics="' + esc(m.gics) + '" href="https://dshseungwon.github.io/daily-industry-report/' + esc(m.file) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">리포트 ↗</a>' : '';
+    const it = industryIntel(m.gics);
     return '<button class="icard' + (featured ? ' feat' : '') + '" data-gics="' + esc(m.gics) + '">' +
       '<div class="ih"><span class="chip">' + (sectorKo[m.sector] || m.sector) + '</span>' + (featured ? '<span class="bdg go">기준 시나리오</span>' : '') + link + '</div>' +
       '<div class="iname">' + m.industry_ko + '</div>' +
       '<div class="ihead">' + m.headline_ko + '</div>' +
+      (it.hasData && it.ksf ? ksfChips(it.ksf) : '') +
       '<div class="ico"><span>🌐 ' + m.global_company + '</span><span>🇰🇷 ' + m.korea_company + '</span></div>' +
       '</button>';
   };
@@ -526,8 +541,26 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
   app.querySelectorAll<HTMLElement>(".icard").forEach(b => b.onclick = () => {
     const g = b.dataset.gics!; const meta = all.find(m => m.gics === g)!; A.pickIndustry(meta);
   });
+  app.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
 }
 
+// 산업 KSF 가중치를 칩 행으로(선택 카드용). 실데이터(0~1) → %.
+function ksfChips(ksf: Record<Cap, number>): string {
+  return '<div class="ksfchips">' + CAPS.map(k => '<span class="ksfchip"><i style="background:' + CAPCOL[k] + '"></i>' + CAPKO[k] + ' <b>' + Math.round(ksf[k] * 100) + '</b></span>').join("") + '</div>';
+}
+// 산업 인텔 블록(기업 선택 카드 + 인게임 패널 공용): KSF 막대 + why + 실제 기업·점유율.
+function intelBlock(it: IndustryIntel): string {
+  if (!it.hasData || !it.ksf) return '<div class="card mute small">이 산업의 KSF 실데이터는 준비 중입니다(섹터 근사치로 플레이).</div>';
+  const ksf = it.ksf;
+  let h = '<div class="sect">이 산업의 KSF(핵심성공요인)</div><div class="cbars">' + capBars(k => ksf[k] * 100) + '</div>';
+  h += '<div class="ksfwhy">📌 ' + it.why + '</div>';
+  if (it.topFirms.length) {
+    const hasShare = it.topFirms.some(f => f.share !== undefined);
+    h += '<div class="sect">실제 주요 기업' + (hasShare ? ' · 점유율' : '') + '</div><div class="firmrows">' +
+      it.topFirms.map(f => '<div class="firmrow"><span>' + esc(f.en) + (f.ko ? ' <span class="mute">' + esc(f.ko) + '</span>' : '') + '</span>' + (f.share !== undefined ? '<b>' + f.share + '%</b>' : '') + '</div>').join("") + '</div>';
+  }
+  return h;
+}
 // 기업 caps에서 강점/약점과 플레이 성향을 한 줄 설명으로 도출(데이터에 별도 설명 필드가 없어 caps·역할에서 생성).
 const CAP_MARKET: Record<Cap, string> = {
   tech: "기술 선도 시장(미국·독일·일본)", brand: "프리미엄·선진 시장",
@@ -554,10 +587,12 @@ export function renderCompany(app: HTMLElement, sc: import("./state").IndustrySc
     '<div class="screen list"><div class="cwrap"><div class="lhead"><button class="back" id="back">←</button>' +
     '<div><h2>' + sc.ko + '</h2><div class="mute small">' + (sectorKo[sc.sector] || sc.sector) + '</div></div></div>' +
     '<div class="card"><div class="ihead">' + sc.headline + '</div>' +
-    '<div class="ico"><a class="rlink" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
-    (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div></div>' +
+    '<div class="ico"><a class="rlink" data-gics="' + esc(scenarioGics(sc.key)) + '" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
+    (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div>' +
+    intelBlock(industryIntel(scenarioGics(sc.key))) + '</div>' +
     '<div class="sect">어느 기업을 운영할까요?</div>' +
     '<div class="ccards">' + sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div></div></div>';
   document.getElementById("back")!.onclick = () => A.toIndustry();
   app.querySelectorAll<HTMLElement>(".ccard .btn").forEach(b => b.onclick = () => A.pickCompany(Number(b.dataset.idx)));
+  app.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
 }

@@ -4,6 +4,7 @@ import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCoold
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
+import { unlockIntel, industryIntel, scenarioGics } from "./intel";
 import { sfx, unlockAudio, startBgm } from "./audio";
 import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 
@@ -118,6 +119,8 @@ const A: Actions = {
   toIndustry() { unlockAudio(); if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "industry"; s = null; sfx("select"); paint(); },
   // 같은 산업에서 기업 다시 선택. 온라인이거나 시나리오가 없으면 타이틀로 폴백.
   toCompany() { if (!pickedScenario || online) { A.toTitle(); return; } if (timer) clearTimeout(timer); phase = "company"; s = null; sfx("select"); paint(); },
+  // 산업 인텔 해금(리포트 열람·인텔 확인 시) — localStorage 수집, 게임 경제엔 영향 없음.
+  studyIntel(gics) { if (unlockIntel(gics)) { flash("📖 산업 인텔 해금: " + industryIntel(gics).ko); sfx("invest"); if (s) render(s, A); } },
   goOnline() { unlockAudio(); sfx("select"); phase = "lobby"; s = null; paint(); },
   createRoom(name) { sfx("invest"); connectOnline({ mode: "create", name }); },
   joinRoom(code, name) { sfx("select"); connectOnline({ mode: "join", room: code, name }); },
@@ -133,6 +136,7 @@ const A: Actions = {
     if (!s) return;
     if (p === "company") s.ui.leftPanel = s.ui.leftPanel === p ? "none" : p;   // 기업 내부는 왼쪽 드로어(독립)
     else s.ui.panel = s.ui.panel === p ? "none" : p;
+    if (p === "intel" && s.ui.panel === "intel") { const g = scenarioGics(s.scenario.key); if (unlockIntel(g)) flash("📖 산업 인텔 해금: " + industryIntel(g).ko); }
     sfx("click"); render(s, A);
   },
   selectCountry(n) { if (!s) return; s.ui.country = n; if (n) sfx("click"); render(s, A); },
