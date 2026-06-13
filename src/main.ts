@@ -15,6 +15,7 @@ const app = document.getElementById("app")!;
 type Phase = "title" | "lobby" | "industry" | "company" | "game";
 let phase: Phase = "title";
 let pickedScenario: IndustryScenario | null = null;
+let pendingOnlineName: string | null = null;   // 온라인 '방 만들기' 중이면(닉네임 보관) — 산업 선택 후 방 생성
 let s: GameState | null = null;
 // 온라인(권위서버) 모드 — 서버가 시간·상태를 소유, 클라는 렌더+액션 전송
 let online = false;
@@ -54,7 +55,7 @@ function schedule() {
 
 // ----- 온라인 모드 (로비 → 방 생성/참가) -----
 function roomBadge() { const ppl = rosterInfo.filter(r => r.human).length; setRoomBadge("🌐 방 " + roomCode + " · " + ppl + "명"); }
-function connectOnline(join: { mode: "create" | "join"; room?: string; name?: string }) {
+function connectOnline(join: { mode: "create" | "join"; room?: string; name?: string; scenario?: IndustryScenario }) {
   unlockAudio(); startBgm();
   if (timer) clearTimeout(timer);
   online = true; s = null; youIdxNet = -1; myKeyNet = "";
@@ -125,18 +126,24 @@ function introSpec() {
 
 const A: Actions = {
   // ----- 사전 화면 흐름 -----
-  toTitle() { if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "title"; s = null; pickedScenario = null; sfx("click"); paint(); },
+  toTitle() { if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "title"; s = null; pickedScenario = null; pendingOnlineName = null; sfx("click"); paint(); },
   toIndustry() { unlockAudio(); if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "industry"; s = null; sfx("select"); paint(); },
   // 같은 산업에서 기업 다시 선택. 온라인이거나 시나리오가 없으면 타이틀로 폴백.
   toCompany() { if (!pickedScenario || online) { A.toTitle(); return; } if (timer) clearTimeout(timer); phase = "company"; s = null; sfx("select"); paint(); },
   // 산업 인텔 해금(리포트 열람·인텔 확인 시) — localStorage 수집, 게임 경제엔 영향 없음.
   studyIntel(gics) { if (unlockIntel(gics)) { flash("📖 산업 인텔 해금: " + industryIntel(gics).ko); sfx("invest"); if (s) render(s, A); } },
   goOnline() { unlockAudio(); sfx("select"); phase = "lobby"; s = null; paint(); },
-  createRoom(name) { sfx("invest"); connectOnline({ mode: "create", name }); },
+  // 방 만들기 = 먼저 산업 선택 → 그 시나리오로 방 생성(방장이 산업을 고른다)
+  createRoom(name) { pendingOnlineName = name || ""; phase = "industry"; sfx("select"); paint(); },
   joinRoom(code, name) { sfx("select"); connectOnline({ mode: "join", room: code, name }); },
   pickIndustry(meta: BriefMeta) {
-    pickedScenario = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
-    phase = "company"; sfx("select"); paint();
+    const sc = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
+    if (pendingOnlineName !== null) {                // 온라인 방 만들기 — 이 시나리오로 방 생성
+      const name = pendingOnlineName; pendingOnlineName = null;
+      sfx("invest"); connectOnline({ mode: "create", name, scenario: sc });
+      return;
+    }
+    pickedScenario = sc; phase = "company"; sfx("select"); paint();
   },
   pickCompany(youIdx: number) { sfx("invest"); startGame(youIdx); },
 

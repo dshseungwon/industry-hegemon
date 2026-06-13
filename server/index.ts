@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from "fs";
 import { join, extname } from "path";
 import { fileURLToPath } from "url";
 import { networkInterfaces } from "os";
-import { GameState, newGame, CAPKO, Cap } from "../src/state";
+import { GameState, newGame, CAPKO, Cap, IndustryScenario } from "../src/state";
 import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
   acquireTargets, doAcquire, raiseDebt, borrowRoom, lobbyCost, doLobby, canAct, setActCooldown,
@@ -32,9 +32,9 @@ const rooms = new Map<string, Room>();
 const roomOf = new Map<WebSocket, Room>();
 
 function makeCode() { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += a[Math.floor(Math.random() * a.length)]; return rooms.has(c) ? makeCode() : c; }
-function newRoom(code?: string): Room {
-  const state = newGame(); for (const f of state.firms) f.auto = true; recomputeLeaders(state);
-  const room: Room = { code: code || makeCode(), state, clients: new Set(), players: new Map() };
+function newRoom(scenario?: IndustryScenario): Room {
+  const state = newGame(scenario); for (const f of state.firms) f.auto = true; recomputeLeaders(state);
+  const room: Room = { code: makeCode(), state, clients: new Set(), players: new Map() };
   rooms.set(room.code, room); return room;
 }
 function world(state: GameState) { const { ui, fx, ...rest } = state; void fx; return { ...rest, over: ui.over }; }
@@ -98,7 +98,8 @@ wss.on("connection", (ws) => {
   ws.on("message", (buf) => {
     let msg: any; try { msg = JSON.parse(String(buf)); } catch { return; }
     if (msg.type === "create" || msg.type === "join") {
-      let room = msg.type === "create" ? newRoom() : rooms.get(String(msg.room || "").toUpperCase());
+      const sc = (msg.scenario && Array.isArray(msg.scenario.markets) && Array.isArray(msg.scenario.firms)) ? msg.scenario as IndustryScenario : undefined;
+      let room = msg.type === "create" ? newRoom(sc) : rooms.get(String(msg.room || "").toUpperCase());
       if (!room) { send(ws, { type: "error", msg: "방을 찾을 수 없습니다: " + msg.room }); return; }
       room.clients.add(ws); roomOf.set(ws, room);
       const youIdx = claimFirm(room, ws, String(msg.name || ""));

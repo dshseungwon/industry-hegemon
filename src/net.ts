@@ -26,9 +26,9 @@ export function defaultUrl() {
   return (l.protocol === "https:" ? "wss:" : "ws:") + "//" + l.host + "/ws";
 }
 
-export function connect(url: string, join: { mode: "create" | "join"; room?: string; name?: string }, h: NetHandlers): NetClient {
+export function connect(url: string, join: { mode: "create" | "join"; room?: string; name?: string; scenario?: any }, h: NetHandlers): NetClient {
   const ws = new WebSocket(url);
-  ws.onopen = () => ws.send(JSON.stringify(join.mode === "create" ? { type: "create", name: join.name } : { type: "join", room: join.room, name: join.name }));
+  ws.onopen = () => ws.send(JSON.stringify(join.mode === "create" ? { type: "create", name: join.name, scenario: join.scenario } : { type: "join", room: join.room, name: join.name }));
   ws.onmessage = (ev) => {
     let m: any; try { m = JSON.parse(ev.data); } catch { return; }
     if (m.type === "welcome") h.onWelcome(m);
