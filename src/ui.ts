@@ -57,12 +57,32 @@ export function mountGame(app: HTMLElement, A: Actions) {
 }
 // 자원 이동(전송) 시각화 — 본진→대상으로 점이 흐름(CoC식)
 const centroidCache: Record<string, [number, number] | null> = {};
+let _mapByName: Record<string, string> | null = null;
+function mapPathD(name: string): string | undefined {
+  if (!_mapByName) { _mapByName = {}; for (const c of MAPDATA) _mapByName[c.n] = c.d; }
+  return _mapByName[name];
+}
+// 국가 중심 — 전체 bbox가 아니라 '본토(면적 최대 서브패스)'의 중심을 쓴다.
+// (France 해외영토·USA 알래스카·Russia 경도횡단·Indonesia 군도는 전체 bbox 중심이 바다에 찍혀 보급선이 엉뚱한 곳을 가리킴)
 function centroidOf(name: string): [number, number] | null {
   if (name in centroidCache) return centroidCache[name];
-  const el = document.querySelector<SVGPathElement>('#map path[data-n="' + esc(name) + '"]');
-  let c: [number, number] | null = null;
-  if (el) { try { const b = el.getBBox(); c = [b.x + b.width / 2, b.y + b.height / 2]; } catch { /* noop */ } }
-  centroidCache[name] = c; return c;
+  const d = mapPathD(name);
+  let best: [number, number] | null = null, bestArea = -1;
+  if (d) {
+    for (const sub of d.split(/(?=M)/)) {                       // 서브패스(M 기준) 분할 — d는 M/L/Z 절대좌표 폴리곤
+      const nums = sub.match(/-?\d+(?:\.\d+)?/g);
+      if (!nums || nums.length < 4) continue;
+      let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+      for (let i = 0; i + 1 < nums.length; i += 2) {             // 연속쌍 = (x,y) 정점
+        const x = +nums[i], y = +nums[i + 1];
+        if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
+      }
+      const area = (maxx - minx) * (maxy - miny);
+      if (area > bestArea) { bestArea = area; best = [(minx + maxx) / 2, (miny + maxy) / 2]; }
+    }
+  }
+  if (best) centroidCache[name] = best;                          // 유효값만 캐시(실패는 다음 렌더 재시도)
+  return best;
 }
 // 자원 흐름 시각화 — 내가 자원을 할당 중인 시장으로 본진에서 점이 계속 흐름(할당 1단계당 점 1개)
 function renderTransit(s: GameState) {
