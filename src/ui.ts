@@ -90,8 +90,13 @@ function zoomAround(svg: SVGSVGElement, cx: number, cy: number, factor: number) 
   mtx = cx - r * (cx - mtx); mty = cy - r * (cy - mty); mk = nk;
   clampXform(); applyXform(svg);
 }
+const INITIAL_ZOOM = 1.25;   // 기본부터 살짝 확대 → 시작부터 드래그로 팬 가능(여백 확보)
+function resetView(svg: SVGSVGElement) {
+  mk = INITIAL_ZOOM; mtx = -(mk - 1) * window.innerWidth / 2; mty = -(mk - 1) * window.innerHeight / 2;
+  clampXform(); applyXform(svg);
+}
 function setupMapNav(svg: SVGSVGElement, A: Actions) {
-  mk = 1; mtx = 0; mty = 0; applyXform(svg);
+  resetView(svg);
   let drag = false, moved = false, sx = 0, sy = 0, tx0 = 0, ty0 = 0;
 
   svg.addEventListener("wheel", (e) => {
@@ -119,7 +124,7 @@ function setupMapNav(svg: SVGSVGElement, A: Actions) {
 
   document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
     const z = b.dataset.z;
-    if (z === "reset") { mk = 1; mtx = 0; mty = 0; clampXform(); applyXform(svg); }
+    if (z === "reset") resetView(svg);
     else zoomAround(svg, window.innerWidth / 2, window.innerHeight / 2, z === "in" ? 1.4 : 1 / 1.4);
   });
 }
@@ -368,20 +373,21 @@ function renderSheet(s: GameState, A: Actions) {
   const lb = document.getElementById("lobbyBtn") as HTMLButtonElement | null;
   if (lb && !lb.disabled) lb.onclick = () => A.lobby(s.ui.country!);
 }
-// 공략 — 본진에서 자원을 파견(이동→도착→영향력). 도착해야 점유율이 오름.
+// 공략 — 본진에서 자원을 계속 파견(이동→도착→영향력). 유지하려면 지속적으로 보내야 함.
 function campaignSect(s: GameState): string {
   const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
-  const cost = campaignCost(s, n); const ok = canAct(s, s.youIdx, "camp:" + n);
-  const cd = ok ? 0 : Math.max(0, (me.cooldowns["camp:" + n] || 0) - s.date);
-  const inTransit = me.transit.find(x => x.to === n);
-  const mine = me.effort[n] || 0;
-  const dis = !ok || me.cash < cost || !!inTransit;
-  const label = inTransit ? '🚚 자원 이동 중…' : ok ? '🎯 자원 파견 — $' + cost + 'B (도착 ' + SHIP_TRAVEL + '개월)' : '쿨다운 ' + cd + '개월';
-  return '<div class="sect">🎯 공략 — 자원 파견</div><div class="card">' +
-    '<div class="kv"><span>내 영향력</span><b>' + mine.toFixed(1) + '</b></div>' +
+  const cost = campaignCost(s, n);
+  const enroute = me.transit.filter(x => x.to === n);
+  const nextEta = enroute.length ? Math.min(...enroute.map(x => Math.max(0, x.arrive - s.date))) : 0;
+  // 기업별 영향력(상대 포함)
+  const infRows = s.firms.map(f => ({ f, e: f.effort[n] || 0 })).filter(x => x.e > 0).sort((a, b) => b.e - a.e)
+    .map(({ f, e }) => '<div class="barrow"><span class="bl" style="color:' + f.col + '">' + f.name + '</span><div class="bt"><div class="bf" style="width:' + Math.min(100, e / 4 * 100).toFixed(0) + '%;background:' + f.col + '"></div></div><span class="bv">' + e.toFixed(1) + '</span></div>').join("");
+  const dis = me.cash < cost;
+  return '<div class="sect">🎯 공략 — 자원 파견 (계속 보내 유지)</div><div class="card">' +
     '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
-    (inTransit ? '<div class="kv"><span>🚚 본진→' + m.ko + '</span><b class="gold">' + Math.max(0, inTransit.arrive - s.date) + '개월 후 도착</b></div>' : '') +
-    '<button class="actbtn" id="campBtn"' + (dis ? ' disabled' : '') + '>' + label + '</button></div>';
+    (enroute.length ? '<div class="kv"><span>🚚 이동 중</span><b class="gold">' + enroute.length + '건 · 다음 도착 ' + nextEta + '개월</b></div>' : '') +
+    '<div class="sect" style="margin-top:6px">기업별 영향력</div>' + (infRows || '<div class="mute small">아직 아무도 영향력이 없습니다.</div>') +
+    '<button class="actbtn" id="campBtn"' + (dis ? ' disabled' : '') + '>🎯 자원 파견 — $' + cost + 'B (도착 ' + SHIP_TRAVEL + '개월)</button></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {

@@ -279,10 +279,9 @@ const A: Actions = {
   campaign(marketName) {
     if (!s) return;
     if (online) { net?.send({ kind: "campaign", market: marketName }); sfx("accel"); return; }
-    if (!canAct(s, s.youIdx, "camp:" + marketName)) { flash("아직 쿨다운입니다"); return; }
     const me = s.firms[s.youIdx]; const cost = campaignCost(s, marketName);
     if (me.cash < cost) { flash("현금이 부족합니다"); return; }
-    me.cash -= cost; doCampaign(s, s.youIdx, marketName); setActCooldown(s, s.youIdx, "camp:" + marketName, 1);
+    me.cash -= cost; doCampaign(s, s.youIdx, marketName);   // 쿨다운 없음 — 계속 보낼 수 있음(현금이 한도)
     recomputeLeaders(s); sfx("accel"); render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },

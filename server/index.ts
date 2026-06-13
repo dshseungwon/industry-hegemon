@@ -58,7 +58,7 @@ function applyAction(state: GameState, fi: number, a: Action) {
     case "lobby": { if (!canAct(state, fi, "lobby:" + a.market)) break; const c = lobbyCost(state, a.market); if (f.cash >= c) { f.cash -= c; doLobby(state, fi, a.market); setActCooldown(state, fi, "lobby:" + a.market, 5); recomputeLeaders(state); } break; }
     case "research": { const n = TECH_NODES.find(x => x.key === a.key); if (n && !f.tech.includes(a.key) && f.cash >= n.cost) { f.cash -= n.cost; doResearch(state, fi, a.key); } break; }
     case "enter": { const c = entryCost(state, a.market); if (f.cash >= c) { f.cash -= c; doEnter(state, fi, a.market); } break; }
-    case "campaign": { if (!canAct(state, fi, "camp:" + a.market)) break; const c = campaignCost(state, a.market); if (f.cash >= c) { f.cash -= c; doCampaign(state, fi, a.market); setActCooldown(state, fi, "camp:" + a.market, 1); recomputeLeaders(state); } break; }
+    case "campaign": { const c = campaignCost(state, a.market); if (f.cash >= c) { f.cash -= c; doCampaign(state, fi, a.market); recomputeLeaders(state); } break; }
   }
 }
 

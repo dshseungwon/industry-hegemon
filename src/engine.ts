@@ -44,7 +44,7 @@ export function campaignCost(s: GameState, name: string) { const m = s.markets[n
 export function inTransitTo(f: Firm, name: string) { return f.transit.some(x => x.to === name); }
 export const SHIP_TRAVEL = TRAVEL_MONTHS;
 function sendShipment(s: GameState, fi: number, to: string, amount: number) {
-  const f = s.firms[fi]; if (!s.markets[to] || inTransitTo(f, to)) return false;   // 시장당 동시 1건만 이동
+  const f = s.firms[fi]; if (!s.markets[to]) return false;   // 동시 다중 파견 허용 — 지속적으로 흘려보냄
   f.transit.push({ to, amount, depart: s.date, arrive: s.date + TRAVEL_MONTHS });
   return true;
 }
