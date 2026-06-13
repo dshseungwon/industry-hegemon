@@ -1,8 +1,11 @@
-// 권위서버(authoritative) — 실시간 멀티플레이 (M1 골격 + M2 플레이어별 경제).
-// 엔진을 서버에서 돌려 공유 월드를 소유. 각 접속자는 빈 firm 하나를 차지해 "자기 회사"를 운영한다.
-// AI(auto=true) firm은 엔진이 자동 운영. 사람이 차지하면 auto=false.
-//   실행: npm run server   (tsx server/index.ts)
+// 권위서버 — 실시간 멀티플레이 (M4: 다중 방 + 방 코드 + 정적 서빙으로 단일 배포).
+// 한 프로세스가 빌드된 클라이언트(dist)를 서빙하고, /ws 로 WebSocket 게임을 호스팅한다.
+//   개발: npm run server (포트 8787, 클라는 vite 5173)  |  배포: npm run build && npm start
 import { WebSocketServer, WebSocket } from "ws";
+import { createServer } from "http";
+import { readFileSync, existsSync } from "fs";
+import { join, extname } from "path";
+import { fileURLToPath } from "url";
 import { GameState, newGame, CAPKO, Cap } from "../src/state";
 import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
@@ -11,40 +14,37 @@ import {
 } from "../src/engine";
 
 const PORT = Number(process.env.PORT || 8787);
+const DIST = join(fileURLToPath(new URL(".", import.meta.url)), "..", "dist");
 const STEP_MS = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
+const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 type Action =
-  | { kind: "speed"; n: 0 | 1 | 2 | 3 }
-  | { kind: "invest"; cap: Cap }
-  | { kind: "operate"; action: string }
-  | { kind: "acquire"; rivalKey: string }
-  | { kind: "raiseDebt" }
-  | { kind: "lobby"; market: string }
-  | { kind: "research"; key: string }
-  | { kind: "enter"; market: string };
+  | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; action: string }
+  | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
+  | { kind: "research"; key: string } | { kind: "enter"; market: string };
 
-// 한 게임 방
-const state: GameState = newGame();
-for (const f of state.firms) f.auto = true;   // 사람이 차지하기 전엔 전부 AI
-recomputeLeaders(state);
-const players = new Map<WebSocket, string>();  // ws -> 차지한 firm key
-const clients = new Set<WebSocket>();
+interface Player { key: string; name: string; }
+interface Room { code: string; state: GameState; clients: Set<WebSocket>; players: Map<WebSocket, Player>; timer?: NodeJS.Timeout; }
+const rooms = new Map<string, Room>();
+const roomOf = new Map<WebSocket, Room>();
 
-function world() { const { ui, fx, ...rest } = state; void fx; return { ...rest, over: ui.over }; }
+function makeCode() { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += a[Math.floor(Math.random() * a.length)]; return rooms.has(c) ? makeCode() : c; }
+function newRoom(code?: string): Room {
+  const state = newGame(); for (const f of state.firms) f.auto = true; recomputeLeaders(state);
+  const room: Room = { code: code || makeCode(), state, clients: new Set(), players: new Map() };
+  rooms.set(room.code, room); return room;
+}
+function world(state: GameState) { const { ui, fx, ...rest } = state; void fx; return { ...rest, over: ui.over }; }
+function roster(room: Room) { return room.state.firms.map((f, i) => ({ idx: i, firm: f.name, key: f.key, human: !f.auto, name: [...room.players.values()].find(p => p.key === f.key)?.name || (f.auto ? "AI" : "") })); }
 function send(ws: WebSocket, msg: unknown) { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
-function broadcast(msg: unknown) { const str = JSON.stringify(msg); for (const ws of clients) if (ws.readyState === WebSocket.OPEN) ws.send(str); }
-const fiOf = (ws: WebSocket) => { const k = players.get(ws); return k ? state.firms.findIndex(f => f.key === k) : -1; };
+function broadcast(room: Room, msg: unknown) { const s = JSON.stringify(msg); for (const ws of room.clients) if (ws.readyState === WebSocket.OPEN) ws.send(s); }
+const fiOf = (room: Room, ws: WebSocket) => { const p = room.players.get(ws); return p ? room.state.firms.findIndex(f => f.key === p.key) : -1; };
 
-// 서버 권위 액션 — 행위자 firm fi에 적용
-function applyAction(fi: number, a: Action) {
+function applyAction(state: GameState, fi: number, a: Action) {
   const f = state.firms[fi]; if (!f) return;
   switch (a.kind) {
     case "speed": state.speed = a.n; break;
-    case "invest": {
-      const p = strategyProjects(state, fi).find(x => x.cap === a.cap);
-      if (p && f.cash >= p.capex && !f.venture) { f.cash -= p.capex; f.venture = { name: CAPKO[a.cap] + " 역량 프로그램", cap: a.cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }; pushLog(state, f.name + " 투자 착수: " + p.h); }
-      break;
-    }
+    case "invest": { const p = strategyProjects(state, fi).find(x => x.cap === a.cap); if (p && f.cash >= p.capex && !f.venture) { f.cash -= p.capex; f.venture = { name: CAPKO[a.cap] + " 역량 프로그램", cap: a.cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }; pushLog(state, f.name + " 투자 착수: " + p.h); } break; }
     case "operate": {
       const v = f.venture; if (!v || !canOperate(state, fi, a.action)) break;
       if (a.action === "accel") { if (f.cash >= 10) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(state, fi, "accel", 2); } }
@@ -61,40 +61,54 @@ function applyAction(fi: number, a: Action) {
   }
 }
 
-// 실시간 클럭
-let timer: NodeJS.Timeout | undefined;
-function loop() {
-  if (timer) clearTimeout(timer);
-  const ms = STEP_MS(state.speed);
-  if (ms <= 0 || state.ui.over) return;
-  timer = setTimeout(() => { tick(state); broadcast({ type: "world", world: world() }); loop(); }, ms);
+function loop(room: Room) {
+  if (room.timer) clearTimeout(room.timer);
+  const ms = STEP_MS(room.state.speed);
+  if (ms <= 0 || room.state.ui.over) return;
+  room.timer = setTimeout(() => { tick(room.state); broadcast(room, { type: "world", world: world(room.state) }); loop(room); }, ms);
+}
+function claimFirm(room: Room, ws: WebSocket, name: string) {
+  const taken = new Set([...room.players.values()].map(p => p.key));
+  const free = room.state.firms.find(f => f.auto && !taken.has(f.key));
+  if (free) { free.auto = false; room.players.set(ws, { key: free.key, name: name || free.name }); }
+  return free ? room.state.firms.findIndex(f => f.key === free.key) : -1;
 }
 
-const wss = new WebSocketServer({ port: PORT });
+// ---- HTTP(정적) + WebSocket(/ws) ----
+const http = createServer((req, res) => {
+  let p = (req.url || "/").split("?")[0]; if (p === "/") p = "/index.html";
+  const file = join(DIST, p);
+  if (existsSync(file) && file.startsWith(DIST)) { res.writeHead(200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" }); res.end(readFileSync(file)); }
+  else if (existsSync(join(DIST, "index.html"))) { res.writeHead(200, { "Content-Type": "text/html" }); res.end(readFileSync(join(DIST, "index.html"))); }   // SPA fallback
+  else { res.writeHead(200, { "Content-Type": "text/plain" }); res.end("Industry Hegemon server. Build the client (npm run build) to serve it here. WebSocket on /ws"); }
+});
+const wss = new WebSocketServer({ server: http, path: "/ws" });
 wss.on("connection", (ws) => {
-  clients.add(ws);
-  // 빈(AI) firm 하나를 차지 → 사람이 운영
-  const free = state.firms.find(f => f.auto && !Array.from(players.values()).includes(f.key));
-  if (free) { free.auto = false; players.set(ws, free.key); }
-  const youIdx = free ? state.firms.findIndex(f => f.key === free.key) : -1;
-  send(ws, { type: "welcome", youIdx, role: free ? "player" : "spectator", players: clients.size, world: world() });
-  broadcast({ type: "world", world: world() });
-
   ws.on("message", (buf) => {
-    let msg: { type?: string; action?: Action };
-    try { msg = JSON.parse(String(buf)); } catch { return; }
-    if (msg.type === "action" && msg.action && !state.ui.over) {
-      const fi = msg.action.kind === "speed" ? 0 : fiOf(ws);   // 속도는 누구나(공유 클럭), 그 외엔 자기 firm
-      if (msg.action.kind === "speed" || fi >= 0) { applyAction(fi, msg.action); broadcast({ type: "world", world: world() }); loop(); }
+    let msg: any; try { msg = JSON.parse(String(buf)); } catch { return; }
+    if (msg.type === "create" || msg.type === "join") {
+      let room = msg.type === "create" ? newRoom() : rooms.get(String(msg.room || "").toUpperCase());
+      if (!room) { send(ws, { type: "error", msg: "방을 찾을 수 없습니다: " + msg.room }); return; }
+      room.clients.add(ws); roomOf.set(ws, room);
+      const youIdx = claimFirm(room, ws, String(msg.name || ""));
+      send(ws, { type: "welcome", room: room.code, youIdx, role: youIdx >= 0 ? "player" : "spectator", world: world(room.state), roster: roster(room) });
+      broadcast(room, { type: "roster", roster: roster(room) });
+      broadcast(room, { type: "world", world: world(room.state) });
+      return;
+    }
+    const room = roomOf.get(ws); if (!room) return;
+    if (msg.type === "action" && msg.action && !room.state.ui.over) {
+      const fi = msg.action.kind === "speed" ? 0 : fiOf(room, ws);
+      if (msg.action.kind === "speed" || fi >= 0) { applyAction(room.state, fi, msg.action); broadcast(room, { type: "world", world: world(room.state) }); loop(room); }
     }
   });
   ws.on("close", () => {
-    clients.delete(ws);
-    const key = players.get(ws);
-    if (key) { players.delete(ws); const f = state.firms.find(x => x.key === key); if (f) f.auto = true; }  // AI가 인계
-    broadcast({ type: "world", world: world() });
+    const room = roomOf.get(ws); roomOf.delete(ws); if (!room) return;
+    room.clients.delete(ws);
+    const p = room.players.get(ws); if (p) { room.players.delete(ws); const f = room.state.firms.find(x => x.key === p.key); if (f) f.auto = true; }
+    if (room.clients.size === 0) { if (room.timer) clearTimeout(room.timer); rooms.delete(room.code); }   // 빈 방 정리
+    else { broadcast(room, { type: "roster", roster: roster(room) }); broadcast(room, { type: "world", world: world(room.state) }); }
   });
 });
 
-console.log("Industry Hegemon authoritative server on ws://localhost:" + PORT);
-loop();
+http.listen(PORT, () => console.log("Industry Hegemon server on http://localhost:" + PORT + "  (WebSocket: /ws)" + (existsSync(DIST) ? "  [serving dist/]" : "  [dev: client on vite]")));

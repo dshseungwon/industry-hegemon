@@ -129,3 +129,11 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .ccard .cbars{margin-bottom:10px;}
 .ccard .btn{width:100%;padding:11px;}
 .screen .chip{background:#1c3e63;border:1px solid var(--line);color:var(--mute);font-size:10.5px;}
+/* 온라인 로비 */
+.lobbyform{display:flex;flex-direction:column;gap:10px;max-width:320px;margin:18px auto 8px;}
+.lin{background:#0a1c30;border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--ink);font-size:14px;font-family:inherit;text-align:center;-webkit-user-select:text;user-select:text;}
+.lin::placeholder{color:var(--mute);}
+.lrow{display:flex;gap:8px;}
+.lrow .lin{flex:1;text-transform:uppercase;letter-spacing:2px;}
+.lrow .btn{flex:none;width:auto;padding:11px 20px;}
+#roombadge{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:25;background:#0a1c30e8;border:1px solid var(--gold);color:var(--gold);padding:6px 14px;border-radius:999px;font-weight:800;font-size:12.5px;pointer-events:none;}

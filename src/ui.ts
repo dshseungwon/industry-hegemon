@@ -19,6 +19,8 @@ export interface Actions {
   toTitle(): void;
   toIndustry(): void;
   goOnline(): void;
+  createRoom(name: string): void;
+  joinRoom(code: string, name: string): void;
   acquire(rivalKey: string): void;
   raiseDebt(): void;
   lobby(marketName: string): void;
@@ -378,6 +380,34 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
   document.getElementById("toOnline")!.onclick = () => A.goOnline();
+}
+
+export function renderLobby(app: HTMLElement, A: Actions) {
+  app.innerHTML =
+    '<div class="screen title"><div class="hero">' +
+    '<div class="logo">🌐 온라인 플레이</div>' +
+    '<p class="lede">방을 만들어 <b>코드</b>를 친구에게 공유하거나, 받은 코드로 참가하세요.<br>각자 한 기업을 맡아 실시간으로 패권을 다툽니다.</p>' +
+    '<div class="lobbyform">' +
+      '<input id="pname" class="lin" placeholder="닉네임 (선택)" maxlength="12" />' +
+      '<button class="btn big" id="createRoom">방 만들기</button>' +
+      '<div class="lrow"><input id="rcode" class="lin" placeholder="방 코드 (예: AB3K)" maxlength="4" /><button class="btn" id="joinRoom">참가</button></div>' +
+      '<div id="lerr" class="src" style="color:var(--red);min-height:16px"></div>' +
+    '</div>' +
+    '<button class="btn big ghost" id="lback">← 뒤로</button>' +
+    '</div></div>';
+  const nm = () => (document.getElementById("pname") as HTMLInputElement).value.trim();
+  document.getElementById("createRoom")!.onclick = () => A.createRoom(nm());
+  document.getElementById("joinRoom")!.onclick = () => { const c = (document.getElementById("rcode") as HTMLInputElement).value.trim().toUpperCase(); if (c) A.joinRoom(c, nm()); };
+  document.getElementById("lback")!.onclick = () => A.toTitle();
+}
+export function lobbyError(msg: string) { const e = document.getElementById("lerr"); if (e) e.textContent = msg; }
+
+// 인게임 방 코드/인원 배지(온라인 전용)
+export function setRoomBadge(text: string | null) {
+  let b = document.getElementById("roombadge");
+  if (!text) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement("div"); b.id = "roombadge"; document.body.appendChild(b); }
+  b.textContent = text;
 }
 
 export function renderIndustry(app: HTMLElement, A: Actions) {

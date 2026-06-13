@@ -10,6 +10,22 @@ npm run build    # 타입체크 + 프로덕션 빌드 -> dist/
 npm run preview  # 빌드 결과 미리보기
 ```
 
+## 멀티플레이 (실시간 권위서버)
+한 프로세스가 빌드된 클라이언트와 WebSocket 게임(`/ws`)을 함께 서빙합니다.
+```bash
+# 로컬에서 같이 해보기
+npm run dev          # 터미널 1: 클라이언트(5173)
+npm run server       # 터미널 2: 게임 서버(8787)
+# 브라우저 → 타이틀 → "온라인 플레이" → 방 만들기(코드 공유) 또는 코드로 참가.
+# 각자 한 기업을 맡아 실시간 경쟁. 나간 자리는 AI가 인계.
+
+# 친구와 인터넷으로: 단일 컨테이너 배포(Render/Fly/Railway 등 Node 호스트)
+npm run build && npm start    # 서버가 dist/도 서빙 (PORT 환경변수 사용)
+# 또는: docker build -t hegemon . && docker run -p 8787:8787 hegemon
+```
+클라이언트는 같은 오리진의 `/ws`로 접속합니다(개발 시엔 `:8787`). 다른 주소면 빌드 시
+`VITE_WS_URL=wss://your-host/ws` 로 지정하세요.
+
 ## 구조
 - `src/state.ts` — 게임 상태·데이터(기업·시장·용어집)
 - `src/engine.ts` — KSF 적합도·점유율, 재무(NPV/IRR/WACC), 실시간 tick, 환경 변화
