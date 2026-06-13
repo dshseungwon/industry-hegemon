@@ -17,6 +17,7 @@ export const BALANCE = {
   aiPayoff: 9,            // AI 벤처 1회 역량 증가(사람 14보다 낮음)
   aiAccelChance: 0.10,    // AI가 진행 중 가속할 확률(현금 여유 시)
   aiCampaignChance: 0.05, // AI가 매월 자원 할당 조정/신규 진출할 확률
+  upkeepRate: 0.002,      // 할당 월 유지비 계수(Σ (할당-1)×시장규모×rate)
 };
 
 export const ALLOC_MAX = 4;    // 시장당 자원 할당 최대 단계
@@ -26,15 +27,14 @@ function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const
 export function matchScore(f: Firm, m: Market) { return scoreWith(f.caps, m); }
 // 한 시장 가중치 = 적합도^β × 배치 영향력. 영향력 0 = 미진출. 영향력 = 할당 × R&D(역량) × KSF 적합도.
 function weightOf(f: Firm, m: Market, caps: Record<Cap, number>) { return Math.pow(scoreWith(caps, m), SHARE_BETA) * (f.effort[m.name] || 0); }
-// 총 할당 용량(성공할수록 증가) / 사용량
-export function allocCap(s: GameState, fi: number) { return 12 + Math.round(myShare(s, fi) * 24); }
 export function allocUsed(f: Firm) { let t = 0; for (const k in f.alloc) t += f.alloc[k]; return t; }
-// 자원 할당 조절: 시장 m에 delta(+/-). 용량·단계 제한. 0이면 철수(영향력 감소→점유율 하락).
+// 한 시장 할당의 월 유지비(1단계=진출 유지는 무료, 그 이상 집중에 비용). BALANCE.upkeepRate로 튜닝.
+export function allocUpkeepAt(s: GameState, name: string, level: number) { const m = s.markets[name]; return m ? Math.max(0, level - 1) * m.size * BALANCE.upkeepRate : 0; }
+export function allocUpkeep(s: GameState, fi: number) { const f = s.firms[fi]; let t = 0; for (const n in f.alloc) t += allocUpkeepAt(s, n, f.alloc[n]); return t; }
+// 자원 할당 조절: 시장 m에 delta(+/-). 단계 제한(0..MAX). 비용은 월 유지비로 부과. 0이면 철수.
 export function setAlloc(s: GameState, fi: number, name: string, delta: number) {
   const f = s.firms[fi]; if (!s.markets[name]) return;
-  const cur = f.alloc[name] || 0;
-  let next = Math.max(0, Math.min(ALLOC_MAX, cur + delta));
-  if (next > cur && allocUsed(f) + (next - cur) > allocCap(s, fi)) next = cur;   // 용량 초과 불가
+  const next = Math.max(0, Math.min(ALLOC_MAX, (f.alloc[name] || 0) + delta));
   if (next === 0) delete f.alloc[name]; else f.alloc[name] = next;
 }
 export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }
@@ -231,8 +231,9 @@ export function tick(s: GameState) {
     rampEffort(s, fi);     // 영향력이 할당 목표로 다가감(전개 지연) + 프론티어 개방
     progressVenture(s, fi);
     f.cash += monthlyCashflow(s, fi);
+    f.cash -= allocUpkeep(s, fi);                 // 자원 할당 월 유지비
     if (f.debt > 0) f.cash -= f.debt * (debtRate(s, fi) / 12);
-    if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 점유율 회복·자산매각 필요"); }
+    if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
     else f.distress = 0;
   }
   recomputeLeaders(s);
@@ -282,14 +283,19 @@ function aiPolicy(s: GameState, fi: number) {
   } else if (f.cash >= 10 && Math.random() < BALANCE.aiAccelChance && canOperate(s, fi, "accel")) {
     f.venture.progress = Math.min(100, f.venture.progress + 14); f.cash -= 10; setCooldown(s, fi, "accel", 2);
   }
-  // 자원 할당: 가장 적합한 시장에 자원을 집중(용량 내). 시장을 읽고 능동 배치.
-  if (Math.random() < BALANCE.aiCampaignChance) {
+  // 적자면 할당 축소(유지비 절감) — 가장 적합도 낮은 부스트부터 뺌
+  if (f.cash < 0) {
+    let worst = "", wf = 1e9;
+    for (const n in f.alloc) { if (f.alloc[n] <= 1) continue; const fit = matchScore(f, s.markets[n]); if (fit < wf) { wf = fit; worst = n; } }
+    if (worst) setAlloc(s, fi, worst, -1);
+  } else if (f.cash > 30 && Math.random() < BALANCE.aiCampaignChance) {
+    // 여유 현금이면 가장 적합한 시장에 자원 집중(유지비 감당 범위)
     let best = "", bf = -1;
     for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= ALLOC_MAX) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
     if (best) setAlloc(s, fi, best, 1);
   }
-  // 개척: 가끔 프론티어(미진출) 시장에 진출 시작 — 경쟁사도 신규 국가를 뚫음
-  if (Math.random() < BALANCE.aiCampaignChance * 0.25) {
+  // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음
+  if (f.cash > 20 && Math.random() < BALANCE.aiCampaignChance * 0.25) {
     const fr = frontierMarkets(s); if (fr.length) setAlloc(s, fi, fr[ri(0, fr.length - 1)].name, 1);
   }
 }

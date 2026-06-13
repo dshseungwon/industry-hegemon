@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocCap, allocUsed, ALLOC_MAX } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, ALLOC_MAX } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -214,6 +214,9 @@ function pieChart(slices: { label: string; value: number; color: string }[]): st
 
 function renderPanel(s: GameState, A: Actions) {
   // 기업 내부 = 왼쪽 드로어, 투자/전략/용어집 = 오른쪽 드로어 (독립적으로 동시에 열림)
+  const DW = "min(360px,86%)";   // 드로어 폭 — 국가 시트가 겹치지 않게 인셋
+  document.documentElement.style.setProperty("--lw", s.ui.leftPanel !== "none" ? DW : "0px");
+  document.documentElement.style.setProperty("--rw", s.ui.panel !== "none" ? DW : "0px");
   const left = document.getElementById("overlayL")!;
   if (s.ui.leftPanel === "none") { left.className = "hide"; left.innerHTML = ""; }
   else {
@@ -239,8 +242,8 @@ function panelBody(s: GameState, panel: string): string {
   let h = "";
   const you = s.firms[s.youIdx];
   if (panel === "company") {
-    const cf = monthlyCashflow(s);
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
+    const cf = monthlyCashflow(s); const upk = allocUpkeep(s, s.youIdx); const net = cf - upk;
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div><div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
@@ -342,13 +345,12 @@ function renderSheet(s: GameState, A: Actions) {
   // 닫힌 프론티어 시장 → 진출 시작(자원 할당) 시트
   if (!s.marketOrder.includes(m.name)) {
     const me0 = s.firms[s.youIdx]; const starting = (me0.alloc[m.name] || 0) > 0;
-    const cap = allocCap(s, s.youIdx), used = allocUsed(me0); const can = !starting && used < cap;
     el.className = "sheet";
     el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
       '<div class="kv"><span>상태</span><b class="mute">' + (starting ? '진출 전개 중…' : '미진출 시장') + '</b></div>' +
       '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
-      '<div class="card mute small">진출하면 본진에서 자원이 전개돼 <b>아무도 없는 시장이라 100%로 진입</b>합니다. 이후 경쟁사가 들어오면 영향력으로 다툽니다. (용량 ' + used + '/' + cap + ')</div>' +
-      '<button class="actbtn" id="enterBtn"' + (can ? '' : ' disabled') + '>' + (starting ? '🚩 진출 전개 중…' : '🚩 진출 시작 — 자원 할당') + '</button>';
+      '<div class="card mute small">진출하면 본진에서 자원이 전개돼 <b>아무도 없는 시장이라 100%로 진입</b>합니다. 이후 경쟁사가 들어오면 영향력으로 다툽니다. (1단계 유지는 무료, 집중할수록 월 유지비)</div>' +
+      '<button class="actbtn" id="enterBtn"' + (starting ? ' disabled' : '') + '>' + (starting ? '🚩 진출 전개 중…' : '🚩 진출 시작 — 자원 할당') + '</button>';
     document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
     const eb = document.getElementById("enterBtn") as HTMLButtonElement | null;
     if (eb && !eb.disabled) eb.onclick = () => A.alloc(m.name, 1);
@@ -382,17 +384,18 @@ function infBars(s: GameState, n: string): string {
 }
 function allocSect(s: GameState): string {
   const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
-  const lvl = me.alloc[n] || 0; const cap = allocCap(s, s.youIdx), used = allocUsed(me);
-  const full = used >= cap;
+  const lvl = me.alloc[n] || 0;
+  const hereCost = allocUpkeepAt(s, n, lvl), total = allocUpkeep(s, s.youIdx), nextCost = allocUpkeepAt(s, n, lvl + 1) - hereCost;
   return '<div class="sect">🎯 자원 할당</div><div class="card">' +
     '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
     '<div class="allocrow"><span class="bl" style="width:auto">할당 단계</span>' +
       '<button class="abtn" id="allocMinus"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
       '<b class="alvl">' + lvl + ' / ' + ALLOC_MAX + '</b>' +
-      '<button class="abtn" id="allocPlus"' + (lvl >= ALLOC_MAX || (full && true) ? ' disabled' : '') + '>＋</button>' +
-      '<span class="mute small" style="margin-left:auto">용량 ' + used + '/' + cap + '</span></div>' +
+      '<button class="abtn" id="allocPlus"' + (lvl >= ALLOC_MAX ? ' disabled' : '') + '>＋</button>' +
+      '<span class="mute small" style="margin-left:auto">이 시장 월 $' + hereCost.toFixed(1) + 'B' + (lvl < ALLOC_MAX ? ' (+1단계 +$' + nextCost.toFixed(1) + ')' : '') + '</span></div>' +
+    '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
     infBars(s, n) +
-    '<div class="mute small" style="margin-top:4px">자원을 할당하면 본진에서 전개돼 영향력이 오릅니다. <b>영향력 = 할당 × 역량(R&D) × KSF 적합도</b>. 0으로 내리면 철수 — 점유율이 점차 줄어듭니다.</div></div>';
+    '<div class="mute small" style="margin-top:4px"><b>영향력 = 할당 × 역량(R&D) × KSF 적합도</b>. 많이 할당할수록 월 유지비가 커지니 <b>수입 관리</b>가 중요. 0으로 내리면 철수 — 점유율이 점차 줄어듭니다.</div></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {
