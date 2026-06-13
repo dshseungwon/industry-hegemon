@@ -15,7 +15,7 @@ import {
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(fileURLToPath(new URL(".", import.meta.url)), "..", "dist");
-const STEP_MS = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
+const STEP_MS = (sp: number) => sp === 1 ? 2600 : sp === 2 ? 1400 : sp === 3 ? 700 : 0;
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 type Action =
