@@ -10,7 +10,7 @@ export interface Actions {
   togglePanel(p: string): void;
   selectCountry(n: string | null): void;
   startStrategy(cap: Cap): void;
-  operate(action: string): void;
+  operate(cap: Cap, action: string): void;
   confirmOk(): void;
   confirmCancel(): void;
   restart(): void;
@@ -178,10 +178,10 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("guide", "❓", s) + mbtn("codex", "📖", s) +
+      mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("guide", "❓", s) + mbtn("codex", "📖", s) +
       '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
-    '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.venture ? ' · 🚀 ' + CAPKO[me.venture.cap] + ' ' + Math.round(me.venture.progress) + '%' : '') + '</div>';
+    '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
   t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
   document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
@@ -233,7 +233,7 @@ function renderPanel(s: GameState, A: Actions) {
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".enter").forEach(b => b.onclick = () => A.alloc(b.dataset.n!, 1));
-  o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.op!); });
+  o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.cap as Cap, b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
 }
@@ -250,31 +250,8 @@ function panelBody(s: GameState, panel: string): string {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
       return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capBars(k => f.caps[k]) + '</div>';
     }).join("");
-  } else if (panel === "projects") {
-    if (!you.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
-    else {
-      const v = you.venture;
-      h += '<div class="venture">' + ring(v.progress) + '<div class="vt">🚀 ' + v.name + '</div><div class="vd">완성 시 ' + CAPKO[v.cap] + ' +' + v.payoff + ' → 관련 시장 점령</div>' +
-        '<div class="vmeta"><span class="chip">진행 ' + Math.round(v.progress) + '%</span>' + (v.risk > 0 ? '<span class="chip risk">⚠️ 리스크 ' + v.risk + '</span>' : '<span class="chip">리스크 없음</span>') + '</div>' +
-        '<div class="ops">' +
-          opbtn(s, "accel", "⏩ 가속", "진행+, 현금 -10") +
-          opbtn(s, "risk", "🛡️ 리스크 대응", "리스크 1 해소") +
-          opbtn(s, "pivot", "🔀 대상 변경", "개발 역량 교체") +
-          opbtn(s, "cancel", "✕ 취소", "자금 일부 회수") +
-        '</div><div class="mute small" style="margin-top:6px">운영 행동엔 <b>쿨다운</b>이 있습니다(무한 클릭 불가). 시간이 흐르면 다시 가능.</div></div>';
-    }
   } else if (panel === "strategy") {
-    // 1) 내부 개발(역량 투자)
-    h += '<div class="sect">내부 개발 — 역량 투자(NPV)</div>';
-    if (you.venture) h += '<div class="card mute small">진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
-    else {
-      strategyProjects(s).forEach((p: Project) => {
-        const go = p.npv > 0;
-        h += '<button class="proj" data-cap="' + p.cap + '"><div class="h">' + p.h + (go ? '<span class="bdg go">투자 적격</span>' : '<span class="bdg no">가치 파괴</span>') + '</div><div class="e">' + p.e + '</div><div class="fin"><span>Capex $' + p.capex + 'B</span><span class="gold">점유율 +' + (p.dShare * 100).toFixed(1) + '%p</span><span class="' + (go ? 'pos' : 'neg') + '">NPV $' + fmt(p.npv) + 'B</span><span>IRR ' + (p.irr != null ? (p.irr * 100).toFixed(0) + '%' : '-') + '</span></div></button>';
-      });
-      h += '<div class="mute small">※ NPV는 "지금 소비자 선호 유지" 가정. 환경이 바뀌면 실현이 달라집니다.</div>';
-    }
-    // 2) M&A(경쟁사 인수)
+    // M&A(경쟁사 인수)
     h += '<div class="sect">M&A — 경쟁사 인수</div>';
     const tgts = acquireTargets(s);
     if (!tgts.length) h += '<div class="card mute small">인수할 경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
@@ -301,7 +278,30 @@ function panelBody(s: GameState, panel: string): string {
       h += '<button class="proj enter" data-n="' + esc(m.name) + '"><div class="h">🌏 ' + m.ko + (started ? '<span class="bdg go">전개 중</span>' : ' 진출') + '</div><div class="e">규모 $' + m.size + 'B · 아무도 없는 시장 — 진출 시 100%로 시작</div></button>';
     });
   } else if (panel === "tech") {
-    h += '<div class="card mute small">연구 노드를 해금해 <b>영구 역량</b>과 경제 효과(마진·고정비·벤처속도)를 얻습니다. 무엇을 먼저 개발할지가 전략.</div>';
+    // 1) 진행 중인 개발(동시 여러 개) — 가속/리스크/취소
+    if (you.ventures.length) {
+      h += '<div class="sect">진행 중인 개발</div>';
+      you.ventures.forEach(v => {
+        h += '<div class="venture">' + ring(v.progress) + '<div class="vt">🔬 ' + CAPKO[v.cap] + ' 역량 개발</div><div class="vd">완성 시 ' + CAPKO[v.cap] + ' +' + v.payoff + '</div>' +
+          '<div class="vmeta"><span class="chip">진행 ' + Math.round(v.progress) + '%</span>' + (v.risk > 0 ? '<span class="chip risk">⚠️ 리스크 ' + v.risk + '</span>' : '<span class="chip">리스크 없음</span>') + '</div>' +
+          '<div class="ops">' +
+            opbtn(s, v.cap, "accel", "⏩ 가속", "진행+, -$10B") +
+            opbtn(s, v.cap, "risk", "🛡️ 리스크 대응", "리스크 1 해소") +
+            opbtn(s, v.cap, "cancel", "✕ 취소", "일부 회수") +
+          '</div></div>';
+      });
+    }
+    // 2) 새 개발 착수(미진행 역량) — 동시 여러 개 가능
+    h += '<div class="sect">새 역량 개발 — 착수</div>';
+    strategyProjects(s).forEach((p: Project) => {
+      if (you.ventures.some(v => v.cap === p.cap)) return;   // 이미 진행 중인 역량은 제외
+      const go = p.npv > 0; const afford = you.cash >= p.capex;
+      h += '<button class="proj" data-cap="' + p.cap + '"><div class="h">' + p.h + (go ? '<span class="bdg go">투자 적격</span>' : '<span class="bdg no">NPV-</span>') + '</div><div class="e">' + p.e + '</div><div class="fin"><span class="' + (afford ? '' : 'neg') + '">Capex $' + p.capex + 'B</span><span class="gold">점유율 +' + (p.dShare * 100).toFixed(1) + '%p</span><span class="' + (go ? 'pos' : 'neg') + '">NPV $' + fmt(p.npv) + 'B</span></div></button>';
+    });
+    h += '<div class="mute small">역량이 높을수록 그 KSF를 원하는 시장에서 <b>공략 영향력</b>이 커집니다(영향력 = 할당 × 역량 × 적합도).</div>';
+    // 3) 테크트리(영구 업글 — 할당 상한·마진·속도)
+    h += '<div class="sect">테크트리 — 영구 업그레이드</div>';
+    h += '<div class="card mute small">연구 노드로 <b>영구 역량</b> + 경제 효과(마진·고정비·개발속도·<b>할당 상한</b>)를 얻습니다.</div>';
     researchOptions(s).forEach(o => {
       const n = o.node;
       if (o.unlocked) h += '<div class="proj tech done"><div class="h">' + n.name + '<span class="bdg go">완료 ✓</span></div><div class="e">' + n.desc + '</div></div>';
@@ -329,13 +329,13 @@ function panelBody(s: GameState, panel: string): string {
   }
   return h;
 }
-function opbtn(s: GameState, action: string, h: string, e: string) {
-  const me = s.firms[s.youIdx];
-  const ok = canOperate(s, s.youIdx, action);
-  const cd = me.venture && !ok ? Math.max(0, (me.venture.cooldown[action] || 0) - s.date) : 0;
-  return '<button class="op' + (ok ? '' : ' dis') + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
+function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
+  const v = s.firms[s.youIdx].ventures.find(x => x.cap === cap);
+  const ok = canOperate(s, s.youIdx, cap, action);
+  const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
+  return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", tech: "🔬 테크트리", guide: "❓ 플레이 가이드", codex: "📖 용어집" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", guide: "❓ 플레이 가이드", codex: "📖 용어집" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 function renderSheet(s: GameState, A: Actions) {

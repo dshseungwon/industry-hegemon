@@ -16,11 +16,18 @@ export const BALANCE = {
   aiInvestChance: 0.12,   // AI가 idle일 때 매월 신규 투자 확률
   aiPayoff: 9,            // AI 벤처 1회 역량 증가(사람 14보다 낮음)
   aiAccelChance: 0.10,    // AI가 진행 중 가속할 확률(현금 여유 시)
-  aiCampaignChance: 0.05, // AI가 매월 자원 할당 조정/신규 진출할 확률
+  aiCampaignChance: 0.15, // AI가 매월 자원 할당 조정/신규 진출할 확률(경쟁사도 영향력을 키움)
   upkeepRate: 0.002,      // 할당 월 유지비 계수(Σ (할당-1)×시장규모×rate)
 };
 
-export const ALLOC_MAX = 4;    // 시장당 자원 할당 최대 단계
+export const ALLOC_MAX = 6;    // 시장당 자원 할당 절대 상한
+const ALLOC_BASE = 3;          // 기본 할당 상한(테크로 확장)
+// 테크트리로 할당 상한 확장: 글로벌SCM +1, 플랫폼생태계 +2
+export function maxAllocFor(s: GameState, fi: number) {
+  const t = s.firms[fi].tech; let b = ALLOC_BASE;
+  if (t.includes("globalscm")) b += 1; if (t.includes("ecosystem")) b += 2;
+  return Math.min(ALLOC_MAX, b);
+}
 const ALLOC_RAMP = 0.2;        // 매월 현재 영향력이 할당 목표로 다가가는 비율(전개 지연 ≈ 5개월)
 const OPEN_THRESH = 0.08;      // 프론티어가 이 영향력을 넘으면 시장 개방(진출 완료)
 function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const k of CAPS) s += (m.pref[k] || 0) * gcap(caps[k]); return s; }
@@ -34,7 +41,7 @@ export function allocUpkeep(s: GameState, fi: number) { const f = s.firms[fi]; l
 // 자원 할당 조절: 시장 m에 delta(+/-). 단계 제한(0..MAX). 비용은 월 유지비로 부과. 0이면 철수.
 export function setAlloc(s: GameState, fi: number, name: string, delta: number) {
   const f = s.firms[fi]; if (!s.markets[name]) return;
-  const next = Math.max(0, Math.min(ALLOC_MAX, (f.alloc[name] || 0) + delta));
+  const next = Math.max(0, Math.min(maxAllocFor(s, fi), (f.alloc[name] || 0) + delta));
   if (next === 0) delete f.alloc[name]; else f.alloc[name] = next;
 }
 export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }
@@ -104,7 +111,7 @@ export function strategyProjects(s: GameState, fi: number = s.youIdx): Project[]
     const dSize = Math.max(0, capturedSize(s, you.key, nc) - base);
     const dShare = totSize > 0 ? dSize / totSize : 0;           // 전 세계 점유율 증가 비율
     const annual = dSize * MARGIN * 12;                          // 연 증분 현금흐름
-    const capex = 24; const cf = [-capex]; for (let t = 1; t <= 5; t++) cf.push(annual * Math.pow(1.03, t - 1));
+    const capex = 45; const cf = [-capex]; for (let t = 1; t <= 5; t++) cf.push(annual * Math.pow(1.03, t - 1));
     list.push({ cap: k, h: CAPKO[k] + " 역량 개발 프로그램", e: CAPKO[k] + "를 +" + gain + " — 그 역량을 원하는 시장에서 점유율 확대", capex, P: annual, gain, dShare, npv: npv(wacc, cf), irr: irr(cf) });
   }
   return list;
@@ -168,8 +175,8 @@ export const TECH_NODES: TechNode[] = [
   { key: "ai",           name: "AI 플랫폼",      desc: "기술 +10 · 마진↑",            cost: 50,  req: ["rnd"],             caps: { tech: 10 } },
   { key: "brandlab",     name: "브랜드 랩",      desc: "브랜드 +10",                  cost: 48,  req: ["rnd"],             caps: { brand: 10 } },
   { key: "smartfactory", name: "스마트 팩토리",  desc: "가성비 +10 · 고정비 -2",       cost: 50,  req: ["automation"],      caps: { scale: 10 } },
-  { key: "globalscm",    name: "글로벌 SCM",     desc: "글로벌 +10 · 마진↑",          cost: 54,  req: ["automation"],      caps: { global: 10 } },
-  { key: "ecosystem",    name: "플랫폼 생태계",  desc: "전 역량 +6 · 마진↑↑",         cost: 110, req: ["ai", "brandlab"],  caps: { tech: 6, brand: 6, scale: 6, global: 6 } },
+  { key: "globalscm",    name: "글로벌 SCM",     desc: "글로벌 +10 · 마진↑ · 할당 상한 +1", cost: 54,  req: ["automation"],      caps: { global: 10 } },
+  { key: "ecosystem",    name: "플랫폼 생태계",  desc: "전 역량 +6 · 마진↑↑ · 할당 상한 +2", cost: 110, req: ["ai", "brandlab"],  caps: { tech: 6, brand: 6, scale: 6, global: 6 } },
 ];
 export function researchOptions(s: GameState, fi: number = s.youIdx) {
   const have = new Set(s.firms[fi].tech);
@@ -262,26 +269,28 @@ export function tick(s: GameState) {
     s.ui.over = { winnerKey: top.key, won: top.key === youKey, msg: "마감 — 최종 1위 " + top.name + " (" + sh + "%)" }; s.speed = 0; s.fx.push(top.key === youKey ? "win" : "lose");
   }
 }
-// 한 firm의 벤처 진행 + 완성 처리
+// 한 firm의 벤처들 진행 + 완성 처리(동시 여러 개)
 function progressVenture(s: GameState, fi: number) {
-  const f = s.firms[fi]; const v = f.venture; if (!v) return;
-  if (Math.random() < 0.09) v.risk++;
-  const rate = 7 + techMods(s, fi).ventureAdd - v.risk * 1.3; v.progress = Math.min(100, v.progress + Math.max(2, rate));
-  if (v.progress >= 100) {
-    f.caps[v.cap] = clamp(f.caps[v.cap] + v.payoff, 0, 100); f.venture = null;
-    if (f.key === s.firms[s.youIdx].key) { pushLog(s, "🚀 " + CAPKO[v.cap] + " 프로그램 완성! 시장 점령 확대"); s.fx.push("complete"); }
+  const f = s.firms[fi];
+  for (let i = f.ventures.length - 1; i >= 0; i--) {
+    const v = f.ventures[i];
+    if (Math.random() < 0.09) v.risk++;
+    const rate = 7 + techMods(s, fi).ventureAdd - v.risk * 1.3; v.progress = Math.min(100, v.progress + Math.max(2, rate));
+    if (v.progress >= 100) {
+      f.caps[v.cap] = clamp(f.caps[v.cap] + v.payoff, 0, 100); f.ventures.splice(i, 1);
+      if (f.key === s.firms[s.youIdx].key) { pushLog(s, "🚀 " + CAPKO[v.cap] + " 개발 완성! 역량 강화"); s.fx.push("complete"); }
+    }
   }
 }
-// AI 정책: 시장을 읽어 최선 역량에 투자(내부개발) + 여유 시 가속. M&A/재무/로비는 추후.
+// AI 정책: 최선 역량에 투자(동시 여러 개) + 자원 할당.
 function aiPolicy(s: GameState, fi: number) {
   const f = s.firms[fi];
-  if (!f.venture) {
-    if (f.cash >= 24 && Math.random() < BALANCE.aiInvestChance) {
-      const best = bestRivalCap(s, f);
-      if (best) { f.cash -= 24; f.venture = { name: CAPKO[best] + " 역량 프로그램", cap: best, payoff: BALANCE.aiPayoff, progress: 6, risk: 0, cooldown: {} }; }
-    }
-  } else if (f.cash >= 10 && Math.random() < BALANCE.aiAccelChance && canOperate(s, fi, "accel")) {
-    f.venture.progress = Math.min(100, f.venture.progress + 14); f.cash -= 10; setCooldown(s, fi, "accel", 2);
+  if (f.cash >= 40 && f.ventures.length < 3 && Math.random() < BALANCE.aiInvestChance) {
+    const best = bestRivalCap(s, f);
+    if (best && !f.ventures.some(v => v.cap === best)) { f.cash -= 40; f.ventures.push({ name: CAPKO[best] + " 역량 개발", cap: best, payoff: BALANCE.aiPayoff, progress: 6, risk: 0, cooldown: {} }); }
+  } else if (f.ventures.length && f.cash >= 10 && Math.random() < BALANCE.aiAccelChance) {
+    const v = f.ventures[ri(0, f.ventures.length - 1)];
+    if (canOperate(s, fi, v.cap, "accel")) { v.progress = Math.min(100, v.progress + 14); f.cash -= 10; setCooldown(s, fi, v.cap, "accel", 2); }
   }
   // 적자면 할당 축소(유지비 절감) — 가장 적합도 낮은 부스트부터 뺌
   if (f.cash < 0) {
@@ -290,8 +299,8 @@ function aiPolicy(s: GameState, fi: number) {
     if (worst) setAlloc(s, fi, worst, -1);
   } else if (f.cash > 30 && Math.random() < BALANCE.aiCampaignChance) {
     // 여유 현금이면 가장 적합한 시장에 자원 집중(유지비 감당 범위)
-    let best = "", bf = -1;
-    for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= ALLOC_MAX) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
+    let best = "", bf = -1; const mx = maxAllocFor(s, fi);
+    for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= mx) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
     if (best) setAlloc(s, fi, best, 1);
   }
   // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음
@@ -309,5 +318,6 @@ export function pushLog(s: GameState, m: string) { s.log.unshift("[" + dateLabel
 export function dateLabel(months: number) { const y = 2026 + Math.floor(months / 12); const mo = (months % 12) + 1; return y + "." + (mo < 10 ? "0" + mo : mo); }
 
 // operate gating helpers (firm별 벤처 쿨다운)
-export function canOperate(s: GameState, fi: number, action: string) { const v = s.firms[fi].venture; return !v || (v.cooldown[action] || 0) <= s.date; }
-export function setCooldown(s: GameState, fi: number, action: string, months: number) { const v = s.firms[fi].venture; if (v) v.cooldown[action] = s.date + months; }
+export function ventureOf(f: Firm, cap: Cap) { return f.ventures.find(v => v.cap === cap); }
+export function canOperate(s: GameState, fi: number, cap: Cap, action: string) { const v = ventureOf(s.firms[fi], cap); return !v || (v.cooldown[action] || 0) <= s.date; }
+export function setCooldown(s: GameState, fi: number, cap: Cap, action: string, months: number) { const v = ventureOf(s.firms[fi], cap); if (v) v.cooldown[action] = s.date + months; }

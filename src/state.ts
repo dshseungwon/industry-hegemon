@@ -7,7 +7,8 @@ export interface Firm {
   key: string; name: string; col: string; caps: Record<Cap, number>; ai: string;
   // 플레이어별 경제(멀티: 각 firm이 자기 회사를 독립적으로 운영)
   cash: number; debt: number; distress: number;
-  venture: Venture | null; cooldowns: Record<string, number>; tech: string[];
+  ventures: Venture[];              // 동시 진행 내부개발(역량별 최대 1개)
+  cooldowns: Record<string, number>; tech: string[];
   home: string;                     // 본진(HQ) 시장명 — 자원 전송의 출발지
   alloc: Record<string, number>;    // 시장명 -> 자원 할당 목표(0~ALLOC_MAX). 0이면 철수(영향력 0으로 감소).
   effort: Record<string, number>;   // 시장명 -> 현재 배치된 영향력. 매월 alloc 쪽으로 램프(전개 지연).
@@ -114,7 +115,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     const alloc: Record<string, number> = {}, effort: Record<string, number> = {};
     for (const m of scenario.markets) { alloc[m.name] = 1; effort[m.name] = 1; }   // 기존 12개 시장엔 기본 할당 1로 진출. 프론티어는 미진출.
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [], home, alloc, effort, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, ventures: [], cooldowns: {}, tech: [], home, alloc, effort, auto: i !== youIdx };
   });
   const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};

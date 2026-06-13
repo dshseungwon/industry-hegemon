@@ -134,40 +134,23 @@ const A: Actions = {
   selectCountry(n) { if (!s) return; s.ui.country = n; if (n) sfx("click"); render(s, A); },
   startStrategy(cap) {
     if (!s) return;
+    const me = s.firms[s.youIdx];
+    if (me.ventures.some(v => v.cap === cap)) { flash(CAPKO[cap] + " 개발이 이미 진행 중입니다"); return; }
     const p = strategyProjects(s).find(x => x.cap === cap)!;
-    s.ui.confirm = {
-      title: "전략 실행 — " + p.h,
-      lines: [
-        "초기 투자(Capex): <b>$" + Math.round(p.capex) + "B</b>",
-        "예상 점유율 효과: <b class='gold'>+" + (p.dShare * 100).toFixed(1) + "%p</b>",
-        "NPV: <b class='" + (p.npv > 0 ? "gold" : "red") + "'>$" + Math.round(p.npv) + "B</b> · IRR: <b>" + (p.irr != null ? (p.irr * 100).toFixed(0) + "%" : "-") + "</b>",
-        "착수하면 시간이 흐르며 진행됩니다. 정말 진행하시겠습니까?",
-      ],
-      okLabel: "진행",
-      onOk: () => {
-        if (!s) return;
-        if (online) { net?.send({ kind: "invest", cap }); s.ui.confirm = null; s.ui.panel = "projects"; sfx("invest"); render(s, A); return; }
-        const me = s.firms[s.youIdx];
-        if (me.cash < p.capex) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        me.cash -= p.capex;
-        me.venture = { name: CAPKO[cap] + " 역량 프로그램", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} };
-        s.ui.confirm = null; s.ui.panel = "projects";
-        pushLog(s, "투자 착수: " + p.h);
-        sfx("invest"); render(s, A);
-      },
-    };
-    render(s, A);
+    if (online) { net?.send({ kind: "invest", cap }); sfx("invest"); return; }
+    if (me.cash < p.capex) { flash("현금이 부족합니다"); return; }
+    me.cash -= p.capex;
+    me.ventures.push({ name: CAPKO[cap] + " 역량 개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} });
+    pushLog(s, "개발 착수: " + p.h); sfx("invest"); render(s, A);
   },
-  operate(action) {
+  operate(cap, action) {
     if (!s) return;
-    const me = s.firms[s.youIdx]; if (!me.venture) return;
-    if (online) { net?.send({ kind: "operate", action }); sfx(action === "accel" ? "accel" : action === "cancel" ? "cancel" : "select"); return; }
-    if (!canOperate(s, s.youIdx, action)) { flash("아직 쿨다운입니다"); return; }
-    const v = me.venture;
-    if (action === "accel") { if (me.cash < 10) { flash("현금 부족"); return; } me.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, s.youIdx, "accel", 2); flash("가속 +14"); sfx("accel"); }
-    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, s.youIdx, "risk", 2); flash("리스크 해소"); sfx("select"); }
-    else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, s.youIdx, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); sfx("select"); }
-    else if (action === "cancel") { me.cash += 15; me.venture = null; flash("취소 — 자금 회수"); sfx("cancel"); }
+    const me = s.firms[s.youIdx]; const v = me.ventures.find(x => x.cap === cap); if (!v) return;
+    if (online) { net?.send({ kind: "operate", cap, action }); sfx(action === "accel" ? "accel" : action === "cancel" ? "cancel" : "select"); return; }
+    if (!canOperate(s, s.youIdx, cap, action)) { flash("아직 쿨다운입니다"); return; }
+    if (action === "accel") { if (me.cash < 10) { flash("현금 부족"); return; } me.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, s.youIdx, cap, "accel", 2); flash("가속 +14"); sfx("accel"); }
+    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, s.youIdx, cap, "risk", 2); flash("리스크 해소"); sfx("select"); }
+    else if (action === "cancel") { me.cash += 15; me.ventures = me.ventures.filter(x => x.cap !== cap); flash("취소 — 자금 회수"); sfx("cancel"); }
     render(s, A);
   },
   acquire(rivalKey) {

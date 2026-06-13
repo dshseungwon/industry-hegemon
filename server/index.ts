@@ -19,7 +19,7 @@ const STEP_MS = (sp: number) => sp === 1 ? 7500 : sp === 2 ? 3800 : sp === 3 ? 1
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 type Action =
-  | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; action: string }
+  | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; cap: Cap; action: string }
   | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
   | { kind: "research"; key: string } | { kind: "alloc"; market: string; delta: number };
 
@@ -44,13 +44,12 @@ function applyAction(state: GameState, fi: number, a: Action) {
   const f = state.firms[fi]; if (!f) return;
   switch (a.kind) {
     case "speed": state.speed = a.n; break;
-    case "invest": { const p = strategyProjects(state, fi).find(x => x.cap === a.cap); if (p && f.cash >= p.capex && !f.venture) { f.cash -= p.capex; f.venture = { name: CAPKO[a.cap] + " 역량 프로그램", cap: a.cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }; pushLog(state, f.name + " 투자 착수: " + p.h); } break; }
+    case "invest": { const p = strategyProjects(state, fi).find(x => x.cap === a.cap); if (p && f.cash >= p.capex && !f.ventures.some(v => v.cap === a.cap)) { f.cash -= p.capex; f.ventures.push({ name: CAPKO[a.cap] + " 역량 개발", cap: a.cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); pushLog(state, f.name + " 개발 착수: " + p.h); } break; }
     case "operate": {
-      const v = f.venture; if (!v || !canOperate(state, fi, a.action)) break;
-      if (a.action === "accel") { if (f.cash >= 10) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(state, fi, "accel", 2); } }
-      else if (a.action === "risk") { if (v.risk > 0) { v.risk--; setCooldown(state, fi, "risk", 2); } }
-      else if (a.action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(state, fi, "pivot", 3); }
-      else if (a.action === "cancel") { f.cash += 15; f.venture = null; }
+      const v = f.ventures.find(x => x.cap === a.cap); if (!v || !canOperate(state, fi, a.cap, a.action)) break;
+      if (a.action === "accel") { if (f.cash >= 10) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(state, fi, a.cap, "accel", 2); } }
+      else if (a.action === "risk") { if (v.risk > 0) { v.risk--; setCooldown(state, fi, a.cap, "risk", 2); } }
+      else if (a.action === "cancel") { f.cash += 15; f.ventures = f.ventures.filter(x => x.cap !== a.cap); }
       break;
     }
     case "acquire": { const t = acquireTargets(state, fi).find(x => x.key === a.rivalKey); if (t && f.cash >= t.price) { f.cash -= t.price; doAcquire(state, fi, a.rivalKey); } break; }
