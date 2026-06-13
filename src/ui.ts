@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -27,6 +27,10 @@ export interface Actions {
   raiseDebt(): void;
   lobby(marketName: string): void;
   research(key: string): void;
+  raiseEquity(): void;
+  emergencyLoan(): void;
+  austerity(): void;
+  liquidate(): void;
   alloc(marketName: string, delta: number): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
@@ -191,6 +195,31 @@ export function render(s: GameState, A: Actions) {
   renderSheet(s, A);
   renderConfirm(s, A);
   renderBanner(s, A);
+  renderEmergency(s, A);
+}
+// 비상 경영 배너 — 현금<0 동안 상시. 파산 카운트다운 + 회생 조치 4종.
+function renderEmergency(s: GameState, A: Actions) {
+  let el = document.getElementById("emergency");
+  const me = s.firms[s.youIdx];
+  if (!me || me.cash >= 0 || s.ui.over) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.id = "emergency"; document.body.appendChild(el); }
+  const months = bankruptcyIn(s, s.youIdx);
+  const eqAmt = equityRaiseAmount(s, s.youIdx), eqCd = equityCooldownLeft(s, s.youIdx);
+  const room = Math.round(borrowRoom(s, s.youIdx)), save = austeritySavings(s, s.youIdx), liq = liquidateValue(s, s.youIdx);
+  const b = (id: string, dis: boolean, label: string) => '<button class="embtn" id="' + id + '"' + (dis ? ' disabled' : '') + '>' + label + '</button>';
+  el.innerHTML =
+    '<div class="emhead">🚨 비상 경영 — 파산까지 <b>' + months + '개월</b> <span class="emcash">현금 $' + fmt(me.cash) + 'B</span></div>' +
+    '<div class="embtns">' +
+    b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + eqCd + '개월' : '+$' + eqAmt + 'B')) +
+    b("emLoan", room < 5, '💵 긴급 대출 ' + (room < 5 ? '여력 없음' : '+$' + room + 'B')) +
+    b("emAusterity", save <= 0.05, '✂️ 비상 긴축 ' + (save > 0.05 ? '−$' + save.toFixed(1) + '/월' : '여지 없음')) +
+    b("emLiquidate", liq <= 0, '🛑 개발 중단 ' + (liq > 0 ? '+$' + liq + 'B' : '없음')) +
+    '</div>';
+  const bind = (id: string, fn: () => void) => { const x = document.getElementById(id) as HTMLButtonElement | null; if (x && !x.disabled) x.onclick = fn; };
+  bind("emEquity", () => A.raiseEquity());
+  bind("emLoan", () => A.emergencyLoan());
+  bind("emAusterity", () => A.austerity());
+  bind("emLiquidate", () => A.liquidate());
 }
 
 function renderTop(s: GameState, A: Actions) {
@@ -201,7 +230,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="brand">더 체어맨</div>' +
     '<div class="myfirm" title="내 기업" style="border-color:' + me.col + '"><span class="fdot" style="background:' + me.col + '"></span><b style="color:' + me.col + '">' + me.name + '</b></div>' +
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
-    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
+    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
@@ -273,7 +302,7 @@ function panelBody(s: GameState, panel: string): string {
   const you = s.firms[s.youIdx];
   if (panel === "company") {
     const cf = monthlyCashflow(s); const upk = allocUpkeep(s, s.youIdx); const net = cf - upk;
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div><div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div><div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {

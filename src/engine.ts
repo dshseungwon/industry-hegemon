@@ -160,6 +160,47 @@ export function doAcquire(s: GameState, fi: number, rivalKey: string) {
 // 부채 조달: 차입여력(4×EBITDA) 내에서만. 즉시 현금, 부채 증가(이자·WACC 상승).
 export function raiseDebt(s: GameState, fi: number, amount: number) { const f = s.firms[fi]; const a = Math.min(amount, borrowRoom(s, fi)); if (a <= 0) return; f.cash += a; f.debt += a; pushLog(s, "💵 " + f.name + " 부채 조달 +$" + Math.round(a) + "B"); }
 
+// ===== 비상 경영(현금<0): 유동성 위기 회생 수단 =====
+const BANKRUPT_MONTHS = 12;        // 현금 음수가 이만큼 지속되면 파산
+const EQUITY_CD = 18;              // 유상증자 쿨다운(개월) — 남발 방지
+const AUSTERITY_KEEP = 4;          // 비상 긴축 시 유지할 강세 시장 수
+export function insolvent(s: GameState, fi: number = s.youIdx) { return s.firms[fi].cash < 0; }
+export function bankruptcyIn(s: GameState, fi: number = s.youIdx) { return Math.max(0, BANKRUPT_MONTHS - (s.firms[fi].distress || 0)); }
+
+// 유상증자: 회사 규모(점령 매출 기반)에 비례한 일회성 자본 투입. 부채 아님(이자 없음), 쿨다운이 유일 제약.
+export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3), 25, 200); }
+export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity"); }
+export function equityCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["equity"] || 0) - s.date); }
+export function raiseEquity(s: GameState, fi: number = s.youIdx) {
+  if (!canRaiseEquity(s, fi)) return;
+  const amt = equityRaiseAmount(s, fi); s.firms[fi].cash += amt; setActCooldown(s, fi, "equity", EQUITY_CD);
+  pushLog(s, "🏦 " + s.firms[fi].name + " 유상증자 — 자본 +$" + amt + "B (주주 자본 투입)");
+}
+// 비상 긴축: 적합도 상위 강세 시장만 남기고 나머지 할당을 1로 → 월 유지비 급감(점유율 일부 희생).
+function nonCoreMarkets(s: GameState, fi: number) {
+  const f = s.firms[fi];
+  const ranked = Object.keys(f.alloc).filter(n => s.marketOrder.includes(n)).sort((a, b) => matchScore(f, s.markets[b]) - matchScore(f, s.markets[a]));
+  const keep = new Set(ranked.slice(0, AUSTERITY_KEEP));
+  return ranked.filter(n => !keep.has(n) && (f.alloc[n] || 0) > 1);
+}
+export function austeritySavings(s: GameState, fi: number = s.youIdx) {
+  let save = 0; for (const n of nonCoreMarkets(s, fi)) save += allocUpkeepAt(s, n, s.firms[fi].alloc[n]) - allocUpkeepAt(s, n, 1);
+  return save;
+}
+export function emergencyAusterity(s: GameState, fi: number = s.youIdx) {
+  const cut = nonCoreMarkets(s, fi); if (!cut.length) return;
+  for (const n of cut) s.firms[fi].alloc[n] = 1;
+  recomputeLeaders(s);
+  pushLog(s, "✂️ " + s.firms[fi].name + " 비상 긴축 — 비핵심 " + cut.length + "개 시장 철수로 유지비 절감");
+}
+// 개발 중단: 진행 벤처 전부 정리, 1개당 현금 회수($15, operate cancel과 동일).
+export function liquidateValue(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ventures.length * 15; }
+export function liquidateVentures(s: GameState, fi: number = s.youIdx) {
+  const f = s.firms[fi]; const n = f.ventures.length; if (!n) return;
+  f.cash += n * 15; f.ventures = [];
+  pushLog(s, "🛑 " + f.name + " 개발 중단 — 진행 벤처 정리로 현금 +$" + (n * 15) + "B");
+}
+
 function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if (t > 0) for (const p of CAPS) m.pref[p] /= t; }
 
 // ---- 프론티어(미진출 시장) ----
@@ -276,9 +317,9 @@ export function tick(s: GameState) {
   recomputeLeaders(s);
 
   // 파산: 채무 불이행 12개월 지속 → 퇴출(AI) / 패배(플레이어)
-  const playerBankrupt = (s.firms[s.youIdx]?.distress || 0) >= 12;
+  const playerBankrupt = (s.firms[s.youIdx]?.distress || 0) >= BANKRUPT_MONTHS;
   for (const f of [...s.firms]) {
-    if (f.distress >= 12 && f.key !== youKey && s.firms.length > 1) {
+    if (f.distress >= BANKRUPT_MONTHS && f.key !== youKey && s.firms.length > 1) {
       s.firms = s.firms.filter(x => x.key !== f.key);
       pushLog(s, "💸 " + f.name + " 파산 — 시장에서 퇴출");
     }

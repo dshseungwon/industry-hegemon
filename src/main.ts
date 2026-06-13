@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyAusterity, liquidateVentures } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -37,10 +37,19 @@ function crisisCheck() {
   if (sh < 0.10 && !wasCrisis) { wasCrisis = true; flash("⚠️ 위기 — 점유율 10% 미만! 전략을 재정비하세요"); sfx("lost"); }
   else if (sh > 0.13 && wasCrisis) { wasCrisis = false; }   // 히스테리시스(반복 경고 방지)
 }
+let wasInsolvent = false;
+function insolvencyCheck() {
+  if (!s) return;
+  const ins = !!s.firms[s.youIdx] && s.firms[s.youIdx].cash < 0;
+  if (ins && !wasInsolvent) {
+    wasInsolvent = true; flash("🚨 비상 경영 — 현금 고갈! 회생 조치가 필요합니다"); sfx("lost");
+    if (!online && s.speed !== 0) s.speed = 0;   // 오프라인은 일시정지(판단). 온라인은 공유 월드라 유지.
+  } else if (!ins && wasInsolvent) { wasInsolvent = false; }
+}
 function schedule() {
   if (timer) clearTimeout(timer);
   if (online || phase !== "game" || !s || s.speed === 0 || s.ui.over) return;   // 온라인은 서버가 진행
-  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); crisisCheck(); checkEvent(); schedule(); }, stepMs(s.speed));
+  timer = window.setTimeout(() => { tick(s!); crisisCheck(); insolvencyCheck(); render(s!, A); drainFx(); checkEvent(); schedule(); }, stepMs(s.speed));
 }
 
 // ----- 온라인 모드 (로비 → 방 생성/참가) -----
@@ -76,7 +85,7 @@ function applyWorld(w: any) {
     const ui = s.ui; ui.over = over;
     Object.assign(s, w); s.ui = ui; s.fx = []; s.youIdx = yi;
   }
-  render(s, A); checkEvent();
+  render(s, A); checkEvent(); insolvencyCheck();
 }
 
 function paint() {
@@ -90,7 +99,7 @@ function paint() {
 function startGame(youIdx: number) {
   s = newGame(pickedScenario!, youIdx);
   recomputeLeaders(s);
-  wasCrisis = false; lastEventId = 0;
+  wasCrisis = false; wasInsolvent = false; lastEventId = 0;
   phase = "game";
   mountGame(app, A);   // 인게임 DOM 재구성
   // 첫 플레이엔 시작 가이드 1회 노출(이후엔 상단 ❓에서 다시 볼 수 있음)
@@ -202,6 +211,11 @@ const A: Actions = {
     };
     render(s, A);
   },
+  // ===== 비상 경영 조치(현금<0) — 즉시 실행(위기엔 속도가 중요, 확인모달 없음) =====
+  raiseEquity() { if (!s) return; if (online) { net?.send({ kind: "raiseEquity" }); sfx("invest"); return; } engineRaiseEquity(s, s.youIdx); sfx("invest"); render(s, A); },
+  emergencyLoan() { if (!s) return; if (online) { net?.send({ kind: "raiseDebt" }); sfx("select"); return; } engineRaiseDebt(s, s.youIdx, borrowRoom(s)); sfx("select"); render(s, A); },
+  austerity() { if (!s) return; if (online) { net?.send({ kind: "austerity" }); sfx("click"); return; } emergencyAusterity(s, s.youIdx); sfx("click"); render(s, A); },
+  liquidate() { if (!s) return; if (online) { net?.send({ kind: "liquidate" }); sfx("select"); return; } liquidateVentures(s, s.youIdx); sfx("select"); render(s, A); },
   lobby(marketName) {
     if (!s) return;
     if (!canAct(s, s.youIdx, "lobby:" + marketName)) { flash("아직 쿨다운입니다"); return; }
@@ -249,6 +263,7 @@ const A: Actions = {
   alloc(marketName, delta) {
     if (!s) return;
     const me = s.firms[s.youIdx];
+    if (delta > 0 && insolvent(s, s.youIdx)) { flash("현금이 음수입니다 — 비상 경영(증자·긴축)으로 흑자 전환부터 하세요"); return; }
     const firstEntry = delta > 0 && !isOpen(s, marketName) && !(me.alloc[marketName] > 0);
     if (online) {
       if (firstEntry && me.cash < entryCost(s, marketName)) { flash("진입 자금이 부족합니다 (진입장벽 $" + entryCost(s, marketName) + "B)"); return; }
