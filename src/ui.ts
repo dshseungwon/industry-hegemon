@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize, borrowRoom, creditRating, leverage, debtRate } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize, borrowRoom, creditRating, leverage, debtRate, campaignCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -26,6 +26,7 @@ export interface Actions {
   lobby(marketName: string): void;
   research(key: string): void;
   enter(marketName: string): void;
+  campaign(marketName: string): void;
 }
 // 색은 firm.col에서(생성 시나리오는 임의 key). 비활성 시장은 어두운 색.
 const colByKey = (s: GameState, k: string) => { const f = s.firms.find(x => x.key === k); return f ? f.col : "#23415f"; };
@@ -279,14 +280,14 @@ function panelBody(s: GameState, panel: string): string {
       '<div class="kv"><span>② 마감 시 1위</span><b class="gold">~' + dateLabel(END_MONTHS) + '</b></div>' +
       '<div class="mute small" style="margin-top:4px">지도 전체가 내 색이 되면 즉시 승리. 아니면 마감(' + dateLabel(END_MONTHS) + ') 시점에 점유율 1위인 기업이 승리합니다.</div></div>';
     h += '<div class="sect">플레이 방법</div><div class="card mute small" style="line-height:1.7">' +
-      '① <b>국가를 클릭</b> → 그 시장이 원하는 역량(KSF)과 기업별 점유율 확인<br>' +
-      '② 📈<b>전략</b>에서 약한 역량에 투자 — NPV가 +면 적격. 시장이 원하는 역량을 키우면 점유율↑<br>' +
-      '③ <b>▶</b> 시간 진행 · <b>⏸</b> 멈춰 판단 — 트렌드·규제로 환경이 계속 변합니다<br>' +
-      '④ 수입(월 현금흐름)은 점유율에서 나옵니다 — 벌어서 재투자하는 선순환' + '</div>';
+      '① <b>국가를 클릭</b> → 그 시장이 원하는 역량(KSF)·기업별 점유율 확인<br>' +
+      '② 🎯<b>공략(자원 투입)</b> — 그 시장에 직접 자원을 부어 <b>점유율을 능동적으로</b> 끌어올립니다. 적합도(KSF)가 높을수록 효과적, 안 유지하면 약해집니다<br>' +
+      '③ 📈<b>전략</b>에서 약한 역량에 투자 — 역량이 높을수록 공략이 강해집니다(시장 적합도↑)<br>' +
+      '④ <b>▶</b> 진행 · <b>⏸</b> 판단. 수입(월 현금흐름)은 점유율에서 나와 재투자' + '</div>';
     h += '<div class="sect">전략 메뉴</div><div class="card mute small" style="line-height:1.7">' +
-      '🏢 기업 내부(역량·현금) · 🚀 진행 프로젝트(가속·리스크대응) · 🔬 테크트리(영구 업글)<br>' +
-      '📈 전략: <b>내부개발</b>(역량 투자) · <b>M&A</b>(경쟁사 인수) · <b>재무</b>(부채 조달) · <b>해외진출</b><br>' +
-      '국가 시트의 🏛️ <b>로비</b> — 그 시장 KSF를 내 강점 쪽으로' + '</div>';
+      '🎯 <b>공략</b>(국가 시트) — 자원 투입으로 그 시장 점유율 직접 상승<br>' +
+      '🏢 기업 내부 · 🚀 프로젝트(가속) · 🔬 테크트리 · 🏛️ 로비(시장 KSF를 내 강점으로)<br>' +
+      '📈 전략: <b>내부개발</b>(역량) · <b>M&A</b>(인수) · <b>재무</b>(부채) · <b>해외진출</b>' + '</div>';
     h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
   } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
@@ -330,11 +331,26 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>소비자 핵심 선호</span><b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율</div><div class="card">' + sharePie + '</div>' +
     '<div class="sect">소비자 선호(KSF)</div><div class="card">' + capBars(k => (m.pref[k] || 0) * 100) + '</div>' +
-    '<div class="mute small" style="margin-top:6px">이 시장은 <b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>' +
+    campaignSect(s) +
+    '<div class="mute small" style="margin-top:6px">적합도(KSF)가 높을수록 공략이 효과적입니다. 투입은 시간이 지나면 약해지니 <b>유지</b>가 필요합니다.</div>' +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
+  const cb = document.getElementById("campBtn") as HTMLButtonElement | null;
+  if (cb && !cb.disabled) cb.onclick = () => A.campaign(s.ui.country!);
   const lb = document.getElementById("lobbyBtn") as HTMLButtonElement | null;
   if (lb && !lb.disabled) lb.onclick = () => A.lobby(s.ui.country!);
+}
+// 공략(자원 투입) — 이 시장 점유율을 능동적으로 끌어올림
+function campaignSect(s: GameState): string {
+  const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
+  const cost = campaignCost(s, n); const ok = canAct(s, s.youIdx, "camp:" + n);
+  const cd = ok ? 0 : Math.max(0, (me.cooldowns["camp:" + n] || 0) - s.date);
+  const mine = (me.effort[n] || 0), tot = s.firms.reduce((a, f) => a + (f.effort[n] || 0), 0);
+  const dis = !ok || me.cash < cost;
+  return '<div class="sect">🎯 공략 — 자원 투입</div><div class="card">' +
+    '<div class="kv"><span>내 영향력 투입</span><b>' + mine.toFixed(1) + (tot > 0 ? ' / 전체 ' + tot.toFixed(1) : '') + '</b></div>' +
+    '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
+    '<button class="actbtn" id="campBtn"' + (dis ? ' disabled' : '') + '>🎯 자원 투입 — 점유율 끌어올리기 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {

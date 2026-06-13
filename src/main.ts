@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, campaignCost, doCampaign } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -275,6 +275,15 @@ const A: Actions = {
       },
     };
     render(s, A);
+  },
+  campaign(marketName) {
+    if (!s) return;
+    if (online) { net?.send({ kind: "campaign", market: marketName }); sfx("accel"); return; }
+    if (!canAct(s, s.youIdx, "camp:" + marketName)) { flash("아직 쿨다운입니다"); return; }
+    const me = s.firms[s.youIdx]; const cost = campaignCost(s, marketName);
+    if (me.cash < cost) { flash("현금이 부족합니다"); return; }
+    me.cash -= cost; doCampaign(s, s.youIdx, marketName); setActCooldown(s, s.youIdx, "camp:" + marketName, 1);
+    recomputeLeaders(s); sfx("accel"); render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
   confirmCancel() { if (!s) return; s.ui.confirm = null; render(s, A); },

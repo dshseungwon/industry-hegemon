@@ -8,6 +8,7 @@ export interface Firm {
   // 플레이어별 경제(멀티: 각 firm이 자기 회사를 독립적으로 운영)
   cash: number; debt: number; distress: number;
   venture: Venture | null; cooldowns: Record<string, number>; tech: string[];
+  effort: Record<string, number>;   // 시장명 -> 공략 투입(영향력). 점유율을 능동적으로 끌어올림. 시간 경과 시 감쇠.
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
@@ -108,7 +109,7 @@ export const CODEX = [
 export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 0): GameState {
   const firms: Firm[] = scenario.firms.map((f, i) => ({
     ...f, caps: { ...f.caps },
-    cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [],
+    cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [], effort: {},
     auto: i !== youIdx,        // 플레이어 firm만 사람이 조종, 나머지는 AI
   }));
   const youKey = firms[youIdx].key;

@@ -16,22 +16,35 @@ export const BALANCE = {
   aiInvestChance: 0.12,   // AI가 idle일 때 매월 신규 투자 확률
   aiPayoff: 9,            // AI 벤처 1회 역량 증가(사람 14보다 낮음)
   aiAccelChance: 0.10,    // AI가 진행 중 가속할 확률(현금 여유 시)
+  aiCampaignChance: 0.10, // AI가 매월 시장 공략(자원 투입)할 확률
 };
 
+const EFFORT_W = 0.6;          // 공략 투입 1당 시장 가중치 배수(+60%). 적합도^β × (1 + EFFORT_W×effort).
+const EFFORT_STEP = 1.0;       // 1회 공략으로 투입 증가량
+const EFFORT_DECAY = 0.985;    // 월 감쇠(유지 안 하면 약해짐 — 능동 관리, 반감기 ~46개월)
 function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const k of CAPS) s += (m.pref[k] || 0) * gcap(caps[k]); return s; }
 export function matchScore(f: Firm, m: Market) { return scoreWith(f.caps, m); }
-export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = matchScore(f, m); if (v > bv) { bv = v; best = f; } } return best; }
+// 한 시장에서 firm의 가중치 = 적합도^β × (1 + 공략 투입). 점유율·점령자 모두 이걸로 결정.
+function weightOf(f: Firm, m: Market, caps: Record<Cap, number>) { return Math.pow(scoreWith(caps, m), SHARE_BETA) * (1 + EFFORT_W * (f.effort[m.name] || 0)); }
+export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }
 export function recomputeLeaders(s: GameState) { for (const n of s.marketOrder) s.markets[n].leader = leaderOf(s, s.markets[n]).key; }
 
-// 한 시장에서 firm의 점유율 = 적합도^β / Σ 적합도^β. capsOverride로 "이 투자를 하면?" 평가.
+// 한 시장 점유율 = 가중치 / Σ 가중치(적합도 + 공략 투입). capsOverride로 "이 투자를 하면?" 평가.
 export function shareOf(s: GameState, m: Market, firmKey: string, capsOverride?: Record<Cap, number>) {
   let tot = 0, mine = 0;
   for (const f of s.firms) {
     const caps = capsOverride && f.key === firmKey ? capsOverride : f.caps;
-    const v = Math.pow(scoreWith(caps, m), SHARE_BETA);
+    const v = weightOf(f, m, caps);
     tot += v; if (f.key === firmKey) mine = v;
   }
   return tot > 0 ? mine / tot : 0;
+}
+// ---- 공략(캠페인): 시장에 자원 투입 → 점유율 능동 상승. 적합도가 높을수록 효과적, 미유지 시 감쇠 ----
+export function campaignCost(s: GameState, name: string) { const m = s.markets[name]; return m ? Math.max(4, Math.round(m.size * 0.025)) : 0; }
+export function doCampaign(s: GameState, fi: number, name: string) {
+  const f = s.firms[fi]; if (!s.markets[name]) return;
+  f.effort[name] = (f.effort[name] || 0) + EFFORT_STEP;
+  pushLog(s, "🎯 " + f.name + " " + s.markets[name].ko + " 공략 — 자원 투입");
 }
 // firm이 전 세계에서 점령한 규모(가중) 단위
 export function capturedSize(s: GameState, firmKey: string, capsOverride?: Record<Cap, number>) {
@@ -198,6 +211,7 @@ export function tick(s: GameState) {
   const youKey = s.firms[s.youIdx].key;
   for (let fi = 0; fi < s.firms.length; fi++) {
     const f = s.firms[fi];
+    for (const k in f.effort) { f.effort[k] *= EFFORT_DECAY; if (f.effort[k] < 0.02) delete f.effort[k]; }   // 공략 투입 감쇠
     if (f.auto) aiPolicy(s, fi);
     progressVenture(s, fi);
     f.cash += monthlyCashflow(s, fi);
@@ -251,6 +265,12 @@ function aiPolicy(s: GameState, fi: number) {
     }
   } else if (f.cash >= 10 && Math.random() < BALANCE.aiAccelChance && canOperate(s, fi, "accel")) {
     f.venture.progress = Math.min(100, f.venture.progress + 14); f.cash -= 10; setCooldown(s, fi, "accel", 2);
+  }
+  // 공략: 적합도가 좋은데 아직 1위가 아닌 시장에 자원 투입(시장을 읽고 능동 확장)
+  if (Math.random() < BALANCE.aiCampaignChance) {
+    let target = "", bestFit = -1;
+    for (const n of s.marketOrder) { const m = s.markets[n]; if (m.leader === f.key) continue; const fit = matchScore(f, m); if (fit > bestFit) { bestFit = fit; target = n; } }
+    if (target) { const c = campaignCost(s, target); if (f.cash >= c) { f.cash -= c; doCampaign(s, fi, target); } }
   }
 }
 // 한 firm이 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음).
