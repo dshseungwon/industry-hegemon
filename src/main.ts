@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyAusterity, liquidateVentures } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -231,7 +231,7 @@ const A: Actions = {
   },
   // ===== 비상 경영 조치(현금<0) — 즉시 실행(위기엔 속도가 중요, 확인모달 없음) =====
   raiseEquity() { if (!s) return; if (online) { net?.send({ kind: "raiseEquity" }); sfx("invest"); return; } engineRaiseEquity(s, s.youIdx); sfx("invest"); render(s, A); },
-  emergencyLoan() { if (!s) return; if (online) { net?.send({ kind: "raiseDebt" }); sfx("select"); return; } engineRaiseDebt(s, s.youIdx, borrowRoom(s)); sfx("select"); render(s, A); },
+  emergencyLoan() { if (!s) return; if (online) { net?.send({ kind: "emergencyLoan" }); sfx("select"); return; } engineEmergencyLoan(s, s.youIdx); sfx("select"); render(s, A); },
   austerity() { if (!s) return; if (online) { net?.send({ kind: "austerity" }); sfx("click"); return; } emergencyAusterity(s, s.youIdx); sfx("click"); render(s, A); },
   liquidate() { if (!s) return; if (online) { net?.send({ kind: "liquidate" }); sfx("select"); return; } liquidateVentures(s, s.youIdx); sfx("select"); render(s, A); },
   lobby(marketName) {

@@ -5,7 +5,7 @@ export type NetAction =
   | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; cap: Cap; action: string }
   | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
   | { kind: "research"; key: string } | { kind: "alloc"; market: string; delta: number }
-  | { kind: "raiseEquity" } | { kind: "austerity" } | { kind: "liquidate" };
+  | { kind: "raiseEquity" } | { kind: "emergencyLoan" } | { kind: "austerity" } | { kind: "liquidate" };
 
 export interface RosterEntry { idx: number; firm: string; key: string; human: boolean; name: string; }
 export interface NetHandlers {

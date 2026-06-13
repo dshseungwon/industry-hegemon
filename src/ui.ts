@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -227,13 +227,13 @@ function renderEmergency(s: GameState, A: Actions) {
   if (!el) { el = document.createElement("div"); el.id = "emergency"; document.body.appendChild(el); }
   const months = bankruptcyIn(s, s.youIdx);
   const eqAmt = equityRaiseAmount(s, s.youIdx), eqCd = equityCooldownLeft(s, s.youIdx);
-  const room = Math.round(borrowRoom(s, s.youIdx)), save = austeritySavings(s, s.youIdx), liq = liquidateValue(s, s.youIdx);
+  const loan = emergencyLoanAmount(s, s.youIdx), save = austeritySavings(s, s.youIdx), liq = liquidateValue(s, s.youIdx);
   const b = (id: string, dis: boolean, label: string) => '<button class="embtn" id="' + id + '"' + (dis ? ' disabled' : '') + '>' + label + '</button>';
   el.innerHTML =
     '<div class="emhead">🚨 비상 경영 — 파산까지 <b>' + months + '개월</b> <span class="emcash">현금 $' + fmt(me.cash) + 'B</span></div>' +
     '<div class="embtns">' +
     b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + eqCd + '개월' : '+$' + eqAmt + 'B' + (me.equityRaises > 0 ? ' (' + (me.equityRaises + 1) + '회차·체감)' : ''))) +
-    b("emLoan", room < 5, '💵 긴급 대출 ' + (room < 5 ? '여력 없음' : '+$' + room + 'B')) +
+    b("emLoan", loan < 1, '💵 긴급 대출 ' + (loan < 1 ? '여력 없음' : '+$' + loan + 'B')) +
     b("emAusterity", save <= 0.05, '✂️ 비상 긴축 ' + (save > 0.05 ? '−$' + save.toFixed(1) + '/월' : '여지 없음')) +
     b("emLiquidate", liq <= 0, '🛑 개발 중단 ' + (liq > 0 ? '+$' + liq + 'B' : '없음')) +
     '</div>';

@@ -42,7 +42,8 @@ const ALLOC_TECH: Record<string, { region: string; amt: number }> = {
 export function maxAllocFor(s: GameState, fi: number, name: string) {
   const region = regionOf(name); let b = ALLOC_BASE;
   for (const k of s.firms[fi].tech) { const a = ALLOC_TECH[k]; if (a && (a.region === "all" || a.region === region)) b += a.amt; }
-  return Math.min(ALLOC_MAX, b);
+  // 본진은 상한을 넘는 단계로 시작(특별 허용). 현재 할당을 바닥으로 깔아 상한을 정확히 표시(예: 6으로 시작 → 상한 6).
+  return Math.max(Math.min(ALLOC_MAX, b), s.firms[fi].alloc[name] || 0);
 }
 const ALLOC_RAMP = 0.2;        // 매월 현재 영향력이 할당 목표로 다가가는 비율(전개 지연 ≈ 5개월)
 const OPEN_THRESH = 0.08;      // 프론티어가 이 영향력을 넘으면 시장 개방(진출 완료)
@@ -168,19 +169,28 @@ const EQUITY_CD = 18;              // 유상증자 쿨다운(개월) — 남발 
 const EQUITY_DECAY = 0.65;         // 증자 1회당 기준액 ×0.65 체감(투자자 경계)
 const EQUITY_CREDIT_DRAG = 25;     // 증자 1회당 유령부채(신용 부담) — 등급↓·이자/WACC↑·차입여력↓
 const AUSTERITY_KEEP = 4;          // 비상 긴축 시 유지할 강세 시장 수
+const RESCUE_BUFFER = 12;          // 비상 회생(증자·긴급대출)은 '적자 메우기 + 이 소액 버퍼'까지만 — windfall 방지
 export function insolvent(s: GameState, fi: number = s.youIdx) { return s.firms[fi].cash < 0; }
 export function bankruptcyIn(s: GameState, fi: number = s.youIdx) { return Math.max(0, BANKRUPT_MONTHS - (s.firms[fi].distress || 0)); }
+// 회생에 필요한 현금(적자 + 소액 버퍼). 증자·긴급대출은 이만큼만 — 일부러 적자 내 큰 현금 빼먹는 악용 차단.
+export function rescueNeed(s: GameState, fi: number = s.youIdx) { return Math.max(0, Math.ceil(-s.firms[fi].cash) + RESCUE_BUFFER); }
 
-// 유상증자: 회사 규모(점령 매출 기반)에 비례한 일회성 자본 투입. 부채 아님(이자 없음), 쿨다운이 유일 제약.
-export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3 * Math.pow(EQUITY_DECAY, s.firms[fi].equityRaises)), 15, 200); }
+// 유상증자: 규모비례 한도 안에서 '적자 메우기'까지만(windfall 없음). 부채 아님, 쿨다운+체감+신용드래그가 비용.
+export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) {
+  const base = clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3 * Math.pow(EQUITY_DECAY, s.firms[fi].equityRaises)), 15, 200);
+  return Math.max(0, Math.min(base, rescueNeed(s, fi)));   // 적자+버퍼 한도로 캡
+}
 export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity"); }
 export function equityCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["equity"] || 0) - s.date); }
 export function raiseEquity(s: GameState, fi: number = s.youIdx) {
   if (!canRaiseEquity(s, fi)) return;
-  const f = s.firms[fi]; const amt = equityRaiseAmount(s, fi);
+  const f = s.firms[fi]; const amt = equityRaiseAmount(s, fi); if (amt <= 0) return;
   f.cash += amt; f.equityRaises++; setActCooldown(s, fi, "equity", EQUITY_CD);
   pushLog(s, "🏦 " + f.name + " 유상증자 +$" + amt + "B (지분 희석·신용 부담↑, " + f.equityRaises + "회차)");
 }
+// 긴급 대출: 차입여력 내에서 '적자 메우기'까지만 조달(부채·이자). 풀로 빼서 투자 밑천 삼는 악용 차단.
+export function emergencyLoanAmount(s: GameState, fi: number = s.youIdx) { return Math.min(Math.floor(borrowRoom(s, fi)), rescueNeed(s, fi)); }
+export function emergencyLoan(s: GameState, fi: number = s.youIdx) { const a = emergencyLoanAmount(s, fi); if (a > 0) raiseDebt(s, fi, a); }
 // 비상 긴축: 적합도 상위 강세 시장만 남기고 나머지 할당을 1로 → 월 유지비 급감(점유율 일부 희생).
 function nonCoreMarkets(s: GameState, fi: number) {
   const f = s.firms[fi];

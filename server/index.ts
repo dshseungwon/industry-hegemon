@@ -12,7 +12,7 @@ import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
   acquireTargets, doAcquire, raiseDebt, borrowRoom, lobbyCost, doLobby, canAct, setActCooldown,
   TECH_NODES, doResearch, setAlloc, doEnter,
-  raiseEquity, emergencyAusterity, liquidateVentures, insolvent,
+  raiseEquity, emergencyLoan, emergencyAusterity, liquidateVentures, insolvent,
 } from "../src/engine";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -24,7 +24,7 @@ type Action =
   | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; cap: Cap; action: string }
   | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
   | { kind: "research"; key: string } | { kind: "alloc"; market: string; delta: number }
-  | { kind: "raiseEquity" } | { kind: "austerity" } | { kind: "liquidate" };
+  | { kind: "raiseEquity" } | { kind: "emergencyLoan" } | { kind: "austerity" } | { kind: "liquidate" };
 
 interface Player { key: string; name: string; }
 interface Room { code: string; state: GameState; clients: Set<WebSocket>; players: Map<WebSocket, Player>; timer?: NodeJS.Timeout; }
@@ -67,6 +67,7 @@ function applyAction(state: GameState, fi: number, a: Action) {
       recomputeLeaders(state); break;
     }
     case "raiseEquity": raiseEquity(state, fi); break;
+    case "emergencyLoan": emergencyLoan(state, fi); break;
     case "austerity": emergencyAusterity(state, fi); break;
     case "liquidate": liquidateVentures(state, fi); break;
   }
