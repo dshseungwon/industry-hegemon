@@ -18,6 +18,7 @@ let s: GameState | null = null;
 let online = false;
 let net: NetClient | null = null;
 let youIdxNet = -1;
+let myKeyNet = "";        // 내 firm 키(인덱스는 M&A로 바뀌므로 키로 추적)
 
 const stepMs = (sp: number) => sp === 1 ? 1400 : sp === 2 ? 800 : sp === 3 ? 360 : 0;
 let timer: number | undefined;
@@ -39,23 +40,27 @@ function schedule() {
 function goOnline() {
   unlockAudio(); startBgm();
   if (timer) clearTimeout(timer);
-  online = true; phase = "game"; s = null; youIdxNet = -1;
+  online = true; phase = "game"; s = null; youIdxNet = -1; myKeyNet = "";
   net = connect(defaultUrl(), {
-    onWelcome: (m) => { youIdxNet = m.youIdx; applyWorld(m.world); flash(m.role === "controller" ? "온라인 — 당신이 컨트롤러입니다" : "온라인 — 관전 모드 (" + m.players + "명)"); },
+    onWelcome: (m) => { youIdxNet = m.youIdx; myKeyNet = m.youIdx >= 0 ? (m.world.firms[m.youIdx]?.key || "") : ""; applyWorld(m.world); flash(m.role === "controller" || m.role === "player" ? "온라인 — " + (m.world.firms[m.youIdx]?.name || "내 기업") + "(으)로 플레이" : "온라인 — 관전 모드 (" + m.players + "명)"); },
     onWorld: (w) => applyWorld(w),
-    onRole: (m) => { youIdxNet = m.youIdx; flash("컨트롤러 권한을 받았습니다"); },
+    onRole: (m) => { youIdxNet = m.youIdx; flash("플레이 권한을 받았습니다"); },
     onClose: () => { if (online) flash("서버 연결이 종료되었습니다"); },
     onError: () => { flash("서버에 연결할 수 없습니다 — 'npm run server' 실행을 확인하세요"); online = false; net = null; phase = "title"; paint(); },
   });
 }
 function applyWorld(w: any) {
   if (!w) return;
-  const yi = youIdxNet >= 0 ? youIdxNet : (w.youIdx ?? 0);
+  // 내 firm 인덱스를 키로 재해결(M&A로 인덱스가 바뀌어도 안전)
+  let yi = myKeyNet ? w.firms.findIndex((f: any) => f.key === myKeyNet) : -1;
+  if (yi < 0) yi = youIdxNet >= 0 ? youIdxNet : 0;
+  const myKey = w.firms[yi]?.key;
+  const over = w.over ? { won: w.over.winnerKey ? w.over.winnerKey === myKey : !!w.over.won, msg: w.over.msg } : null;
   if (!s) {
-    s = { ...w, ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: w.over || null }, fx: [] } as GameState;
+    s = { ...w, ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over }, fx: [] } as GameState;
     s.youIdx = yi; mountGame(app, A);
   } else {
-    const ui = s.ui; ui.over = w.over || null;
+    const ui = s.ui; ui.over = over;
     Object.assign(s, w); s.ui = ui; s.fx = []; s.youIdx = yi;
   }
   render(s, A);
@@ -130,9 +135,10 @@ const A: Actions = {
       onOk: () => {
         if (!s) return;
         if (online) { net?.send({ kind: "invest", cap }); s.ui.confirm = null; s.ui.panel = "projects"; sfx("invest"); render(s, A); return; }
-        if (s.cash < p.capex) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        s.cash -= p.capex;
-        s.venture = { name: CAPKO[cap] + " 역량 프로그램", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} };
+        const me = s.firms[s.youIdx];
+        if (me.cash < p.capex) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        me.cash -= p.capex;
+        me.venture = { name: CAPKO[cap] + " 역량 프로그램", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} };
         s.ui.confirm = null; s.ui.panel = "projects";
         pushLog(s, "투자 착수: " + p.h);
         sfx("invest"); render(s, A);
@@ -141,14 +147,15 @@ const A: Actions = {
     render(s, A);
   },
   operate(action) {
-    if (!s || !s.venture) return;
+    if (!s) return;
+    const me = s.firms[s.youIdx]; if (!me.venture) return;
     if (online) { net?.send({ kind: "operate", action }); sfx(action === "accel" ? "accel" : action === "cancel" ? "cancel" : "select"); return; }
-    if (!canOperate(s, action)) { flash("아직 쿨다운입니다"); return; }
-    const v = s.venture;
-    if (action === "accel") { if (s.cash < 10) { flash("현금 부족"); return; } s.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, "accel", 2); flash("가속 +14"); sfx("accel"); }
-    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, "risk", 2); flash("리스크 해소"); sfx("select"); }
-    else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); sfx("select"); }
-    else if (action === "cancel") { s.cash += 15; s.venture = null; flash("취소 — 자금 회수"); sfx("cancel"); }
+    if (!canOperate(s, s.youIdx, action)) { flash("아직 쿨다운입니다"); return; }
+    const v = me.venture;
+    if (action === "accel") { if (me.cash < 10) { flash("현금 부족"); return; } me.cash -= 10; v.progress = Math.min(100, v.progress + 14); setCooldown(s, s.youIdx, "accel", 2); flash("가속 +14"); sfx("accel"); }
+    else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, s.youIdx, "risk", 2); flash("리스크 해소"); sfx("select"); }
+    else if (action === "pivot") { const ks: Cap[] = ["tech", "brand", "scale", "global"]; v.cap = ks[(ks.indexOf(v.cap) + 1) % 4]; v.name = CAPKO[v.cap] + " 역량 프로그램"; setCooldown(s, s.youIdx, "pivot", 3); flash("대상 → " + CAPKO[v.cap]); sfx("select"); }
+    else if (action === "cancel") { me.cash += 15; me.venture = null; flash("취소 — 자금 회수"); sfx("cancel"); }
     render(s, A);
   },
   acquire(rivalKey) {
@@ -157,7 +164,7 @@ const A: Actions = {
     s.ui.confirm = {
       title: "M&A — " + t.name + " 인수",
       lines: [
-        "인수가: <b>$" + Math.round(t.price) + "B</b> (보유 현금 $" + Math.round(s.cash) + "B)",
+        "인수가: <b>$" + Math.round(t.price) + "B</b> (보유 현금 $" + Math.round(s.firms[s.youIdx].cash) + "B)",
         "효과: 각 역량을 <b>더 높은 값으로 흡수</b>하고 <b>경쟁자를 제거</b>합니다.",
         "남은 경쟁사를 모두 인수하면 시장을 완전 장악합니다. 진행할까요?",
       ],
@@ -165,8 +172,12 @@ const A: Actions = {
       onOk: () => {
         if (!s) return;
         if (online) { net?.send({ kind: "acquire", rivalKey }); s.ui.confirm = null; sfx("invest"); render(s, A); return; }
-        if (s.cash < t.price) { s.ui.confirm = null; flash("현금이 부족합니다 — 재무에서 자금 조달"); render(s, A); return; }
-        s.cash -= t.price; doAcquire(s, rivalKey); s.ui.confirm = null; sfx("invest"); render(s, A);
+        const me = s.firms[s.youIdx];
+        if (me.cash < t.price) { s.ui.confirm = null; flash("현금이 부족합니다 — 재무에서 자금 조달"); render(s, A); return; }
+        const youKey = me.key;
+        me.cash -= t.price; doAcquire(s, s.youIdx, rivalKey);
+        s.youIdx = Math.max(0, s.firms.findIndex(f => f.key === youKey));   // 인수로 배열 변동 → 내 인덱스 재해결
+        s.ui.confirm = null; sfx("invest"); render(s, A);
       },
     };
     render(s, A);
@@ -183,15 +194,15 @@ const A: Actions = {
         "현금 음수가 12개월 지속되면 <b class='red'>파산</b>합니다. 진행할까요?",
       ],
       okLabel: "조달",
-      onOk: () => { if (!s) return; if (online) { net?.send({ kind: "raiseDebt" }); s.ui.confirm = null; sfx("select"); render(s, A); return; } engineRaiseDebt(s, amt); s.ui.confirm = null; sfx("select"); render(s, A); },
+      onOk: () => { if (!s) return; if (online) { net?.send({ kind: "raiseDebt" }); s.ui.confirm = null; sfx("select"); render(s, A); return; } engineRaiseDebt(s, s.youIdx, amt); s.ui.confirm = null; sfx("select"); render(s, A); },
     };
     render(s, A);
   },
   lobby(marketName) {
     if (!s) return;
-    if (!canAct(s, "lobby:" + marketName)) { flash("아직 쿨다운입니다"); return; }
+    if (!canAct(s, s.youIdx, "lobby:" + marketName)) { flash("아직 쿨다운입니다"); return; }
     const cost = lobbyCost(s, marketName);
-    if (s.cash < cost) { flash("현금이 부족합니다"); return; }
+    if (s.firms[s.youIdx].cash < cost) { flash("현금이 부족합니다"); return; }
     const m = s.markets[marketName];
     s.ui.confirm = {
       title: "로비 — " + m.ko,
@@ -204,8 +215,9 @@ const A: Actions = {
       onOk: () => {
         if (!s) return;
         if (online) { net?.send({ kind: "lobby", market: marketName }); s.ui.confirm = null; sfx("select"); render(s, A); return; }
-        if (s.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        s.cash -= cost; doLobby(s, marketName); setActCooldown(s, "lobby:" + marketName, 5);
+        const me = s.firms[s.youIdx];
+        if (me.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        me.cash -= cost; doLobby(s, s.youIdx, marketName); setActCooldown(s, s.youIdx, "lobby:" + marketName, 5);
         recomputeLeaders(s); s.ui.confirm = null; sfx("select"); render(s, A);
       },
     };
@@ -214,8 +226,8 @@ const A: Actions = {
   research(key) {
     if (!s) return;
     const n = TECH_NODES.find(x => x.key === key); if (!n) return;
-    if (s.tech.includes(key)) return;
-    if (s.cash < n.cost) { flash("현금이 부족합니다"); return; }
+    if (s.firms[s.youIdx].tech.includes(key)) return;
+    if (s.firms[s.youIdx].cash < n.cost) { flash("현금이 부족합니다"); return; }
     s.ui.confirm = {
       title: "테크 개발 — " + n.name,
       lines: [ "비용: <b>$" + n.cost + "B</b>", n.desc, "한 번 개발하면 영구적입니다. 진행할까요?" ],
@@ -223,8 +235,9 @@ const A: Actions = {
       onOk: () => {
         if (!s) return;
         if (online) { net?.send({ kind: "research", key }); s.ui.confirm = null; sfx("invest"); render(s, A); return; }
-        if (s.cash < n.cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        s.cash -= n.cost; doResearch(s, key); s.ui.confirm = null; sfx("invest"); render(s, A);
+        const me = s.firms[s.youIdx];
+        if (me.cash < n.cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        me.cash -= n.cost; doResearch(s, s.youIdx, key); s.ui.confirm = null; sfx("invest"); render(s, A);
       },
     };
     render(s, A);
@@ -233,7 +246,7 @@ const A: Actions = {
     if (!s) return;
     if (s.marketOrder.includes(marketName)) return;
     const cost = entryCost(s, marketName); const m = s.markets[marketName];
-    if (s.cash < cost) { flash("현금이 부족합니다 — 재무에서 자금 조달"); return; }
+    if (s.firms[s.youIdx].cash < cost) { flash("현금이 부족합니다 — 재무에서 자금 조달"); return; }
     s.ui.confirm = {
       title: "해외진출 — " + m.ko,
       lines: [
@@ -245,8 +258,9 @@ const A: Actions = {
       onOk: () => {
         if (!s) return;
         if (online) { net?.send({ kind: "enter", market: marketName }); s.ui.confirm = null; sfx("conquer"); render(s, A); return; }
-        if (s.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        s.cash -= cost; doEnter(s, marketName); s.ui.confirm = null; sfx("conquer"); render(s, A);
+        const me = s.firms[s.youIdx];
+        if (me.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
+        me.cash -= cost; doEnter(s, s.youIdx, marketName); s.ui.confirm = null; sfx("conquer"); render(s, A);
       },
     };
     render(s, A);

@@ -3,7 +3,13 @@ export const CAPS: Cap[] = ["tech", "brand", "scale", "global"];
 export const CAPKO: Record<Cap, string> = { tech: "기술", brand: "브랜드", scale: "가성비", global: "글로벌" };
 export const WANTIC: Record<Cap, string> = { tech: "🧠", brand: "✨", scale: "🏭", global: "🌐" };
 
-export interface Firm { key: string; name: string; col: string; caps: Record<Cap, number>; ai: string; }
+export interface Firm {
+  key: string; name: string; col: string; caps: Record<Cap, number>; ai: string;
+  // 플레이어별 경제(멀티: 각 firm이 자기 회사를 독립적으로 운영)
+  cash: number; debt: number; distress: number;
+  venture: Venture | null; cooldowns: Record<string, number>; tech: string[];
+  auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
+}
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
 
 // 한 산업의 게임 시나리오 — 파이프라인(daily-industry-report 확장) 출력 계약.
@@ -32,17 +38,12 @@ export interface GameState {
   youIdx: number;
   markets: Record<string, Market>;
   marketOrder: string[];
-  cash: number;
-  debt: number;
-  distress: number;          // 현금 음수(채무불이행) 지속 개월 수 — 파산 카운터
-  venture: Venture | null;
   trend: Trend;
   log: string[];
   fx: string[];              // 이번 tick에 발생한 연출/효과음 이벤트(main이 비움)
-  cooldowns: Record<string, number>;   // 벤처 외 행동(로비 등) 쿨다운: key -> 가능해지는 date
-  tech: string[];            // 해금한 테크트리 노드 key
-  ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: { won: boolean; msg: string } | null };
+  ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: GameOver | null };
 }
+export interface GameOver { won: boolean; msg: string; winnerKey?: string; }
 export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; }
 
 function full(p: Partial<Record<Cap, number>>): Record<Cap, number> {
@@ -105,7 +106,11 @@ export const CODEX = [
 ];
 
 export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 0): GameState {
-  const firms: Firm[] = scenario.firms.map(f => ({ ...f, caps: { ...f.caps } }));
+  const firms: Firm[] = scenario.firms.map((f, i) => ({
+    ...f, caps: { ...f.caps },
+    cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [],
+    auto: i !== youIdx,        // 플레이어 firm만 사람이 조종, 나머지는 AI
+  }));
   const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};
   const order: string[] = [];
@@ -116,8 +121,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real },
     firms, youIdx, markets, marketOrder: order,
-    cash: 60, debt: 0, distress: 0, venture: null,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
-    log: [], fx: [], cooldowns: {}, tech: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
+    log: [], fx: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
   };
 }

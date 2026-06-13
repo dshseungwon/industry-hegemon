@@ -6,17 +6,19 @@ let last = null, invested = false, dates = [];
 ws.on("open", () => console.log("connected"));
 ws.on("message", (buf) => {
   const m = JSON.parse(String(buf));
+  const myCash = (w) => Math.round(w.firms[m.youIdx ?? 0]?.cash ?? w.firms[0].cash);
+  const myVenture = (w) => w.firms[m.youIdx ?? 0]?.venture ?? w.firms[0].venture;
   if (m.type === "welcome") {
-    console.log(`welcome: role=${m.role} youIdx=${m.youIdx} players=${m.players} date=${m.world.date} cash=${Math.round(m.world.cash)} speed=${m.world.speed}`);
+    console.log(`welcome: role=${m.role} youIdx=${m.youIdx} players=${m.players} date=${m.world.date} myCash=${myCash(m.world)} firms=${m.world.firms.length} speed=${m.world.speed}`);
     ws.send(JSON.stringify({ type: "action", action: { kind: "speed", n: 3 } }));   // 빠르게 진행
   } else if (m.type === "world") {
     last = m.world; dates.push(m.world.date);
     if (m.world.date >= 2 && !invested) {
       invested = true;
-      console.log(`tick ok: date advanced to ${m.world.date}, cash=${Math.round(m.world.cash)}`);
+      console.log(`tick ok: date advanced to ${m.world.date}, myCash=${myCash(m.world)} (firms run per-firm economy)`);
       ws.send(JSON.stringify({ type: "action", action: { kind: "invest", cap: "brand" } }));
-    } else if (invested && m.world.venture) {
-      console.log(`invest ok: venture=${m.world.venture.name} progress=${m.world.venture.progress} cash=${Math.round(m.world.cash)}`);
+    } else if (invested && myVenture(m.world)) {
+      console.log(`invest ok: my venture=${myVenture(m.world).name} progress=${myVenture(m.world).progress} myCash=${myCash(m.world)}`);
       ws.send(JSON.stringify({ type: "action", action: { kind: "speed", n: 0 } }));
       console.log("RESULT: PASS — authoritative tick + action applied");
       ws.close(); process.exit(0);

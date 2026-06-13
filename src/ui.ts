@@ -135,16 +135,17 @@ export function render(s: GameState, A: Actions) {
 
 function renderTop(s: GameState, A: Actions) {
   const t = document.getElementById("topbar")!;
+  const me = s.firms[s.youIdx];
   const sp = (n: number, lab: string) => '<button class="spbtn' + (s.speed === n ? " on" : "") + '" data-sp="' + n + '">' + lab + '</button>';
   t.innerHTML =
     '<div class="brand">산업 패권</div>' +
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
-    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(s.cash) + 'B</b></span>' + (s.debt > 0 ? '<span>부채 <b>$' + fmt(s.debt) + 'B</b></span>' : '') + '</div>' +
+    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("company", "🏢", s) + mbtn("projects", "🚀", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("guide", "❓", s) + mbtn("codex", "📖", s) +
       '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
-    '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (s.venture ? ' · 🚀 ' + CAPKO[s.venture.cap] + ' ' + Math.round(s.venture.progress) + '%' : '') + '</div>';
+    '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.venture ? ' · 🚀 ' + CAPKO[me.venture.cap] + ' ' + Math.round(me.venture.progress) + '%' : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
   t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
   document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
@@ -196,7 +197,7 @@ function panelBody(s: GameState, panel: string): string {
   const you = s.firms[s.youIdx];
   if (panel === "company") {
     const cf = monthlyCashflow(s);
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
     h += '<div class="sect">역량</div><div class="card">' + capGauge(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
@@ -204,9 +205,9 @@ function panelBody(s: GameState, panel: string): string {
       return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capGauge(k => f.caps[k]) + '</div>';
     }).join("");
   } else if (panel === "projects") {
-    if (!s.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
+    if (!you.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
     else {
-      const v = s.venture;
+      const v = you.venture;
       h += '<div class="venture">' + ring(v.progress) + '<div class="vt">🚀 ' + v.name + '</div><div class="vd">완성 시 ' + CAPKO[v.cap] + ' +' + v.payoff + ' → 관련 시장 점령</div>' +
         '<div class="vmeta"><span class="chip">진행 ' + Math.round(v.progress) + '%</span>' + (v.risk > 0 ? '<span class="chip risk">⚠️ 리스크 ' + v.risk + '</span>' : '<span class="chip">리스크 없음</span>') + '</div>' +
         '<div class="ops">' +
@@ -219,7 +220,7 @@ function panelBody(s: GameState, panel: string): string {
   } else if (panel === "strategy") {
     // 1) 내부 개발(역량 투자)
     h += '<div class="sect">내부 개발 — 역량 투자(NPV)</div>';
-    if (s.venture) h += '<div class="card mute small">진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
+    if (you.venture) h += '<div class="card mute small">진행 중인 투자가 있습니다. [프로젝트]에서 운영·취소 후 새 투자를 시작하세요.</div>';
     else {
       strategyProjects(s).forEach((p: Project) => {
         const go = p.npv > 0;
@@ -232,13 +233,13 @@ function panelBody(s: GameState, panel: string): string {
     const tgts = acquireTargets(s);
     if (!tgts.length) h += '<div class="card mute small">인수할 경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
     else tgts.forEach(t => {
-      const can = s.cash >= t.price;
+      const can = you.cash >= t.price;
       h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e">역량 흡수(더 높은 값 채택) + <b>경쟁자 제거</b> · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
     });
     // 3) 재무(자금 조달) — 차입여력은 벌이(EBITDA)에 비례
     const room = borrowRoom(s); const tranche = Math.min(40, Math.floor(room)); const canB = tranche >= 5;
     h += '<div class="sect">재무 — 자금 조달</div>';
-    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(s.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(s.debt) + 'B</b></div>' +
+    h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div>' +
       '<div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div>' +
       '<div class="kv"><span>레버리지(순부채/EBITDA)</span><b>' + leverage(s).toFixed(1) + 'x</b></div>' +
       '<div class="kv"><span>차입여력</span><b>$' + fmt(room) + 'B</b></div>' +
@@ -250,7 +251,7 @@ function panelBody(s: GameState, panel: string): string {
     const fr = frontierMarkets(s);
     if (!fr.length) h += '<div class="card mute small">모든 시장에 진출했습니다.</div>';
     else fr.forEach(m => {
-      const cost = entryCost(s, m.name); const can = s.cash >= cost;
+      const cost = entryCost(s, m.name); const can = you.cash >= cost;
       h += '<button class="proj enter" data-n="' + esc(m.name) + '"><div class="h">🌏 ' + m.ko + ' 진출<span class="bdg ' + (can ? 'go' : 'no') + '">$' + cost + 'B</span></div><div class="e">규모 $' + m.size + 'B · 우리 강점으로 시장 형성(선점 우위)</div></button>';
     });
   } else if (panel === "tech") {
@@ -258,7 +259,7 @@ function panelBody(s: GameState, panel: string): string {
     researchOptions(s).forEach(o => {
       const n = o.node;
       if (o.unlocked) h += '<div class="proj tech done"><div class="h">' + n.name + '<span class="bdg go">완료 ✓</span></div><div class="e">' + n.desc + '</div></div>';
-      else if (o.available) { const can = s.cash >= n.cost; h += '<button class="proj tech" data-key="' + n.key + '"><div class="h">' + n.name + '<span class="bdg ' + (can ? 'go' : 'no') + '">$' + n.cost + 'B</span></div><div class="e">' + n.desc + '</div></button>'; }
+      else if (o.available) { const can = you.cash >= n.cost; h += '<button class="proj tech" data-key="' + n.key + '"><div class="h">' + n.name + '<span class="bdg ' + (can ? 'go' : 'no') + '">$' + n.cost + 'B</span></div><div class="e">' + n.desc + '</div></button>'; }
       else h += '<div class="proj tech locked"><div class="h">🔒 ' + n.name + '</div><div class="e">선행 필요: ' + n.req.map(r => TECH_NODES.find(x => x.key === r)?.name || r).join(", ") + '</div></div>';
     });
   } else if (panel === "guide") {
@@ -283,8 +284,9 @@ function panelBody(s: GameState, panel: string): string {
   return h;
 }
 function opbtn(s: GameState, action: string, h: string, e: string) {
-  const ok = canOperate(s, action);
-  const cd = s.venture && !ok ? Math.max(0, (s.venture.cooldown[action] || 0) - s.date) : 0;
+  const me = s.firms[s.youIdx];
+  const ok = canOperate(s, s.youIdx, action);
+  const cd = me.venture && !ok ? Math.max(0, (me.venture.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
 const panelTitle = (p: string) => ({ company: "🏢 기업 내부", projects: "🚀 진행 프로젝트", strategy: "📈 전략 실행", tech: "🔬 테크트리", guide: "❓ 플레이 가이드", codex: "📖 용어집" } as Record<string, string>)[p] || "";
@@ -296,7 +298,7 @@ function renderSheet(s: GameState, A: Actions) {
   const m = s.markets[s.ui.country]; if (!m) { el.className = "hide"; return; }
   // 닫힌 프론티어 시장 → 해외진출 시트
   if (!s.marketOrder.includes(m.name)) {
-    const cost = entryCost(s, m.name); const can = s.cash >= cost;
+    const cost = entryCost(s, m.name); const can = s.firms[s.youIdx].cash >= cost;
     el.className = "sheet";
     el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
       '<div class="kv"><span>상태</span><b class="mute">미진출 시장</b></div>' +
@@ -330,9 +332,10 @@ function renderSheet(s: GameState, A: Actions) {
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {
-  const n = s.ui.country!; const cost = lobbyCost(s, n); const ok = canAct(s, "lobby:" + n);
-  const cd = ok ? 0 : Math.max(0, (s.cooldowns["lobby:" + n] || 0) - s.date);
-  const dis = !ok || s.cash < cost;
+  const me = s.firms[s.youIdx];
+  const n = s.ui.country!; const cost = lobbyCost(s, n); const ok = canAct(s, s.youIdx, "lobby:" + n);
+  const cd = ok ? 0 : Math.max(0, (me.cooldowns["lobby:" + n] || 0) - s.date);
+  const dis = !ok || me.cash < cost;
   return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — KSF를 우리 강점으로 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button>';
 }
 
