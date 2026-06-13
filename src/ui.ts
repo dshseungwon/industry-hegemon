@@ -178,7 +178,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
+      mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
       '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) +
     '</div>' +
@@ -328,6 +328,11 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
   } else if (panel === "codex") {
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
+  } else if (panel === "log") {
+    h += '<div class="card mute small">시장에서 일어난 일들 — 트렌드·규제, 개발 완성, 경쟁사 인수·파산, 진출 등(최근 40건).</div>';
+    h += s.log.length
+      ? '<div class="logfeed">' + s.log.map(l => '<div class="logitem">' + esc(l) + '</div>').join("") + '</div>'
+      : '<div class="card mute small">아직 기록된 활동이 없습니다. ▶로 시간을 진행하세요.</div>';
   }
   return h;
 }
@@ -337,7 +342,7 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", guide: "❓ 플레이 가이드", codex: "📖 용어집" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 function renderSheet(s: GameState, A: Actions) {

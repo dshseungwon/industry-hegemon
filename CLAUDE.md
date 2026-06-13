@@ -8,6 +8,7 @@
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # tsc --noEmit 타입체크 + vite build
+npm run sim      # 헤드리스 밸런스 리포트(승률·종료·추월). 옵션: -- --games=80 / --you=1 --policy=focused
 ```
 
 ## 아키텍처 (모듈 책임)
@@ -17,6 +18,7 @@ npm run build    # tsc --noEmit 타입체크 + vite build
 - `src/main.ts` — 부팅, 실시간 클럭(setTimeout, speed 0~3, `stepMs`), `Actions` 구현(전략 착수·운영·확인·배속·재시작) + `flash` 토스트.
 - `src/mapdata.ts` — 내장 세계지도 좌표(geoNaturalEarth1로 미리 투영, 177개국, 오프라인). 외부 CDN/라이브러리 없음.
 - `src/style.css` — 스타일.
+- `sim/harness.ts`·`sim/index.ts` — 헤드리스 밸런스 시뮬 하네스(엔진만 구동). `runGame/runMany/crossoverMonth` + 정책(passive/focused). 밸런스 변경 전후 A/B에 사용. `npm run sim`.
 
 ## 핵심 모델
 - 각 **시장(국가)** 은 소비자 선호 `pref:{tech,brand,scale,global}`(KSF 가중치, 합=1)과 규모를 가짐.

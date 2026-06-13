@@ -1,0 +1,98 @@
+// 헤드리스 밸런스 시뮬레이션 하네스 — 엔진을 직접 구동해 승률·궤적 등 지표를 산출한다.
+// UI/네트워크 없이 src/engine의 순수 로직만 사용(서버와 동일 방식). 밸런스 변경 전후 A/B에 쓴다.
+// 실행: npm run sim   (옵션은 sim/index.ts 참고)
+import { newGame, GameState, IndustryScenario, Cap, CAPS } from "../src/state";
+import * as E from "../src/engine";
+
+// 플레이어 정책 — 매 틱 호출. fi는 (기업 제거로 바뀔 수 있어) 그 틱의 내 firm 인덱스.
+export type Policy = (s: GameState, fi: number) => void;
+
+export const policies: Record<string, Policy> = {
+  // 무행동 — "가만히 둬도 이기나?"
+  passive: () => { },
+  // 적극(집중) — 약한 역량부터 개발·가속, 테크로 상한↑, 적합도 높은 시장에 집중·약한 시장 철수
+  focused: (s, fi) => {
+    const f = s.firms[fi]; if (!f) return;
+    const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]).slice(0, 2);
+    for (const cap of weak) {
+      if (f.cash >= 48 && !f.ventures.some(v => v.cap === cap)) {
+        const p = E.strategyProjects(s, fi).find(x => x.cap === cap);
+        if (p && f.cash >= p.capex) { f.cash -= p.capex; f.ventures.push({ name: "개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); }
+      }
+    }
+    for (const v of f.ventures) if (f.cash >= 12 && E.canOperate(s, fi, v.cap, "accel")) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); E.setCooldown(s, fi, v.cap, "accel", 2); }
+    for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && f.cash >= n.cost + 25) { f.cash -= n.cost; E.doResearch(s, fi, n.key); break; }
+    const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
+    ranked.forEach((nm, i) => {
+      if (i < 8 && f.cash > 30 && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1);
+      else if (i >= 10 && (f.alloc[nm] || 0) > 1) E.setAlloc(s, fi, nm, -1);
+    });
+  },
+};
+
+export interface RunOpts {
+  youIdx?: number;            // 사람이 조종하는 firm 인덱스(나머지는 AI)
+  policy?: Policy;            // 그 firm의 플레이 정책(기본 passive)
+  scenario?: IndustryScenario;
+  maxMonths?: number;         // 안전 상한(기본 240)
+  onTick?: (s: GameState, mo: number) => void;  // 궤적 수집용 훅
+}
+export interface GameResult {
+  winnerKey: string;          // 승리한 firm 키("" = 미결)
+  won: boolean;               // 내(youIdx) firm 승리 여부
+  months: number;             // 종료까지 개월
+  youShare: number;           // 내 최종 글로벌 점유율(0~1)
+  bestRivalShare: number;     // 최강 경쟁사 최종 점유율
+}
+
+// 한 판 시뮬레이션. youIdx만 사람(정책 적용), 나머지는 AI.
+export function runGame(opts: RunOpts = {}): GameResult {
+  const youIdx = opts.youIdx ?? 0;
+  const policy = opts.policy ?? policies.passive;
+  const s = newGame(opts.scenario, youIdx);
+  for (let i = 0; i < s.firms.length; i++) s.firms[i].auto = i !== youIdx;
+  E.recomputeLeaders(s);
+  s.speed = 3;
+  const youKey = s.firms[youIdx].key;
+  const max = opts.maxMonths ?? 240;
+  let mo = 0;
+  while (!s.ui.over && mo < max) {
+    const fi = s.firms.findIndex(f => f.key === youKey);
+    if (fi >= 0) policy(s, fi);
+    E.tick(s); mo++;
+    if (opts.onTick) opts.onTick(s, mo);
+  }
+  const yi = s.firms.findIndex(f => f.key === youKey);
+  const youShare = yi >= 0 ? E.myShare(s, yi) : 0;
+  let bestRivalShare = 0;
+  for (let i = 0; i < s.firms.length; i++) if (s.firms[i].key !== youKey) bestRivalShare = Math.max(bestRivalShare, E.myShare(s, i));
+  return { winnerKey: s.ui.over?.winnerKey || (s.ui.over?.won ? youKey : ""), won: !!s.ui.over?.won, months: mo, youShare, bestRivalShare };
+}
+
+export function runMany(n: number, opts: RunOpts = {}): GameResult[] {
+  const out: GameResult[] = [];
+  for (let g = 0; g < n; g++) out.push(runGame(opts));
+  return out;
+}
+
+// 무행동 리더가 다른 firm에게 점유율을 추월당하는 시점(개월) — youIdx를 무행동으로 두고 측정.
+// 강자를 가만히 뒀을 때 얼마나 빨리 압박받는지(코스팅 응징) 지표. 끝까지 1위면 null.
+export function crossoverMonth(youIdx: number, opts: RunOpts = {}): number | null {
+  const s = newGame(opts.scenario, youIdx);
+  for (let i = 0; i < s.firms.length; i++) s.firms[i].auto = i !== youIdx;
+  E.recomputeLeaders(s); s.speed = 3;
+  const youKey = s.firms[youIdx].key;
+  const max = opts.maxMonths ?? 240;
+  for (let mo = 1; !s.ui.over && mo <= max; mo++) {
+    E.tick(s);
+    const yi = s.firms.findIndex(f => f.key === youKey);
+    const mine = yi >= 0 ? E.myShare(s, yi) : 0;
+    for (let i = 0; i < s.firms.length; i++) if (s.firms[i].key !== youKey && E.myShare(s, i) > mine) return mo;
+  }
+  return null;
+}
+
+export const median = (xs: number[]): number => { if (!xs.length) return NaN; const a = [...xs].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+export const pct = (x: number): string => (x * 100).toFixed(1) + "%";
+export const firmNames = (sc?: IndustryScenario): string[] => newGame(sc).firms.map(f => f.name);
+export type { Cap };
