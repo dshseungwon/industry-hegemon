@@ -2,6 +2,10 @@
 
 실시간 경영 그랜드 전략 게임 — Vite + TypeScript.
 
+**▶ 바로 플레이: https://dshseungwon.github.io/industry-hegemon/** (싱글플레이, 설치 불필요)
+
+main에 push하면 GitHub Pages로 자동 배포됩니다(`.github/workflows/deploy-pages.yml`). 온라인 멀티는 WS 서버가 필요해 정적 배포엔 빠지며, 아래 `npm run server`로 실행합니다.
+
 ## 실행
 ```bash
 npm install
