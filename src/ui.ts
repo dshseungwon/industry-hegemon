@@ -419,8 +419,8 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
     '<div class="kv"><span>현재 1위</span><b style="color:' + lead.col + '">' + lead.name + '</b></div>' +
     '<div class="kv"><span>소비자 핵심 선호</span><b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b></div>' +
-    '<div class="sect">기업별 점유율</div><div class="card">' + sharePie + '</div>' +
-    '<div class="sect">소비자 선호(KSF)</div><div class="card">' + capBars(k => (m.pref[k] || 0) * 100) + '</div>' +
+    '<div class="sect">기업별 점유율 · 소비자 선호(KSF)</div>' +
+    '<div class="card splitrow"><div class="spcol-pie">' + sharePie + '</div><div class="spcol-bars">' + capBars(k => (m.pref[k] || 0) * 100) + '</div></div>' +
     allocSect(s) +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
