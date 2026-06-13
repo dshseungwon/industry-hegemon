@@ -137,6 +137,20 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
       f.alloc[m.name] = Math.max(1, Math.round(lvl)); // 할당(유지비)은 반올림 단계 — 약체는 1(유지비 0)로 부담 없이 시작
     });
   }
+  // 본진 시드: 각 기업은 시작부터 자국(home) 시장에서 1위 — 현지 챔피언(예: 한국=KT) 실 점유율 반영.
+  // 영구 배수가 아니라 '시작 영향력' 시드라 장기 밸런스 영향은 작다(이후 투자로 지켜야 함).
+  const BETA = 6;   // engine SHARE_BETA와 동일(점유율 민감도)
+  for (let i = 0; i < firms.length; i++) {
+    const f = firms[i], hm = f.home; if (!hm || !mpref[hm]) continue;
+    const w6 = (caps: Record<Cap, number>) => Math.pow(_fit(caps, mpref[hm]), BETA);
+    let maxRival = 0;
+    for (let j = 0; j < firms.length; j++) if (j !== i) maxRival = Math.max(maxRival, w6(firms[j].caps) * (firms[j].effort[hm] || 1));
+    const need = Math.min(40, (maxRival * 1.5) / (w6(f.caps) || 1));   // 라이벌 최고치보다 50% 높게(상한 40)
+    if ((f.effort[hm] || 0) < need) {
+      f.effort[hm] = need;
+      f.alloc[hm] = Math.min(6, Math.max(f.alloc[hm] || 1, Math.round(Math.min(need, 6))));   // 유지되도록 alloc도(상한 6)
+    }
+  }
   const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};
   const order: string[] = [];

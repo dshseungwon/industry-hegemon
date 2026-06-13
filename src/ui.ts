@@ -2,7 +2,6 @@ import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
-import { BUILTIN_META } from "./scenario";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
 
@@ -525,12 +524,12 @@ export function setRoomBadge(text: string | null) {
 }
 
 export function renderIndustry(app: HTMLElement, A: Actions) {
-  const all: BriefMeta[] = [BUILTIN_META, ...BRIEFS];
-  const card = (m: BriefMeta, featured: boolean) => {
+  const all: BriefMeta[] = BRIEFS;   // 모든 산업을 동일하게(기준 시나리오 특별 취급 없음)
+  const card = (m: BriefMeta) => {
     const link = m.file ? '<a class="rlink" data-gics="' + esc(m.gics) + '" href="https://dshseungwon.github.io/daily-industry-report/' + esc(m.file) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">리포트 ↗</a>' : '';
     const it = industryIntel(m.gics);
-    return '<button class="icard' + (featured ? ' feat' : '') + '" data-gics="' + esc(m.gics) + '">' +
-      '<div class="ih"><span class="chip">' + (sectorKo[m.sector] || m.sector) + '</span>' + (featured ? '<span class="bdg go">기준 시나리오</span>' : '') + link + '</div>' +
+    return '<button class="icard" data-gics="' + esc(m.gics) + '">' +
+      '<div class="ih"><span class="chip">' + (sectorKo[m.sector] || m.sector) + '</span>' + link + '</div>' +
       '<div class="iname">' + m.industry_ko + '</div>' +
       '<div class="ihead">' + m.headline_ko + '</div>' +
       (it.hasData && it.ksf ? ksfChips(it.ksf) : '') +
@@ -540,7 +539,7 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
     '<div><h2>산업 선택</h2><div class="mute small">The Industry Brief의 ' + BRIEFS.length + '개 산업 · 매일 갱신</div></div></div>' +
-    '<div class="igrid">' + card(all[0], true) + all.slice(1).map(m => card(m, false)).join("") + '</div></div>';
+    '<div class="igrid">' + all.map(m => card(m)).join("") + '</div></div>';
   document.getElementById("back")!.onclick = () => A.toTitle();
   app.querySelectorAll<HTMLElement>(".icard").forEach(b => b.onclick = () => {
     const g = b.dataset.gics!; const meta = all.find(m => m.gics === g)!; A.pickIndustry(meta);
@@ -592,7 +591,7 @@ export function renderCompany(app: HTMLElement, sc: import("./state").IndustrySc
     '<div><h2>' + sc.ko + '</h2><div class="mute small">' + (sectorKo[sc.sector] || sc.sector) + '</div></div></div>' +
     '<div class="card"><div class="ihead">' + sc.headline + '</div>' +
     '<div class="ico"><a class="rlink" data-gics="' + esc(scenarioGics(sc.key)) + '" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
-    (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div>' +
+    (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>') + '</div>' +
     intelBlock(industryIntel(scenarioGics(sc.key))) + '</div>' +
     '<div class="sect">어느 기업을 운영할까요?</div>' +
     '<div class="ccards">' + sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div></div></div>';
