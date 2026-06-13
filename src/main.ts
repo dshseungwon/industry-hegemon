@@ -139,7 +139,7 @@ const A: Actions = {
     if (p === "intel" && s.ui.panel === "intel") { const g = scenarioGics(s.scenario.key); if (unlockIntel(g)) flash("📖 산업 인텔 해금: " + industryIntel(g).ko); }
     sfx("click"); render(s, A);
   },
-  selectCountry(n) { if (!s) return; s.ui.country = n; if (n) sfx("click"); render(s, A); },
+  selectCountry(n) { if (!s) return; s.ui.country = (n && s.ui.country === n) ? null : n; if (s.ui.country) sfx("click"); render(s, A); },
   startStrategy(cap) {
     if (!s) return;
     const me = s.firms[s.youIdx];
