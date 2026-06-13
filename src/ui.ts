@@ -164,16 +164,12 @@ function bar(label: string, v: number, color?: string) {
   const fill = color ? ';background:' + color : '';
   return '<div class="barrow"><span class="bl">' + label + '</span><div class="bt"><div class="bf" style="width:' + Math.round(v) + '%' + fill + '"></div></div><span class="bv">' + Math.round(v) + '</span></div>';
 }
-// 역량 레이더(스파이더) 차트 — 4역량을 한눈에. val(k)=0~100. 축: 기술(상)·브랜드(우)·가성비(하)·글로벌(좌).
-const RANG: Record<Cap, number> = { tech: -90, brand: 0, scale: 90, global: 180 };
-function rpt(k: Cap, r: number, cx: number, cy: number): [number, number] { const a = RANG[k] * Math.PI / 180; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; }
-function capRadar(val: (k: Cap) => number, color = "#ffce4d"): string {
-  const cx = 59, cy = 55, R = 36;
-  const poly = (r: (k: Cap) => number) => CAPS.map(k => rpt(k, r(k), cx, cy).map(n => n.toFixed(1)).join(",")).join(" ");
-  const grid = [0.5, 1].map(f => '<polygon points="' + poly(() => f * R) + '" class="rgrid"/>').join("");
-  const axes = CAPS.map(k => { const [x, y] = rpt(k, R, cx, cy); return '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" class="rgrid"/>'; }).join("");
-  const labels = CAPS.map(k => { const [x, y] = rpt(k, R + 11, cx, cy); return '<text x="' + x.toFixed(1) + '" y="' + (y + 3).toFixed(1) + '" class="rlab" fill="' + CAPCOL[k] + '">' + CAPKO[k][0] + Math.round(val(k)) + '</text>'; }).join("");
-  return '<svg class="radar" viewBox="0 0 118 110">' + grid + axes + '<polygon points="' + poly(k => Math.max(0, Math.min(100, val(k))) / 100 * R) + '" fill="' + color + '40" stroke="' + color + '" stroke-width="1.7"/>' + labels + '</svg>';
+// 역량 막대 — 4역량을 전체 이름(기술/브랜드/가성비/글로벌)으로, 역량별 색. 절대 앞글자 약어 금지.
+function capBars(val: (k: Cap) => number): string {
+  return '<div class="cbarset">' + CAPS.map(k => {
+    const v = Math.max(0, Math.min(100, Math.round(val(k))));
+    return '<div class="cbar"><span class="cbl">' + CAPKO[k] + '</span><div class="cbt"><div class="cbf" style="width:' + v + '%;background:' + CAPCOL[k] + '"></div></div><span class="cbv">' + v + '</span></div>';
+  }).join("") + '</div>';
 }
 // 도넛 파이 차트 — 점유율 슬라이스(기업 색).
 function pieChart(slices: { label: string; value: number; color: string }[]): string {
@@ -212,11 +208,11 @@ function panelBody(s: GameState, panel: string): string {
   if (panel === "company") {
     const cf = monthlyCashflow(s);
     h += '<div class="card"><div class="kv"><span>현금</span><b>$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 현금흐름</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div></div>';
-    h += '<div class="sect">역량</div><div class="card">' + capRadar(k => you.caps[k], you.col) + '</div>';
+    h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
-      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capRadar(k => f.caps[k], f.col) + '</div>';
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capBars(k => f.caps[k]) + '</div>';
     }).join("");
   } else if (panel === "projects") {
     if (!you.venture) h += '<div class="card mute small">진행 중인 투자가 없습니다. [전략] 탭에서 새 투자를 시작하면 여기서 <b>운영</b>합니다.</div>';
@@ -333,7 +329,7 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>현재 1위</span><b style="color:' + lead.col + '">' + lead.name + '</b></div>' +
     '<div class="kv"><span>소비자 핵심 선호</span><b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율</div><div class="card">' + sharePie + '</div>' +
-    '<div class="sect">소비자 선호(KSF)</div><div class="card">' + capRadar(k => (m.pref[k] || 0) * 100, CAPCOL[top]) + '</div>' +
+    '<div class="sect">소비자 선호(KSF)</div><div class="card">' + capBars(k => (m.pref[k] || 0) * 100) + '</div>' +
     '<div class="mute small" style="margin-top:6px">이 시장은 <b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b>를 가장 원합니다. 그 역량을 키우면 점유율을 늘릴 수 있어요.</div>' +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
@@ -447,7 +443,7 @@ export function renderCompany(app: HTMLElement, sc: import("./state").IndustrySc
   const roleKo = (f: import("./state").FirmDef, i: number) => i === 0 ? "추천 · 우리 기업" : f.key === "global" ? "글로벌 1위" : "글로벌 경쟁사";
   const firmCard = (f: import("./state").FirmDef, idx: number) =>
     '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f, idx) + '</span></div>' +
-    '<div class="cbars">' + capRadar(k => f.caps[k], f.col) + '</div>' +
+    '<div class="cbars">' + capBars(k => f.caps[k]) + '</div>' +
     '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
