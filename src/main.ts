@@ -115,7 +115,9 @@ function introSpec() {
 const A: Actions = {
   // ----- 사전 화면 흐름 -----
   toTitle() { if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "title"; s = null; pickedScenario = null; sfx("click"); paint(); },
-  toIndustry() { unlockAudio(); if (timer) clearTimeout(timer); phase = "industry"; s = null; sfx("select"); paint(); },
+  toIndustry() { unlockAudio(); if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null); phase = "industry"; s = null; sfx("select"); paint(); },
+  // 같은 산업에서 기업 다시 선택. 온라인이거나 시나리오가 없으면 타이틀로 폴백.
+  toCompany() { if (!pickedScenario || online) { A.toTitle(); return; } if (timer) clearTimeout(timer); phase = "company"; s = null; sfx("select"); paint(); },
   goOnline() { unlockAudio(); sfx("select"); phase = "lobby"; s = null; paint(); },
   createRoom(name) { sfx("invest"); connectOnline({ mode: "create", name }); },
   joinRoom(code, name) { sfx("select"); connectOnline({ mode: "join", room: code, name }); },
