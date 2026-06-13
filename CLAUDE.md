@@ -19,6 +19,8 @@ npm run sim      # 헤드리스 밸런스 리포트(승률·종료·추월). 옵
 - `src/mapdata.ts` — 내장 세계지도 좌표(geoNaturalEarth1로 미리 투영, 177개국, 오프라인). 외부 CDN/라이브러리 없음.
 - `src/style.css` — 스타일.
 - `sim/harness.ts`·`sim/index.ts` — 헤드리스 밸런스 시뮬 하네스(엔진만 구동). `runGame/runMany/crossoverMonth` + 정책(passive/focused). 밸런스 변경 전후 A/B에 사용. `npm run sim`.
+- `src/game.data.ts` — 산업 실데이터 내장 스냅샷(KSF·글로벌/한국 점유율). 자동 생성. `src/intel.ts`가 KSF·실기업·why·코덱스 해금을 담당.
+- `src/gamedata.ts` — 실데이터 접근 오버레이: 내장 스냅샷 위에 런타임 갱신분(`refreshGameData`)을 덮어씀. **데이터 파이프라인**: 자매 레포 `daily-industry-report`가 매일 GitHub Action으로 발행 시 `build/game_data.py`가 발행 HTML에서 game_data.json을 뽑아 커밋·게시(github.io, CORS 허용) → 게임이 부팅 시 fetch해 자동 최신화(오프라인이면 스냅샷). 스냅샷 갱신은 `npm run gen:data`(로컬 자매 레포 또는 발행 URL).
 
 ## 핵심 모델
 - 각 **시장(국가)** 은 소비자 선호 `pref:{tech,brand,scale,global}`(KSF 가중치, 합=1)과 규모를 가짐.

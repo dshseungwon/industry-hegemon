@@ -38,6 +38,35 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Halliburton",
         "share": 7
+      },
+      {
+        "name": "Weatherford",
+        "share": 2
+      },
+      {
+        "ko": "기타 (NOV, 테크닙FMC, 시추사, 국영석유사 계열)",
+        "name": "Others (NOV, TechnipFMC, drillers, NOC arms)",
+        "share": 70
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hanwha Ocean",
+        "share": 35
+      },
+      {
+        "ko": "삼성중공업",
+        "name": "Samsung Heavy Industries",
+        "share": 35
+      },
+      {
+        "name": "HD Hyundai",
+        "share": 20
+      },
+      {
+        "ko": "기타 (SK오션플랜트 등)",
+        "name": "Others (SK Oceanplant etc.)",
+        "share": 10
       }
     ]
   },
@@ -54,18 +83,27 @@ export const GAME_DATA: Record<string, GameData> = {
     },
     "global_company": "Saudi Aramco",
     "korea_company": "SK Innovation",
-    "global_firms": [
+    "global_firms": [],
+    "korea_firms": [
       {
-        "name": "United States미국",
-        "share": 16
+        "name": "Saudi Aramco",
+        "share": 62
       },
       {
-        "name": "Russia러시아",
-        "share": 11.7
+        "name": "ExxonMobil",
+        "share": 22
       },
       {
-        "name": "Saudi Arabia사우디아라비아",
-        "share": 11.3
+        "name": "Chevron",
+        "share": 7
+      },
+      {
+        "name": "PetroChina",
+        "share": 5
+      },
+      {
+        "name": "Shell",
+        "share": 4
       }
     ]
   },
@@ -94,6 +132,95 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Sinopec",
         "share": 18
+      },
+      {
+        "name": "SABIC",
+        "share": 15
+      },
+      {
+        "name": "LyondellBasell",
+        "share": 14
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "화학",
+        "name": "LG",
+        "share": 58
+      },
+      {
+        "name": "한화솔루션",
+        "share": 15
+      },
+      {
+        "name": "SKC",
+        "share": 12
+      },
+      {
+        "name": "롯데케미칼",
+        "share": 8
+      },
+      {
+        "name": "금호석유화학",
+        "share": 7
+      }
+    ]
+  },
+  "151020": {
+    "gics": "151020",
+    "industry_en": "Construction Materials",
+    "industry_ko": "건축자재",
+    "sector": "Materials",
+    "ksf_weights": {
+      "brand": 0,
+      "global": 0.2857,
+      "scale": 0.6667,
+      "tech": 0.0476
+    },
+    "global_company": "CRH plc",
+    "korea_company": "Ssangyong C&E",
+    "global_firms": [
+      {
+        "name": "CRH",
+        "share": 31
+      },
+      {
+        "name": "Holcim",
+        "share": 26
+      },
+      {
+        "name": "Heidelberg",
+        "share": 20
+      },
+      {
+        "name": "Cemex",
+        "share": 14
+      },
+      {
+        "name": "UltraTech",
+        "share": 8
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "한일시멘트",
+        "share": 30
+      },
+      {
+        "name": "쌍용C&E",
+        "share": 29
+      },
+      {
+        "name": "성신양회",
+        "share": 20
+      },
+      {
+        "name": "아세아시멘트",
+        "share": 17
+      },
+      {
+        "name": "한일현대시멘트",
+        "share": 4
       }
     ]
   },
@@ -122,6 +249,29 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Ball",
         "share": 15
+      },
+      {
+        "name": "Crown",
+        "share": 14
+      },
+      {
+        "ko": "기타 상장사",
+        "name": "Others listed",
+        "share": 10
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Dongwon Systems",
+        "share": 10
+      },
+      {
+        "name": "Lotte Packaging",
+        "share": 5
+      },
+      {
+        "name": "Sam-A Aluminium",
+        "share": 2
       }
     ]
   },
@@ -150,6 +300,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Vale",
         "share": 15
+      },
+      {
+        "name": "Glencore",
+        "share": 11
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Korea Zinc",
+        "share": 48
+      },
+      {
+        "name": "LS MnM",
+        "share": 44
+      },
+      {
+        "name": "Young Poong",
+        "share": 5
       }
     ]
   },
@@ -178,6 +346,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Mondi",
         "share": 4
+      },
+      {
+        "name": "Stora Enso",
+        "share": 3
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hansol Paper",
+        "share": 44
+      },
+      {
+        "name": "Moorim",
+        "share": 31
+      },
+      {
+        "name": "Asia Paper",
+        "share": 25
       }
     ]
   },
@@ -206,6 +392,32 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Northrop Grumman",
         "share": 17
+      },
+      {
+        "name": "General Dynamics",
+        "share": 16
+      },
+      {
+        "name": "Boeing Defense",
+        "share": 13
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hanwha Aerospace",
+        "share": 45
+      },
+      {
+        "name": "Hyundai Rotem",
+        "share": 25
+      },
+      {
+        "name": "KAI",
+        "share": 17
+      },
+      {
+        "name": "LIG Nex1",
+        "share": 13
       }
     ]
   },
@@ -253,13 +465,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "KCC Glass",
         "share": 13
       }
-    ],
-    "market": {
-      "label": "$1.42T",
-      "trillion_usd": 1.42,
-      "year": "2025"
-    },
-    "cagr": "≈3.9%"
+    ]
   },
   "201030": {
     "gics": "201030",
@@ -280,12 +486,39 @@ export const GAME_DATA: Record<string, GameData> = {
         "share": 2
       },
       {
-        "name": "China Railway Grp중국중철",
+        "ko": "중국중철",
+        "name": "China Railway Grp",
         "share": 1.3
       },
       {
         "name": "CRCC",
         "share": 1.1
+      },
+      {
+        "name": "VINCI",
+        "share": 0.8
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "삼성물산",
+        "name": "Samsung C&T",
+        "share": 23
+      },
+      {
+        "ko": "현대건설",
+        "name": "Hyundai E&C",
+        "share": 11
+      },
+      {
+        "ko": "대우건설",
+        "name": "Daewoo E&C",
+        "share": 8
+      },
+      {
+        "ko": "이앤씨",
+        "name": "DL E&CDL",
+        "share": 7
       }
     ]
   },
@@ -314,6 +547,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "ABB",
         "share": 9
+      },
+      {
+        "name": "Eaton",
+        "share": 7
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hyosung Heavy",
+        "share": 35
+      },
+      {
+        "name": "LS Electric",
+        "share": 29
+      },
+      {
+        "name": "HD Hyundai Electric",
+        "share": 21
       }
     ]
   },
@@ -342,6 +593,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Honeywell",
         "share": 13
+      },
+      {
+        "name": "3M",
+        "share": 8
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "SK Inc",
+        "share": 46
+      },
+      {
+        "name": "Hanwha",
+        "share": 33
+      },
+      {
+        "name": "Samsung C&T",
+        "share": 19
       }
     ]
   },
@@ -370,6 +639,20 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "XCMG",
         "share": 6
+      },
+      {
+        "name": "John Deere",
+        "share": 5
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Doosan Bobcat",
+        "share": 52
+      },
+      {
+        "name": "HD Construction Equip.",
+        "share": 33
       }
     ]
   },
@@ -398,6 +681,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Fastenal",
         "share": 3
+      },
+      {
+        "name": "Würth (industrial)",
+        "share": 3
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "POSCO International",
+        "share": 57
+      },
+      {
+        "name": "Samsung C&T (Trading)",
+        "share": 28
+      },
+      {
+        "name": "LX International",
+        "share": 15
       }
     ]
   },
@@ -445,13 +746,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "SK ecoplant",
         "share": 22
       }
-    ],
-    "market": {
-      "label": "$1.29T",
-      "trillion_usd": 1.29,
-      "year": "2025"
-    },
-    "cagr": "≈6%"
+    ]
   },
   "202020": {
     "gics": "202020",
@@ -478,6 +773,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Adecco",
         "share": 3
+      },
+      {
+        "name": "RELX",
+        "share": 2
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Saramin",
+        "share": 34
+      },
+      {
+        "name": "JobKorea (PE-owned)",
+        "share": 24
+      },
+      {
+        "name": "Wanted Lab",
+        "share": 13
       }
     ]
   },
@@ -506,6 +819,36 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "UPS",
         "share": 6
+      },
+      {
+        "name": "Emirates",
+        "share": 5
+      },
+      {
+        "name": "All other carriers",
+        "share": 76
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Coupang (captive)",
+        "share": 37.6
+      },
+      {
+        "name": "CJ Logistics",
+        "share": 27.6
+      },
+      {
+        "name": "Lotte Global Logistics",
+        "share": 10.3
+      },
+      {
+        "name": "Hanjin",
+        "share": 9.7
+      },
+      {
+        "name": "Logen",
+        "share": 5.3
       }
     ]
   },
@@ -534,6 +877,30 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "American",
         "share": 19
+      },
+      {
+        "name": "Emirates",
+        "share": 14
+      },
+      {
+        "ko": "기타(상위 그룹)",
+        "name": "Others (top groups)",
+        "share": 26
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "대한항공 + 아시아나",
+        "name": "Korean Air + Asiana",
+        "share": 73
+      },
+      {
+        "name": "Jeju Air",
+        "share": 13
+      },
+      {
+        "name": "T'way",
+        "share": 9
       }
     ]
   },
@@ -562,6 +929,96 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "CMA CGM",
         "share": 13
+      },
+      {
+        "name": "COSCO",
+        "share": 11
+      },
+      {
+        "name": "Hapag-Lloyd + ONE",
+        "share": 13
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "HMM",
+        "share": 72
+      },
+      {
+        "name": "KMTC",
+        "share": 10
+      },
+      {
+        "name": "Sinokor",
+        "share": 10
+      },
+      {
+        "ko": "상선",
+        "name": "SM",
+        "share": 5
+      },
+      {
+        "name": "흥아라인 등",
+        "share": 3
+      }
+    ]
+  },
+  "203040": {
+    "gics": "203040",
+    "industry_en": "Ground Transportation",
+    "industry_ko": "육상운송",
+    "sector": "Industrials",
+    "ksf_weights": {
+      "brand": 0,
+      "global": 0.0556,
+      "scale": 0.8333,
+      "tech": 0.1111
+    },
+    "global_company": "Union Pacific",
+    "korea_company": "CJ Logistics",
+    "global_firms": [
+      {
+        "name": "Union Pacific",
+        "share": 34
+      },
+      {
+        "name": "CSX",
+        "share": 19
+      },
+      {
+        "name": "CPKC",
+        "share": 17
+      },
+      {
+        "name": "Canadian National",
+        "share": 15
+      },
+      {
+        "name": "Norfolk Southern",
+        "share": 15
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "현대글로비스",
+        "share": 53
+      },
+      {
+        "ko": "대한통운",
+        "name": "CJ",
+        "share": 22
+      },
+      {
+        "name": "KORAIL",
+        "share": 13
+      },
+      {
+        "name": "롯데글로벌로지스",
+        "share": 6
+      },
+      {
+        "name": "한진",
+        "share": 6
       }
     ]
   },
@@ -590,6 +1047,36 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Magna",
         "share": 12
+      },
+      {
+        "name": "ZF",
+        "share": 11
+      },
+      {
+        "name": "Hyundai Mobis",
+        "share": 10
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hyundai Mobis",
+        "share": 61
+      },
+      {
+        "name": "Hyundai Transys",
+        "share": 12
+      },
+      {
+        "name": "Hanon Systems",
+        "share": 10
+      },
+      {
+        "name": "HL Mando",
+        "share": 9
+      },
+      {
+        "name": "Hyundai Wia",
+        "share": 8
       }
     ]
   },
@@ -618,13 +1105,40 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Hyundai-Kia",
         "share": 8
+      },
+      {
+        "name": "Stellantis",
+        "share": 6
+      },
+      {
+        "name": "BYD",
+        "share": 5
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Hyundai",
+        "share": 42
+      },
+      {
+        "name": "Kia",
+        "share": 30
+      },
+      {
+        "name": "KG Mobility",
+        "share": 8
+      },
+      {
+        "ko": "수입차",
+        "name": "Imports",
+        "share": 6
       }
     ]
   },
   "252010": {
     "gics": "252010",
-    "industry_en": "Household Durables",
-    "industry_ko": "내구소비재",
+    "industry_en": "Leisure Products",
+    "industry_ko": "레저용품",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
       "tech": 0.375,
@@ -632,20 +1146,50 @@ export const GAME_DATA: Record<string, GameData> = {
       "scale": 0.375,
       "global": 0.125
     },
-    "global_company": "D.R. Horton",
-    "korea_company": "Coway",
+    "global_company": "LEGO Group",
+    "korea_company": "Youngone",
     "global_firms": [
       {
-        "name": "D.R. Horton",
+        "name": "LEGO",
+        "share": 43
+      },
+      {
+        "name": "Mattel",
+        "share": 18
+      },
+      {
+        "name": "Hasbro",
         "share": 16
       },
       {
-        "name": "Lennar",
-        "share": 14
+        "name": "Bandai Namco",
+        "share": 15
       },
       {
-        "name": "PulteGroup",
-        "share": 10
+        "name": "Spin Master",
+        "share": 8
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "영원무역",
+        "share": 66
+      },
+      {
+        "name": "영원무역홀딩스",
+        "share": 28
+      },
+      {
+        "name": "삼익악기",
+        "share": 3
+      },
+      {
+        "name": "손오공",
+        "share": 2
+      },
+      {
+        "name": "알톤스포츠",
+        "share": 1
       }
     ]
   },
@@ -674,6 +1218,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Inditex",
         "share": 7
+      },
+      {
+        "name": "H&M",
+        "share": 4
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung C&T Fashion",
+        "share": 4
+      },
+      {
+        "name": "F&F",
+        "share": 4
+      },
+      {
+        "name": "Shinsegae Int'l",
+        "share": 3
       }
     ]
   },
@@ -703,6 +1265,20 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "Park Lawn / Foundation",
         "share": 4
       }
+    ],
+    "korea_firms": [
+      {
+        "name": "MegaStudyEdu",
+        "share": 47
+      },
+      {
+        "name": "Daesung",
+        "share": 23
+      },
+      {
+        "name": "Etoos",
+        "share": 14
+      }
     ]
   },
   "255010": {
@@ -730,6 +1306,20 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "O'Reilly",
         "share": 6
+      },
+      {
+        "name": "LKQ",
+        "share": 5
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "K Car",
+        "share": 55
+      },
+      {
+        "name": "Hyundai/Kia certified",
+        "share": 30
       }
     ]
   },
@@ -781,13 +1371,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "11st",
         "share": 7
       }
-    ],
-    "market": {
-      "label": "$6.9T",
-      "trillion_usd": 6.9,
-      "year": "2025"
-    },
-    "cagr": "≈8–9%"
+    ]
   },
   "255040": {
     "gics": "255040",
@@ -814,6 +1398,28 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "TJX",
         "share": 3
+      },
+      {
+        "name": "Best Buy",
+        "share": 3
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Lotte Hi-Mart",
+        "share": 33
+      },
+      {
+        "name": "Samsung/LG brand stores",
+        "share": 25
+      },
+      {
+        "name": "E-Land/Electro Mart",
+        "share": 15
+      },
+      {
+        "name": "Others (online etc.)",
+        "share": 27
       }
     ]
   },
@@ -842,6 +1448,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Kroger",
         "share": 1
+      },
+      {
+        "name": "Amazon grocery",
+        "share": 0.4
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Emart",
+        "share": 21
+      },
+      {
+        "name": "BGF Retail (CU)",
+        "share": 7
+      },
+      {
+        "name": "GS Retail (GS25)",
+        "share": 6
       }
     ]
   },
@@ -869,6 +1493,24 @@ export const GAME_DATA: Record<string, GameData> = {
       },
       {
         "name": "AB InBev",
+        "share": 17
+      },
+      {
+        "name": "Diageo",
+        "share": 7
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "HiteJinro",
+        "share": 33
+      },
+      {
+        "name": "Oriental Brewery",
+        "share": 23
+      },
+      {
+        "name": "Lotte Chilsung",
         "share": 17
       }
     ]
@@ -898,6 +1540,28 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Mondelez",
         "share": 2
+      },
+      {
+        "name": "Kraft Heinz",
+        "share": 1
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "CJ CheilJedang",
+        "share": 45
+      },
+      {
+        "name": "Nongshim",
+        "share": 20
+      },
+      {
+        "name": "Ottogi",
+        "share": 18
+      },
+      {
+        "name": "Dongwon F&B",
+        "share": 17
       }
     ]
   },
@@ -926,6 +1590,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "BAT",
         "share": 9
+      },
+      {
+        "name": "Japan Tobacco",
+        "share": 8
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "KT&G",
+        "share": 64
+      },
+      {
+        "name": "Philip Morris Korea",
+        "share": 26
+      },
+      {
+        "name": "BAT Rothmans",
+        "share": 10
       }
     ]
   },
@@ -973,13 +1655,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "Aekyung",
         "share": 8
       }
-    ],
-    "market": {
-      "label": "$203B",
-      "trillion_usd": 203,
-      "year": "2025"
-    },
-    "cagr": "≈5%"
+    ]
   },
   "303020": {
     "gics": "303020",
@@ -1006,6 +1682,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "P&G",
         "share": 6
+      },
+      {
+        "name": "Estée Lauder",
+        "share": 4
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Amorepacific",
+        "share": 28
+      },
+      {
+        "name": "LG H&H",
+        "share": 19
+      },
+      {
+        "name": "APR / indie",
+        "share": 9
       }
     ]
   },
@@ -1034,6 +1728,32 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Stryker",
         "share": 4
+      },
+      {
+        "name": "Abbott (devices)",
+        "share": 3
+      },
+      {
+        "name": "Boston Scientific",
+        "share": 3
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Osstem Implant",
+        "share": 31
+      },
+      {
+        "name": "SD Biosensor",
+        "share": 16
+      },
+      {
+        "name": "Samsung Medison",
+        "share": 13
+      },
+      {
+        "name": "Dentium",
+        "share": 9
       }
     ]
   },
@@ -1062,6 +1782,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "CVS/Aetna",
         "share": 12
+      },
+      {
+        "name": "Cigna",
+        "share": 9
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "McKesson",
+        "share": 34
+      },
+      {
+        "name": "Cencora",
+        "share": 30
+      },
+      {
+        "name": "Cardinal Health",
+        "share": 28
       }
     ]
   },
@@ -1090,6 +1828,91 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "MEDITECH",
         "share": 15
+      },
+      {
+        "name": "TruBridge (CPSI)",
+        "share": 8
+      },
+      {
+        "name": "Others (Altera…)",
+        "share": 11
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "유비케어(UbCare)",
+        "share": 45
+      },
+      {
+        "name": "비트컴퓨터",
+        "share": 15
+      },
+      {
+        "name": "이지스헬스케어",
+        "share": 10
+      },
+      {
+        "name": "포인트닉스",
+        "share": 7
+      }
+    ]
+  },
+  "352010": {
+    "gics": "352010",
+    "industry_en": "Biotechnology",
+    "industry_ko": "바이오테크",
+    "sector": "Health Care",
+    "ksf_weights": {
+      "brand": 0,
+      "global": 0.1818,
+      "scale": 0.2727,
+      "tech": 0.5455
+    },
+    "global_company": "Amgen",
+    "korea_company": "Samsung Biologics",
+    "global_firms": [
+      {
+        "name": "Amgen",
+        "share": 36
+      },
+      {
+        "name": "Gilead",
+        "share": 29
+      },
+      {
+        "name": "Regeneron",
+        "share": 14
+      },
+      {
+        "name": "Vertex",
+        "share": 12
+      },
+      {
+        "name": "Biogen",
+        "share": 10
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "삼성바이오로직스",
+        "share": 44
+      },
+      {
+        "name": "셀트리온",
+        "share": 29
+      },
+      {
+        "name": "알테오젠",
+        "share": 18
+      },
+      {
+        "ko": "바이오팜",
+        "name": "SK",
+        "share": 6
+      },
+      {
+        "name": "HLB",
+        "share": 3
       }
     ]
   },
@@ -1118,6 +1941,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Agilent",
         "share": 13
+      },
+      {
+        "name": "Lonza",
+        "share": 9
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung Biologics",
+        "share": 55
+      },
+      {
+        "name": "SK pharmteco",
+        "share": 18
+      },
+      {
+        "name": "Lotte Biologics",
+        "share": 12
       }
     ]
   },
@@ -1140,12 +1981,44 @@ export const GAME_DATA: Record<string, GameData> = {
         "share": 27
       },
       {
-        "name": "Agricultural Bank of China중국농업은행",
+        "ko": "중국농업은행",
+        "name": "Agricultural Bank of China",
         "share": 24
       },
       {
-        "name": "China Construction Bank중국건설은행",
+        "ko": "중국건설은행",
+        "name": "China Construction Bank",
         "share": 23
+      },
+      {
+        "ko": "중국은행",
+        "name": "Bank of China",
+        "share": 19
+      },
+      {
+        "name": "JPMorgan",
+        "share": 7
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "KB",
+        "share": 33
+      },
+      {
+        "ko": "신한",
+        "name": "Shinhan",
+        "share": 28
+      },
+      {
+        "ko": "하나",
+        "name": "Hana",
+        "share": 22
+      },
+      {
+        "ko": "우리",
+        "name": "Woori",
+        "share": 17
       }
     ]
   },
@@ -1174,6 +2047,86 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "American Express",
         "share": 15
+      },
+      {
+        "name": "Discover / JCB",
+        "share": 6
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "전자금융업자 (카카오페이·네이버페이)",
+        "name": "E-finance firms (KakaoPay, NaverPay)",
+        "share": 55
+      },
+      {
+        "ko": "휴대폰 제조사 (삼성페이)",
+        "name": "Phone makers (Samsung Pay)",
+        "share": 24
+      },
+      {
+        "ko": "은행·카드사",
+        "name": "Banks & card firms",
+        "share": 21
+      }
+    ]
+  },
+  "402020": {
+    "gics": "402020",
+    "industry_en": "Consumer Finance",
+    "industry_ko": "소비자금융",
+    "sector": "Financials",
+    "ksf_weights": {
+      "brand": 0.1905,
+      "global": 0.1905,
+      "scale": 0.619,
+      "tech": 0
+    },
+    "global_company": "American Express",
+    "korea_company": "Shinhan Card",
+    "global_firms": [
+      {
+        "name": "JPMorgan Chase",
+        "share": 32
+      },
+      {
+        "name": "American Express",
+        "share": 28
+      },
+      {
+        "name": "Citi",
+        "share": 15
+      },
+      {
+        "name": "Capital One",
+        "share": 14
+      },
+      {
+        "name": "Bank of America",
+        "share": 11
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "신한카드",
+        "share": 24
+      },
+      {
+        "name": "삼성카드",
+        "share": 23
+      },
+      {
+        "name": "현대카드",
+        "share": 22
+      },
+      {
+        "ko": "국민카드",
+        "name": "KB",
+        "share": 19
+      },
+      {
+        "name": "롯데카드",
+        "share": 12
       }
     ]
   },
@@ -1202,6 +2155,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Fidelity",
         "share": 4
+      },
+      {
+        "name": "State Street",
+        "share": 4
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Mirae Asset",
+        "share": 30
+      },
+      {
+        "name": "Korea Investment",
+        "share": 22
+      },
+      {
+        "name": "Samsung Securities",
+        "share": 18
       }
     ]
   },
@@ -1230,6 +2201,17 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Starwood",
         "share": 10
+      },
+      {
+        "name": "Rithm",
+        "share": 4
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "발행, 대용)",
+        "name": "KHFC (MBS issuer, proxy)KHFC(MBS",
+        "share": 100
       }
     ]
   },
@@ -1258,6 +2240,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "China Life",
         "share": 2
+      },
+      {
+        "name": "Berkshire (ins.)",
+        "share": 2
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung Life",
+        "share": 23
+      },
+      {
+        "name": "Hanwha Life",
+        "share": 14
+      },
+      {
+        "name": "Kyobo Life",
+        "share": 12
       }
     ]
   },
@@ -1286,6 +2286,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "IBM Consulting",
         "share": 2
+      },
+      {
+        "name": "Capgemini",
+        "share": 1
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung SDS",
+        "share": 52
+      },
+      {
+        "name": "LG CNS",
+        "share": 32
+      },
+      {
+        "name": "SK AX",
+        "share": 16
       }
     ]
   },
@@ -1337,13 +2355,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "Kakao",
         "share": 12
       }
-    ],
-    "market": {
-      "label": "$1.23T",
-      "trillion_usd": 1.23,
-      "year": "2025"
-    },
-    "cagr": "≈13–14%"
+    ]
   },
   "452010": {
     "gics": "452010",
@@ -1370,6 +2382,30 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Ericsson",
         "share": 12
+      },
+      {
+        "name": "ZTE",
+        "share": 10
+      },
+      {
+        "ko": "기타(시스코·시에나…)",
+        "name": "Others (Cisco, Ciena…)",
+        "share": 34
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung Electronics",
+        "share": 45
+      },
+      {
+        "ko": "외산(에릭슨·노키아)",
+        "name": "Foreign (Ericsson/Nokia)",
+        "share": 18
+      },
+      {
+        "name": "HFR / DZS",
+        "share": 10
       }
     ]
   },
@@ -1398,6 +2434,20 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Xiaomi",
         "share": 13
+      },
+      {
+        "name": "OPPO",
+        "share": 9
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung",
+        "share": 81
+      },
+      {
+        "name": "Apple",
+        "share": 18
       }
     ]
   },
@@ -1426,6 +2476,30 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Pegatron",
         "share": 6
+      },
+      {
+        "name": "Jabil",
+        "share": 5
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "LG Innotek",
+        "share": 60
+      },
+      {
+        "name": "Samsung Electro-Mech.",
+        "share": 30
+      },
+      {
+        "ko": "기타 국내",
+        "name": "Others KR",
+        "share": 7
+      },
+      {
+        "ko": "기타",
+        "name": "Misc.",
+        "share": 3
       }
     ]
   },
@@ -1454,6 +2528,20 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "SK hynix",
         "share": 8
+      },
+      {
+        "name": "Broadcom",
+        "share": 6
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung Electronics",
+        "share": 56
+      },
+      {
+        "name": "SK hynix",
+        "share": 43
       }
     ]
   },
@@ -1482,6 +2570,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "AT&T",
         "share": 16
+      },
+      {
+        "name": "NTT",
+        "share": 11
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "KT",
+        "share": 40
+      },
+      {
+        "name": "SK Broadband",
+        "share": 29
+      },
+      {
+        "name": "LG Uplus",
+        "share": 21
       }
     ]
   },
@@ -1533,13 +2639,7 @@ export const GAME_DATA: Record<string, GameData> = {
         "name": "MVNO",
         "share": 17
       }
-    ],
-    "market": {
-      "label": "$1.37T",
-      "trillion_usd": 1.37,
-      "year": "2025"
-    },
-    "cagr": "≈7.5%"
+    ]
   },
   "502010": {
     "gics": "502010",
@@ -1566,6 +2666,28 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "WPP",
         "share": 20
+      },
+      {
+        "name": "Dentsu",
+        "share": 11
+      },
+      {
+        "name": "Others (Havas, etc.)",
+        "share": 16
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Cheil Worldwide",
+        "share": 38
+      },
+      {
+        "name": "Innocean",
+        "share": 26
+      },
+      {
+        "name": "HS Ad",
+        "share": 14
       }
     ]
   },
@@ -1593,6 +2715,28 @@ export const GAME_DATA: Record<string, GameData> = {
       },
       {
         "name": "Disney+",
+        "share": 11
+      },
+      {
+        "name": "HBO Max",
+        "share": 10
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "Netflix",
+        "share": 31
+      },
+      {
+        "name": "Tving",
+        "share": 16
+      },
+      {
+        "name": "Coupang Play",
+        "share": 13
+      },
+      {
+        "name": "Wavve",
         "share": 11
       }
     ]
@@ -1622,6 +2766,28 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Amazon",
         "share": 9
+      },
+      {
+        "name": "ByteDance",
+        "share": 7.9
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "NAVER",
+        "share": 62.9
+      },
+      {
+        "name": "Google",
+        "share": 29.6
+      },
+      {
+        "name": "Bing",
+        "share": 3.1
+      },
+      {
+        "name": "Daum",
+        "share": 2.9
       }
     ]
   },
@@ -1650,6 +2816,94 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Enel",
         "share": 10
+      },
+      {
+        "name": "Constellation",
+        "share": 10
+      },
+      {
+        "name": "Others (Southern, Duke…)",
+        "share": 48
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "원자력(한수원)",
+        "name": "Nuclear (KHNP)",
+        "share": 32
+      },
+      {
+        "ko": "가스/LNG",
+        "name": "Gas/LNG",
+        "share": 28
+      },
+      {
+        "ko": "석탄",
+        "name": "Coal",
+        "share": 28
+      },
+      {
+        "ko": "신재생",
+        "name": "Renewables",
+        "share": 11
+      }
+    ]
+  },
+  "551020": {
+    "gics": "551020",
+    "industry_en": "Gas Utilities",
+    "industry_ko": "가스 유틸리티",
+    "sector": "Utilities",
+    "ksf_weights": {
+      "brand": 0,
+      "global": 0.375,
+      "scale": 0.5,
+      "tech": 0.125
+    },
+    "global_company": "Atmos Energy",
+    "korea_company": "Korea Gas Corp. (KOGAS)",
+    "global_firms": [
+      {
+        "name": "Atmos Energy",
+        "share": 42
+      },
+      {
+        "name": "Tokyo Gas",
+        "share": 20
+      },
+      {
+        "name": "Italgas",
+        "share": 16
+      },
+      {
+        "name": "ENN Energy",
+        "share": 13
+      },
+      {
+        "name": "China Resources Gas",
+        "share": 9
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "한국가스공사",
+        "share": 71
+      },
+      {
+        "name": "삼천리",
+        "share": 15
+      },
+      {
+        "name": "서울가스",
+        "share": 7
+      },
+      {
+        "name": "대성에너지",
+        "share": 5
+      },
+      {
+        "name": "인천도시가스",
+        "share": 2
       }
     ]
   },
@@ -1678,6 +2932,22 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Severn Trent",
         "share": 8
+      },
+      {
+        "name": "United Utilities",
+        "share": 7
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "광역 공급)",
+        "name": "K-water (bulk supply)K-water(",
+        "share": 38
+      },
+      {
+        "ko": "지자체 소매",
+        "name": "Municipal retail",
+        "share": 62
       }
     ]
   },
@@ -1706,6 +2976,25 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Brookfield Ren.",
         "share": 10
+      },
+      {
+        "name": "AES",
+        "share": 5
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "한전·발전자회사",
+        "name": "KEPCO + gencos",
+        "share": 80
+      },
+      {
+        "name": "SK E&S",
+        "share": 10
+      },
+      {
+        "name": "GS / Hanwha",
+        "share": 6
       }
     ]
   },
@@ -1734,6 +3023,24 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Mirvac",
         "share": 13
+      },
+      {
+        "name": "Land Securities",
+        "share": 13
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "SK REIT",
+        "share": 50
+      },
+      {
+        "name": "Lotte REIT",
+        "share": 35
+      },
+      {
+        "name": "Koramco",
+        "share": 15
       }
     ]
   },
@@ -1762,6 +3069,20 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "SEGRO",
         "share": 5
+      },
+      {
+        "name": "EastGroup",
+        "share": 4
+      }
+    ],
+    "korea_firms": [
+      {
+        "name": "ESR Kendall Square",
+        "share": 85
+      },
+      {
+        "name": "D&D Platform",
+        "share": 10
       }
     ]
   },
@@ -1800,18 +3121,8 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "LOTTE REIT",
         "share": 80
-      },
-      {
-        "name": "Other REITs",
-        "share": 15
       }
-    ],
-    "market": {
-      "label": "$1.80T",
-      "trillion_usd": 1.8,
-      "year": "2025"
-    },
-    "cagr": "≈8%"
+    ]
   },
   "601040": {
     "gics": "601040",
@@ -1838,6 +3149,31 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Cousins",
         "share": 11
+      },
+      {
+        "name": "Kilroy",
+        "share": 10
+      },
+      {
+        "name": "SL Green",
+        "share": 9
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "제이알글로벌리츠",
+        "name": "JR Global REIT",
+        "share": 40
+      },
+      {
+        "ko": "신한알파리츠",
+        "name": "Shinhan Alpha REIT",
+        "share": 24
+      },
+      {
+        "ko": "리츠",
+        "name": "SK REIT",
+        "share": 18
       }
     ]
   },
@@ -1866,6 +3202,34 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Invitation Homes",
         "share": 9
+      },
+      {
+        "name": "Sun Communities",
+        "share": 8
+      },
+      {
+        "name": "Others (MAA, Essex…)",
+        "share": 56
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "리츠",
+        "name": "SK",
+        "share": 19
+      },
+      {
+        "name": "롯데리츠",
+        "share": 14
+      },
+      {
+        "ko": "켄달스퀘어리츠",
+        "name": "ESR",
+        "share": 11
+      },
+      {
+        "name": "한화리츠",
+        "share": 10
       }
     ]
   },
@@ -1894,6 +3258,94 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Regency Centers",
         "share": 11
+      },
+      {
+        "name": "Kimco Realty",
+        "share": 8
+      },
+      {
+        "name": "Others (Federal Realty…)",
+        "share": 32
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "리츠 (비리테일)",
+        "name": "SK",
+        "share": 17
+      },
+      {
+        "name": "롯데리츠 (리테일)",
+        "share": 11
+      },
+      {
+        "ko": "켄달스퀘어리츠",
+        "name": "ESR",
+        "share": 11
+      },
+      {
+        "name": "한화리츠",
+        "share": 8
+      }
+    ]
+  },
+  "601080": {
+    "gics": "601080",
+    "industry_en": "Specialized REITs",
+    "industry_ko": "특수 리츠",
+    "sector": "Real Estate",
+    "ksf_weights": {
+      "brand": 0,
+      "global": 0.4,
+      "scale": 0.6,
+      "tech": 0
+    },
+    "global_company": "American Tower",
+    "korea_company": "SK REIT",
+    "global_firms": [
+      {
+        "name": "Equinix",
+        "share": 29
+      },
+      {
+        "name": "American Tower",
+        "share": 25
+      },
+      {
+        "name": "Digital Realty",
+        "share": 20
+      },
+      {
+        "name": "Public Storage",
+        "share": 16
+      },
+      {
+        "name": "Crown Castle",
+        "share": 10
+      }
+    ],
+    "korea_firms": [
+      {
+        "ko": "리츠",
+        "name": "SK",
+        "share": 31
+      },
+      {
+        "name": "롯데리츠",
+        "share": 22
+      },
+      {
+        "ko": "켄달스퀘어리츠",
+        "name": "ESR",
+        "share": 18
+      },
+      {
+        "name": "한화리츠",
+        "share": 16
+      },
+      {
+        "name": "코람코라이프인프라리츠",
+        "share": 13
       }
     ]
   }

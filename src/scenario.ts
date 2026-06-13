@@ -4,7 +4,7 @@
 //   buildScenario를 "리포트 JSON → IndustryScenario"로 교체하면 됩니다(나머지 게임은 그대로).
 import { Cap, CAPS, IndustryScenario, MarketDef, FirmDef, WORLD_MARKETS, BUILTIN_SCENARIO } from "./state";
 import { BriefMeta, reportUrl } from "./reports.data";
-import { GAME_DATA } from "./game.data";
+import { gameData } from "./gamedata";
 
 // GICS 섹터별 KSF 프리셋(tech/brand/scale/global). 합은 normalize로 맞춤.
 const SECTOR_PRESET: Record<string, Partial<Record<Cap, number>>> = {
@@ -87,7 +87,7 @@ function capsFor(preset: Record<Cap, number>, base: number, lean: number, gics: 
 
 export function buildScenario(meta: BriefMeta): IndustryScenario {
   const g = meta.gics;
-  const gd = GAME_DATA[g];   // The Industry Brief 실데이터(있으면 사용)
+  const gd = gameData(g);   // The Industry Brief 실데이터(런타임 갱신분 우선, 없으면 내장 스냅샷)
   // KSF: 실데이터 가중치 우선, 없으면 섹터 프리셋(임시 브리지)
   const preset = gd ? normalize(full(gd.ksf_weights)) : normalize(full(SECTOR_PRESET[meta.sector] || DEFAULT_PRESET));
   // 경쟁사 이름: 실데이터의 글로벌 pie(리더/도전자) + 한국 1위(플레이어)

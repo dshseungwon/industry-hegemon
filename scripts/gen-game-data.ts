@@ -1,13 +1,21 @@
-// 자매 레포(daily-industry-report)의 클린 game_data.json을 기존 src/game.data.ts에 병합 생성.
-// - 클린 데이터가 있는 산업: global_firms(실 점유율·정제 이름) 교체 + korea_firms·market 추가.
+// 자매 레포(daily-industry-report)의 클린 game_data.json을 기존 src/game.data.ts에 병합해
+// 내장 스냅샷을 갱신한다(런타임 fetch와 별개 — 오프라인 기본값을 최신화·커밋용).
+// - 클린 데이터가 있는 산업: global_firms(실 점유율·정제 이름) 교체 + korea_firms 추가.
 // - ksf_weights: 기존 값 유지(회귀 방지). 기존에 없던 신규 산업만 클린 ksf 사용.
-// 실행: npm run gen:data   (자매 레포가 ../daily-industry-report 에 있다고 가정)
+// 데이터 출처: 로컬 ../daily-industry-report/game_data.json 우선, 없으면 발행 URL fetch.
+// 실행: npm run gen:data
 import { GAME_DATA } from "../src/game.data";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
-const SISTER = "../daily-industry-report/game_data.json";
-if (!existsSync(SISTER)) { console.error("자매 레포 game_data.json 없음:", SISTER); process.exit(1); }
-const sister: Record<string, any> = JSON.parse(readFileSync(SISTER, "utf8"));
+const LOCAL = "../daily-industry-report/game_data.json";
+const URL = "https://dshseungwon.github.io/daily-industry-report/game_data.json";
+let sister: Record<string, any>;
+if (existsSync(LOCAL)) { sister = JSON.parse(readFileSync(LOCAL, "utf8")); console.log("출처: 로컬", LOCAL); }
+else {
+  const r = await fetch(URL, { cache: "no-cache" });
+  if (!r.ok) { console.error("발행본 fetch 실패:", r.status); process.exit(1); }
+  sister = await r.json(); console.log("출처: 발행 URL", URL);
+}
 
 const merged: Record<string, any> = {};
 for (const [g, b] of Object.entries(GAME_DATA as Record<string, any>)) merged[g] = { ...b };

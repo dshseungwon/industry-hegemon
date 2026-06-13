@@ -1,7 +1,7 @@
 // 산업 인텔 — The Industry Brief 실데이터(KSF·실제 기업·점유율)를 화면에 노출하기 위한 정제·도출 헬퍼.
 // + 읽기 보상(코덱스 해금) 상태(localStorage). 게임 경제에는 영향 없음(표시·수집 전용).
 import { Cap, CAPS, CAPKO, BUILTIN_SCENARIO } from "./state";
-import { GAME_DATA } from "./game.data";
+import { gameData } from "./gamedata";
 import { BRIEFS } from "./reports.data";
 
 // ---- 기업명 정제: "English한글" 붙은 이름 분리 + 국가명(생산국 표 누출) 감지 ----
@@ -61,7 +61,7 @@ export function industryIntel(gics: string): IndustryIntel {
       topFirms: BUILTIN_SCENARIO.firms.map(f => ({ en: f.name })), koreaFirms: [], reportFile: "",
     };
   }
-  const gd = GAME_DATA[gics];
+  const gd = gameData(gics);
   const meta = BRIEFS.find(b => b.gics === gics);
   const ko = meta?.industry_ko || gd?.industry_ko || gics;
   const sector = meta?.sector || gd?.sector || "";

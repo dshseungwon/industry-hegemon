@@ -5,6 +5,7 @@ import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLo
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
+import { refreshGameData } from "./gamedata";
 import { sfx, unlockAudio, startBgm } from "./audio";
 import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 
@@ -274,3 +275,6 @@ function flash(msg: string) {
 // 브라우저 정책: 첫 사용자 제스처에 오디오 언락 + 배경음악 시작
 document.addEventListener("pointerdown", () => { unlockAudio(); startBgm(); }, { once: true });
 paint();
+// 자매 레포(daily-industry-report)가 매일 발행하는 game_data.json으로 최신화(실패 시 내장 스냅샷 유지).
+// 산업·기업 선택 화면이면 새 데이터로 다시 그린다.
+refreshGameData(() => { if (phase === "industry" || phase === "company") paint(); });
