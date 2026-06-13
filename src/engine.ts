@@ -7,10 +7,16 @@ function ri(a: number, b: number) { return a + Math.floor(Math.random() * (b - a
 // ---- balance constants (튜닝 손잡이) ----
 export const SHARE_BETA = 6;   // 점유율 민감도: 적합도^β. 높을수록 승자독식, 낮을수록 균등.
 export const END_MONTHS = 120; // 게임 horizon(10년). 이 시점에 점유율 1위면 승리.
+const DOM_SHARE = 0.58;        // 완전 장악: 전 시장 1위 + 가중 점유율 이 값 이상(결정적 우위). 대부분 게임은 마감까지 감.
 const MARGIN = 0.012;          // 점령 규모 1단위당 월 현금($B)
 const OVERHEAD = 3;            // 월 고정비($B) — 점유율이 낮으면 적자
-const RIVAL_CHANCE = 0.10;     // 경쟁사가 매월 투자할 확률(시장을 읽고 최선 역량에)
-const RIVAL_SIZE = 6;          // 경쟁사 1회 투자 역량 증가폭
+// AI 경쟁사 튜닝 손잡이(밸런스). 사람 플레이어 벤처 payoff=14, 가속·M&A·테크 사용 → 사람의 우위는 '잘 읽고 적극 운영'.
+// 스윕 결과: passive 0% / casual 69% / optimal 89%, 게임 ~84-117개월(완전장악은 achievement).
+export const BALANCE = {
+  aiInvestChance: 0.12,   // AI가 idle일 때 매월 신규 투자 확률
+  aiPayoff: 9,            // AI 벤처 1회 역량 증가(사람 14보다 낮음)
+  aiAccelChance: 0.10,    // AI가 진행 중 가속할 확률(현금 여유 시)
+};
 
 function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const k of CAPS) s += (m.pref[k] || 0) * gcap(caps[k]); return s; }
 export function matchScore(f: Firm, m: Market) { return scoreWith(f.caps, m); }
@@ -215,9 +221,10 @@ export function tick(s: GameState) {
 
   // 승리: 완전 장악(한 firm이 전 시장 1위) / 마감 시 1위
   const firstLeader = s.markets[s.marketOrder[0]].leader;
-  const dominated = s.marketOrder.every(n => s.markets[n].leader === firstLeader);
-  if (dominated) {
-    const w = s.firms.find(x => x.key === firstLeader)!;
+  const leadAll = s.marketOrder.every(n => s.markets[n].leader === firstLeader);
+  const domIdx = leadAll ? s.firms.findIndex(x => x.key === firstLeader) : -1;
+  if (leadAll && myShare(s, domIdx) >= DOM_SHARE) {   // 전 시장 1위 + 결정적 점유율
+    const w = s.firms[domIdx];
     s.ui.over = { winnerKey: firstLeader, won: firstLeader === youKey, msg: w.name + " — 시장 완전 장악!" }; s.speed = 0; s.fx.push(firstLeader === youKey ? "win" : "lose");
   } else if (s.date >= END_MONTHS) {
     const top = rankByCaptured(s)[0].firm; const sh = (myShare(s, s.firms.findIndex(x => x.key === top.key)) * 100).toFixed(0);
@@ -234,12 +241,16 @@ function progressVenture(s: GameState, fi: number) {
     if (f.key === s.firms[s.youIdx].key) { pushLog(s, "🚀 " + CAPKO[v.cap] + " 프로그램 완성! 시장 점령 확대"); s.fx.push("complete"); }
   }
 }
-// AI 정책: 시장을 읽어 최선 역량에 완만히 투자(내부개발). 구 밸런스 페이싱 유지(가속 안 함, M&A/재무는 추후).
+// AI 정책: 시장을 읽어 최선 역량에 투자(내부개발) + 여유 시 가속. M&A/재무/로비는 추후.
 function aiPolicy(s: GameState, fi: number) {
   const f = s.firms[fi];
-  if (!f.venture && f.cash >= 24 && Math.random() < RIVAL_CHANCE) {   // ~월 0.10 확률로 신규 투자
-    const best = bestRivalCap(s, f);
-    if (best) { f.cash -= 24; f.venture = { name: CAPKO[best] + " 역량 프로그램", cap: best, payoff: RIVAL_SIZE, progress: 6, risk: 0, cooldown: {} }; }
+  if (!f.venture) {
+    if (f.cash >= 24 && Math.random() < BALANCE.aiInvestChance) {
+      const best = bestRivalCap(s, f);
+      if (best) { f.cash -= 24; f.venture = { name: CAPKO[best] + " 역량 프로그램", cap: best, payoff: BALANCE.aiPayoff, progress: 6, risk: 0, cooldown: {} }; }
+    }
+  } else if (f.cash >= 10 && Math.random() < BALANCE.aiAccelChance && canOperate(s, fi, "accel")) {
+    f.venture.progress = Math.min(100, f.venture.progress + 14); f.cash -= 10; setCooldown(s, fi, "accel", 2);
   }
 }
 // 한 firm이 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음).
