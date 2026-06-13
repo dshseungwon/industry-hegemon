@@ -10,7 +10,7 @@ import { GameState, newGame, CAPKO, Cap } from "../src/state";
 import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
   acquireTargets, doAcquire, raiseDebt, borrowRoom, lobbyCost, doLobby, canAct, setActCooldown,
-  TECH_NODES, doResearch, setAlloc,
+  TECH_NODES, doResearch, setAlloc, doEnter,
 } from "../src/engine";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -56,7 +56,12 @@ function applyAction(state: GameState, fi: number, a: Action) {
     case "raiseDebt": { const amt = Math.min(40, Math.floor(borrowRoom(state, fi))); if (amt >= 5) raiseDebt(state, fi, amt); break; }
     case "lobby": { if (!canAct(state, fi, "lobby:" + a.market)) break; const c = lobbyCost(state, a.market); if (f.cash >= c) { f.cash -= c; doLobby(state, fi, a.market); setActCooldown(state, fi, "lobby:" + a.market, 5); recomputeLeaders(state); } break; }
     case "research": { const n = TECH_NODES.find(x => x.key === a.key); if (n && !f.tech.includes(a.key) && f.cash >= n.cost) { f.cash -= n.cost; doResearch(state, fi, a.key); } break; }
-    case "alloc": { setAlloc(state, fi, a.market, a.delta); recomputeLeaders(state); break; }
+    case "alloc": {
+      const firstEntry = a.delta > 0 && !state.marketOrder.includes(a.market) && !(f.alloc[a.market] > 0);
+      if (firstEntry) { if (!doEnter(state, fi, a.market)) break; }   // 진입장벽 목돈 차감(현금 부족 시 무시)
+      else setAlloc(state, fi, a.market, a.delta);
+      recomputeLeaders(state); break;
+    }
   }
 }
 

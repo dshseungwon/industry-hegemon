@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -276,7 +276,8 @@ function panelBody(s: GameState, panel: string): string {
     if (!fr.length) h += '<div class="card mute small">모든 시장에 진출했습니다.</div>';
     else fr.forEach(m => {
       const started = (you.alloc[m.name] || 0) > 0;
-      h += '<button class="proj enter" data-n="' + esc(m.name) + '"><div class="h">🌏 ' + m.ko + (started ? '<span class="bdg go">전개 중</span>' : ' 진출') + '</div><div class="e">규모 $' + m.size + 'B · 아무도 없는 시장 — 진출 시 100%로 시작</div></button>';
+      const ec = entryCost(s, m.name); const broke = !started && you.cash < ec;
+      h += '<button class="proj enter" data-n="' + esc(m.name) + '"' + (started || broke ? ' disabled' : '') + '><div class="h">🌏 ' + m.ko + (started ? '<span class="bdg go">전개 중</span>' : '<span class="bdg">진입장벽 $' + ec + 'B</span>') + '</div><div class="e">규모 $' + m.size + 'B · 아무도 없는 시장 — 진출 시 100%로 시작' + (broke ? ' · <b>자금 부족</b>' : '') + '</div></button>';
     });
   } else if (panel === "tech") {
     // 1) 진행 중인 개발(동시 여러 개) — 가속/리스크/취소
@@ -322,7 +323,7 @@ function panelBody(s: GameState, panel: string): string {
       '④ <b>▶</b> 진행 · <b>⏸</b> 판단. 수입(월 현금흐름)은 점유율에서 나와 재투자' + '</div>';
     h += '<div class="sect">전략 메뉴</div><div class="card mute small" style="line-height:1.7">' +
       '🎯 <b>공략</b>(국가 시트) — 자원 투입으로 그 시장 점유율 직접 상승<br>' +
-      '🏢 기업 내부 · 🚀 프로젝트(가속) · 🔬 테크트리 · 🏛️ 로비(시장 KSF를 내 강점으로)<br>' +
+      '🏢 기업 내부 · 🔬 연구개발(역량·테크) · 🏛️ 로비(시장 선호를 우리에게 유리하게)<br>' +
       '📈 전략: <b>내부개발</b>(역량) · <b>M&A</b>(인수) · <b>재무</b>(부채) · <b>해외진출</b>' + '</div>';
     h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
   } else if (panel === "codex") {
@@ -346,12 +347,14 @@ function renderSheet(s: GameState, A: Actions) {
   // 닫힌 프론티어 시장 → 진출 시작(자원 할당) 시트
   if (!s.marketOrder.includes(m.name)) {
     const me0 = s.firms[s.youIdx]; const starting = (me0.alloc[m.name] || 0) > 0;
+    const ec = entryCost(s, m.name); const broke = !starting && me0.cash < ec;
     el.className = "sheet";
     el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
       '<div class="kv"><span>상태</span><b class="mute">' + (starting ? '진출 전개 중…' : '미진출 시장') + '</b></div>' +
       '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
-      '<div class="card mute small">진출하면 본진에서 자원이 전개돼 <b>아무도 없는 시장이라 100%로 진입</b>합니다. 이후 경쟁사가 들어오면 영향력으로 다툽니다. (1단계 유지는 무료, 집중할수록 월 유지비)</div>' +
-      '<button class="actbtn" id="enterBtn"' + (starting ? ' disabled' : '') + '>' + (starting ? '🚩 진출 전개 중…' : '🚩 진출 시작 — 자원 할당') + '</button>';
+      '<div class="kv"><span>진입장벽(일시금)</span><b>$' + ec + 'B</b></div>' +
+      '<div class="card mute small">진출하려면 <b>진입장벽 돌파 비용 $' + ec + 'B</b>(목돈)를 한 번 지불합니다. 이후 본진에서 자원이 전개돼 <b>아무도 없는 시장이라 100%로 진입</b>합니다. 경쟁사가 들어오면 영향력으로 다툽니다. (1단계 유지는 무료, 집중할수록 월 유지비)</div>' +
+      '<button class="actbtn" id="enterBtn"' + (starting || broke ? ' disabled' : '') + '>' + (starting ? '🚩 진출 전개 중…' : broke ? '💸 자금 부족 ($' + ec + 'B 필요)' : '🚩 진출 — 진입장벽 $' + ec + 'B 지불') + '</button>';
     document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
     const eb = document.getElementById("enterBtn") as HTMLButtonElement | null;
     if (eb && !eb.disabled) eb.onclick = () => A.alloc(m.name, 1);
@@ -405,7 +408,7 @@ function lobbyBtn(s: GameState): string {
   const n = s.ui.country!; const cost = lobbyCost(s, n); const ok = canAct(s, s.youIdx, "lobby:" + n);
   const cd = ok ? 0 : Math.max(0, (me.cooldowns["lobby:" + n] || 0) - s.date);
   const dis = !ok || me.cash < cost;
-  return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — KSF를 우리 강점으로 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button>';
+  return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — 시장 선호를 우리에게 유리하게 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button>';
 }
 
 function renderConfirm(s: GameState, A: Actions) {

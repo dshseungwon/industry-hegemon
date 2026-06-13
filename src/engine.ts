@@ -162,11 +162,20 @@ function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if
 // ---- 프론티어(미진출 시장) ----
 export function isOpen(s: GameState, name: string) { return s.marketOrder.includes(name); }
 export function frontierMarkets(s: GameState): Market[] { return Object.values(s.markets).filter(m => !s.marketOrder.includes(m.name)); }
-// 개척 = 프론티어에 자원 할당 시작. 영향력이 램프되어 도착하면 시장 개방·100% 진입(혼자이므로).
-export function doEnter(s: GameState, fi: number, name: string) {
-  if (s.marketOrder.includes(name)) return;
+// 진입장벽 돌파 비용 — 신규 시장 개척에 드는 목돈(시장 규모 비례). 월 유지비와 별개의 일시금.
+export function entryCost(s: GameState, name: string): number { const m = s.markets[name]; return m ? Math.max(25, Math.round(m.size * 0.6)) : 30; }
+// 개척 = 진입장벽 돌파(목돈) + 프론티어에 자원 할당 시작. 영향력이 램프돼 도착하면 시장 개방·100% 진입(혼자이므로).
+// 이미 진출(alloc>0)했거나 현금이 부족하면 false(호출부가 안내). 첫 진출에만 목돈 차감.
+export function doEnter(s: GameState, fi: number, name: string): boolean {
+  if (s.marketOrder.includes(name)) return false;
+  const f = s.firms[fi];
+  if ((f.alloc[name] || 0) > 0) return false;            // 이미 전개 중 — 중복 과금 방지
+  const cost = entryCost(s, name);
+  if (f.cash < cost) return false;
+  f.cash -= cost;
   setAlloc(s, fi, name, 1);
-  if ((s.firms[fi].alloc[name] || 0) > 0) pushLog(s, "🚩 " + s.firms[fi].name + " " + s.markets[name].ko + " 진출 시작 — 자원 전개 중");
+  pushLog(s, "🚩 " + f.name + " " + s.markets[name].ko + " 진입장벽 돌파 -$" + cost + "B — 자원 전개 중");
+  return true;
 }
 
 // ---- 로비: 선택 시장의 KSF를 우리 강점 쪽으로 유도(환경에 개입) ----
@@ -321,9 +330,9 @@ function aiPolicy(s: GameState, fi: number) {
     for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
     if (best) setAlloc(s, fi, best, 1);
   }
-  // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음
-  if (f.cash > 20 && Math.random() < BALANCE.aiCampaignChance * 0.25) {
-    const fr = frontierMarkets(s); if (fr.length) setAlloc(s, fi, fr[ri(0, fr.length - 1)].name, 1);
+  // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음(진입장벽 목돈 필요)
+  if (f.cash > 40 && Math.random() < BALANCE.aiCampaignChance * 0.25) {
+    const fr = frontierMarkets(s).filter(m => f.cash >= entryCost(s, m.name)); if (fr.length) doEnter(s, fi, fr[ri(0, fr.length - 1)].name);
   }
 }
 // 한 firm이 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음).

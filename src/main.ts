@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -241,8 +241,18 @@ const A: Actions = {
   },
   alloc(marketName, delta) {
     if (!s) return;
-    if (online) { net?.send({ kind: "alloc", market: marketName, delta }); sfx(delta > 0 ? "accel" : "click"); return; }
-    setAlloc(s, s.youIdx, marketName, delta); recomputeLeaders(s); sfx(delta > 0 ? "accel" : "click"); render(s, A);
+    const me = s.firms[s.youIdx];
+    const firstEntry = delta > 0 && !isOpen(s, marketName) && !(me.alloc[marketName] > 0);
+    if (online) {
+      if (firstEntry && me.cash < entryCost(s, marketName)) { flash("진입 자금이 부족합니다 (진입장벽 $" + entryCost(s, marketName) + "B)"); return; }
+      net?.send({ kind: "alloc", market: marketName, delta }); sfx(delta > 0 ? "accel" : "click"); return;
+    }
+    if (firstEntry) {
+      if (!doEnter(s, s.youIdx, marketName)) { flash("진입 자금이 부족합니다 (진입장벽 $" + entryCost(s, marketName) + "B)"); return; }
+    } else {
+      setAlloc(s, s.youIdx, marketName, delta);
+    }
+    recomputeLeaders(s); sfx(delta > 0 ? "accel" : "click"); render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
   confirmCancel() { if (!s) return; s.ui.confirm = null; render(s, A); },
