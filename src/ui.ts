@@ -178,9 +178,9 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) +
-      '<span class="mgap"></span>' + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
+      mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
+      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
@@ -512,20 +512,36 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
   });
 }
 
+// 기업 caps에서 강점/약점과 플레이 성향을 한 줄 설명으로 도출(데이터에 별도 설명 필드가 없어 caps·역할에서 생성).
+const CAP_MARKET: Record<Cap, string> = {
+  tech: "기술 선도 시장(미국·독일·일본)", brand: "프리미엄·선진 시장",
+  scale: "대량·신흥 시장(중국·인도)", global: "다국적 분산 시장",
+};
+function firmBlurb(f: import("./state").FirmDef, idx: number): string {
+  let strong: Cap = CAPS[0], weak: Cap = CAPS[0];
+  for (const k of CAPS) { if (f.caps[k] > f.caps[strong]) strong = k; if (f.caps[k] < f.caps[weak]) weak = k; }
+  const role = idx === 0 ? "언더독에서 출발해 시장을 잘 읽고 투자해 역전하는 정석 플레이."
+    : f.key === "global" ? "강한 출발 — 1위 자리를 지키는 게 관건."
+    : "중간 위치 — 균형 잡힌 운영으로 빈틈을 노립니다.";
+  return '<b class="up">강점 ' + CAPKO[strong] + '</b> → ' + CAP_MARKET[strong] + '에 유리.<br>' +
+    '<b class="dn">약점 ' + CAPKO[weak] + '</b> → ' + CAP_MARKET[weak] + '은 투자로 보완.<br>' +
+    '<span class="mute">' + role + '</span>';
+}
 export function renderCompany(app: HTMLElement, sc: import("./state").IndustryScenario, A: Actions) {
   const roleKo = (f: import("./state").FirmDef, i: number) => i === 0 ? "추천 · 우리 기업" : f.key === "global" ? "글로벌 1위" : "글로벌 경쟁사";
   const firmCard = (f: import("./state").FirmDef, idx: number) =>
     '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + f.name + '</b><span class="chip">' + roleKo(f, idx) + '</span></div>' +
     '<div class="cbars">' + capBars(k => f.caps[k]) + '</div>' +
+    '<div class="cdesc">' + firmBlurb(f, idx) + '</div>' +
     '<button class="btn" data-idx="' + idx + '">이 기업으로 플레이</button></div>';
   app.innerHTML =
-    '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
+    '<div class="screen list"><div class="cwrap"><div class="lhead"><button class="back" id="back">←</button>' +
     '<div><h2>' + sc.ko + '</h2><div class="mute small">' + (sectorKo[sc.sector] || sc.sector) + '</div></div></div>' +
     '<div class="card"><div class="ihead">' + sc.headline + '</div>' +
     '<div class="ico"><a class="rlink" href="' + sc.reportUrl + '" target="_blank" rel="noopener">📖 브리프 리포트 읽기 ↗</a>' +
     (sc.real ? '<span class="bdg go">실데이터 · The Industry Brief</span>' : sc.preset ? '<span class="bdg no">KSF 데이터 준비중 — 섹터 프리셋</span>' : '<span class="bdg go">튜닝된 기준 시나리오</span>') + '</div></div>' +
     '<div class="sect">어느 기업을 운영할까요?</div>' +
-    sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div>';
+    '<div class="ccards">' + sc.firms.map((f, i) => firmCard(f, i)).join("") + '</div></div></div>';
   document.getElementById("back")!.onclick = () => A.toIndustry();
   app.querySelectorAll<HTMLElement>(".ccard .btn").forEach(b => b.onclick = () => A.pickCompany(Number(b.dataset.idx)));
 }
