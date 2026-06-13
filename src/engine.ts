@@ -49,6 +49,7 @@ const OPEN_THRESH = 0.08;      // 프론티어가 이 영향력을 넘으면 시
 function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const k of CAPS) s += (m.pref[k] || 0) * gcap(caps[k]); return s; }
 export function matchScore(f: Firm, m: Market) { return scoreWith(f.caps, m); }
 // 한 시장 가중치 = 적합도^β × 배치 영향력. 영향력 0 = 미진출. 영향력 = 할당 × R&D(역량) × KSF 적합도.
+// (본진 이점 multiplier는 큰 자국시장 기업을 과하게 키워 밸런스를 깨서 제외 — 실 점유율은 인텔 패널로 노출.)
 function weightOf(f: Firm, m: Market, caps: Record<Cap, number>) { return Math.pow(scoreWith(caps, m), SHARE_BETA) * (f.effort[m.name] || 0); }
 export function allocUsed(f: Firm) { let t = 0; for (const k in f.alloc) t += f.alloc[k]; return t; }
 // 한 시장 할당의 월 유지비(1단계=진출 유지는 무료, 그 이상 집중에 비용). BALANCE.upkeepRate로 튜닝.

@@ -1,12 +1,16 @@
-// 자동 생성 스냅샷 — The Industry Brief 실데이터(KSF 가중치 + 실제 경쟁사).
-// 출처: daily-industry-report/game_data.json (build/game_data.py가 리포트 HTML에서 추출).
-// 갱신: 자매 레포에서 game_data.py 재실행 후 이 파일 재생성.
+// 자동 생성 스냅샷 — The Industry Brief 실데이터(KSF + 실제 글로벌/한국 점유율 + 시장규모).
+// 출처: daily-industry-report/game_data.json (build/game_data.py가 리포트 D딕트에서 추출).
+// 재생성: 자매 레포에서 game_data.py 실행 후 `npm run gen:data`.
 import { Cap } from "./state";
+export interface GameFirm { name: string; ko?: string; share: number; }
 export interface GameData {
   gics: string; industry_en: string; industry_ko: string; sector: string;
   ksf_weights: Record<Cap, number>;
   global_company: string; korea_company: string;
-  global_firms: { name: string; share: number }[];
+  global_firms: GameFirm[];
+  korea_firms?: GameFirm[];                 // 실제 한국 시장 점유율(있으면)
+  market?: { label: string; trillion_usd: number; year: string };
+  cagr?: string;
 }
 export const GAME_DATA: Record<string, GameData> = {
   "101010": {
@@ -230,8 +234,32 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Holcim",
         "share": 3
+      },
+      {
+        "name": "Cemex",
+        "share": 2
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "KCC",
+        "share": 35
+      },
+      {
+        "name": "LX Hausys",
+        "share": 25
+      },
+      {
+        "name": "KCC Glass",
+        "share": 13
+      }
+    ],
+    "market": {
+      "label": "$1.42T",
+      "trillion_usd": 1.42,
+      "year": "2025"
+    },
+    "cagr": "≈3.9%"
   },
   "201030": {
     "gics": "201030",
@@ -398,8 +426,32 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Veolia",
         "share": 5
+      },
+      {
+        "name": "Waste Connections",
+        "share": 4
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "S-1",
+        "share": 28
+      },
+      {
+        "name": "SK Shieldus",
+        "share": 26
+      },
+      {
+        "name": "SK ecoplant",
+        "share": 22
+      }
+    ],
+    "market": {
+      "label": "$1.29T",
+      "trillion_usd": 1.29,
+      "year": "2025"
+    },
+    "cagr": "≈6%"
   },
   "202020": {
     "gics": "202020",
@@ -706,8 +758,36 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "PDD/Pinduoduo",
         "share": 7
+      },
+      {
+        "name": "JD.com",
+        "share": 5
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "Coupang",
+        "share": 24
+      },
+      {
+        "name": "Naver",
+        "share": 21
+      },
+      {
+        "name": "Gmarket",
+        "share": 10
+      },
+      {
+        "name": "11st",
+        "share": 7
+      }
+    ],
+    "market": {
+      "label": "$6.9T",
+      "trillion_usd": 6.9,
+      "year": "2025"
+    },
+    "cagr": "≈8–9%"
   },
   "255040": {
     "gics": "255040",
@@ -864,7 +944,7 @@ export const GAME_DATA: Record<string, GameData> = {
     "korea_company": "LG H&H",
     "global_firms": [
       {
-        "name": "P&amp;G",
+        "name": "P&G",
         "share": 13
       },
       {
@@ -874,8 +954,32 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Reckitt",
         "share": 5
+      },
+      {
+        "name": "Henkel",
+        "share": 4
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "LG H&H",
+        "share": 37
+      },
+      {
+        "name": "Amorepacific",
+        "share": 13
+      },
+      {
+        "name": "Aekyung",
+        "share": 8
+      }
+    ],
+    "market": {
+      "label": "$203B",
+      "trillion_usd": 203,
+      "year": "2025"
+    },
+    "cagr": "≈5%"
   },
   "303020": {
     "gics": "303020",
@@ -1210,8 +1314,36 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "SAP",
         "share": 3
+      },
+      {
+        "name": "Salesforce",
+        "share": 3
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "Samsung SDS",
+        "share": 30
+      },
+      {
+        "name": "Naver",
+        "share": 23
+      },
+      {
+        "name": "LG CNS",
+        "share": 13
+      },
+      {
+        "name": "Kakao",
+        "share": 12
+      }
+    ],
+    "market": {
+      "label": "$1.23T",
+      "trillion_usd": 1.23,
+      "year": "2025"
+    },
+    "cagr": "≈13–14%"
   },
   "452010": {
     "gics": "452010",
@@ -1378,8 +1510,36 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "China Telecom",
         "share": 5
+      },
+      {
+        "name": "Bharti Airtel",
+        "share": 4
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "SK Telecom",
+        "share": 40
+      },
+      {
+        "name": "KT",
+        "share": 22
+      },
+      {
+        "name": "LG Uplus",
+        "share": 21
+      },
+      {
+        "name": "MVNO",
+        "share": 17
+      }
+    ],
+    "market": {
+      "label": "$1.37T",
+      "trillion_usd": 1.37,
+      "year": "2025"
+    },
+    "cagr": "≈7.5%"
   },
   "502010": {
     "gics": "502010",
@@ -1630,8 +1790,28 @@ export const GAME_DATA: Record<string, GameData> = {
       {
         "name": "Apple Hospitality",
         "share": 11
+      },
+      {
+        "name": "Park Hotels",
+        "share": 8
       }
-    ]
+    ],
+    "korea_firms": [
+      {
+        "name": "LOTTE REIT",
+        "share": 80
+      },
+      {
+        "name": "Other REITs",
+        "share": 15
+      }
+    ],
+    "market": {
+      "label": "$1.80T",
+      "trillion_usd": 1.8,
+      "year": "2025"
+    },
+    "cagr": "≈8%"
   },
   "601040": {
     "gics": "601040",

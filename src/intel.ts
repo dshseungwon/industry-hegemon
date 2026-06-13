@@ -38,7 +38,9 @@ export interface IndustryIntel {
   hasData: boolean;                  // 표시할 만한 KSF가 있나(균등/누락이면 false)
   ksf: Record<Cap, number> | null;
   why: string;
-  topFirms: TopFirm[];               // 국가·빈 항목 제외, 최대 5
+  topFirms: TopFirm[];               // 실제 글로벌 1위 기업(국가·빈 항목 제외, 최대 5)
+  koreaFirms: TopFirm[];             // 실제 한국 시장 점유율(있으면)
+  market?: { label: string; year: string };
   reportFile?: string;
 }
 
@@ -56,22 +58,26 @@ export function industryIntel(gics: string): IndustryIntel {
     const ksf = builtinKsf();
     return {
       gics, ko: BUILTIN_SCENARIO.ko, sector: BUILTIN_SCENARIO.sector, hasData: true, ksf, why: industryWhy(ksf),
-      topFirms: BUILTIN_SCENARIO.firms.map(f => ({ en: f.name })), reportFile: "",
+      topFirms: BUILTIN_SCENARIO.firms.map(f => ({ en: f.name })), koreaFirms: [], reportFile: "",
     };
   }
   const gd = GAME_DATA[gics];
   const meta = BRIEFS.find(b => b.gics === gics);
   const ko = meta?.industry_ko || gd?.industry_ko || gics;
   const sector = meta?.sector || gd?.sector || "";
-  if (!gd) return { gics, ko, sector, hasData: false, ksf: null, why: "", topFirms: [], reportFile: meta?.file };
+  if (!gd) return { gics, ko, sector, hasData: false, ksf: null, why: "", topFirms: [], koreaFirms: [], reportFile: meta?.file };
   const ksf = normalize(gd.ksf_weights);
   const flat = isFlat(ksf);
-  const topFirms = (gd.global_firms || [])
-    .map(f => ({ ...cleanFirmName(f.name), share: f.share }))
+  const toFirms = (arr?: { name: string; ko?: string; share?: number }[]): TopFirm[] => (arr || [])
+    .map(f => ({ ...cleanFirmName(f.name), origKo: f.ko, share: f.share }))
     .filter(f => !f.isCountry && f.en)
     .slice(0, 5)
-    .map(f => ({ en: f.en, ko: f.ko, share: f.share }));
-  return { gics, ko, sector, hasData: !flat, ksf: flat ? null : ksf, why: flat ? "" : industryWhy(ksf), topFirms, reportFile: meta?.file };
+    .map(f => ({ en: f.en, ko: f.ko || f.origKo, share: f.share }));
+  return {
+    gics, ko, sector, hasData: !flat, ksf: flat ? null : ksf, why: flat ? "" : industryWhy(ksf),
+    topFirms: toFirms(gd.global_firms), koreaFirms: toFirms(gd.korea_firms),
+    market: gd.market ? { label: gd.market.label, year: gd.market.year } : undefined, reportFile: meta?.file,
+  };
 }
 
 // ---- 읽기 보상: 해금 상태(localStorage, gics 단위) ----

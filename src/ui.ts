@@ -549,16 +549,16 @@ function ksfChips(ksf: Record<Cap, number>): string {
   return '<div class="ksfchips">' + CAPS.map(k => '<span class="ksfchip"><i style="background:' + CAPCOL[k] + '"></i>' + CAPKO[k] + ' <b>' + Math.round(ksf[k] * 100) + '</b></span>').join("") + '</div>';
 }
 // 산업 인텔 블록(기업 선택 카드 + 인게임 패널 공용): KSF 막대 + why + 실제 기업·점유율.
+function firmRows(firms: IndustryIntel["topFirms"]): string {
+  return '<div class="firmrows">' + firms.map(f => '<div class="firmrow"><span>' + esc(f.en) + (f.ko ? ' <span class="mute">' + esc(f.ko) + '</span>' : '') + '</span>' + (f.share !== undefined ? '<b>' + f.share + '%</b>' : '') + '</div>').join("") + '</div>';
+}
 function intelBlock(it: IndustryIntel): string {
   if (!it.hasData || !it.ksf) return '<div class="card mute small">이 산업의 KSF 실데이터는 준비 중입니다(섹터 근사치로 플레이).</div>';
   const ksf = it.ksf;
-  let h = '<div class="sect">이 산업의 KSF(핵심성공요인)</div><div class="cbars">' + capBars(k => ksf[k] * 100) + '</div>';
+  let h = '<div class="sect">이 산업의 KSF(핵심성공요인)' + (it.market ? ' · 시장 ' + esc(it.market.label) + '(' + esc(it.market.year) + ')' : '') + '</div><div class="cbars">' + capBars(k => ksf[k] * 100) + '</div>';
   h += '<div class="ksfwhy">📌 ' + it.why + '</div>';
-  if (it.topFirms.length) {
-    const hasShare = it.topFirms.some(f => f.share !== undefined);
-    h += '<div class="sect">실제 주요 기업' + (hasShare ? ' · 점유율' : '') + '</div><div class="firmrows">' +
-      it.topFirms.map(f => '<div class="firmrow"><span>' + esc(f.en) + (f.ko ? ' <span class="mute">' + esc(f.ko) + '</span>' : '') + '</span>' + (f.share !== undefined ? '<b>' + f.share + '%</b>' : '') + '</div>').join("") + '</div>';
-  }
+  if (it.topFirms.length) h += '<div class="sect">실제 글로벌 점유율</div>' + firmRows(it.topFirms);
+  if (it.koreaFirms.length) h += '<div class="sect">실제 한국 점유율</div>' + firmRows(it.koreaFirms);
   return h;
 }
 // 기업 caps에서 강점/약점과 플레이 성향을 한 줄 설명으로 도출(데이터에 별도 설명 필드가 없어 caps·역할에서 생성).
