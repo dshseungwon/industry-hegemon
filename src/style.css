@@ -202,3 +202,21 @@ a.rlink.big{display:block;text-align:center;margin-top:10px;padding:9px;backgrou
 .lrow .lin{flex:1;text-transform:uppercase;letter-spacing:2px;}
 .lrow .btn{flex:none;width:auto;padding:11px 20px;}
 #roombadge{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:25;background:#0a1c30e8;border:1px solid var(--gold);color:var(--gold);padding:6px 14px;border-radius:999px;font-weight:800;font-size:12.5px;pointer-events:none;}
+
+/* ===== 모바일(좁은 화면): 탭 타깃 키우기 + 상단바 압축 ===== */
+@media (max-width: 640px) {
+  #topbar { gap:6px; padding:7px 8px; }
+  #topbar .brand { font-size:13px; }
+  .hstats { font-size:11px; gap:6px; }
+  .clock { padding:3px 6px; }
+  .spbtn { padding:7px 9px; font-size:13px; }           /* 일시정지·배속 — 손가락용 */
+  .mbtn { padding:9px 11px; font-size:17px; }            /* 주 탭 */
+  .mbtn.minor { padding:7px 9px; font-size:14px; }       /* 보조(흐린) 탭 */
+  .mgap { width:5px; }
+  #mapnav button { width:44px; height:44px; font-size:21px; }   /* 지도 줌 버튼 */
+  .back { padding:9px 14px; }
+  .sheet { max-height:64%; }                             /* 국가 시트 살짝 더 높게 */
+  .trend { font-size:11px; padding:4px 8px; }
+  .lede { font-size:14px; }
+  .btn.big { padding:14px 24px; }
+}

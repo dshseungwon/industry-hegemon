@@ -101,7 +101,9 @@ function resetView(svg: SVGSVGElement) {
 }
 function setupMapNav(svg: SVGSVGElement, A: Actions) {
   resetView(svg);
-  let drag = false, moved = false, sx = 0, sy = 0, tx0 = 0, ty0 = 0;
+  // 멀티터치 지원: 1손가락 = 팬/탭, 2손가락 = 핀치 줌(+ 중점 팬). 데스크톱 휠 줌도 유지.
+  const pts = new Map<number, { x: number; y: number }>();
+  let moved = false, sx = 0, sy = 0, tx0 = 0, ty0 = 0, pinchDist = 0, pmx = 0, pmy = 0;
 
   svg.addEventListener("wheel", (e) => {
     e.preventDefault();
@@ -109,21 +111,42 @@ function setupMapNav(svg: SVGSVGElement, A: Actions) {
   }, { passive: false });
 
   const onMove = (e: PointerEvent) => {
-    if (!drag) return;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-    if (moved) { mtx = tx0 + dx; mty = ty0 + dy; clampXform(); applyXform(svg); }
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.values()];
+    if (arr.length >= 2) {                       // 핀치 줌 + 두 손가락 중점 팬
+      const [a, b] = arr;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      if (pinchDist > 0) {
+        zoomAround(svg, mx, my, dist / pinchDist);
+        mtx += mx - pmx; mty += my - pmy; clampXform(); applyXform(svg);
+      }
+      pinchDist = dist; pmx = mx; pmy = my; moved = true;
+    } else {                                      // 한 손가락 팬
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      if (moved) { mtx = tx0 + dx; mty = ty0 + dy; clampXform(); applyXform(svg); }
+    }
   };
   const onUp = (e: PointerEvent) => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    if (!drag) return; drag = false;
-    if (!moved) { const t = e.target as Element; const n = t && t.getAttribute ? t.getAttribute("data-n") : null; A.selectCountry(n || null); }
+    const wasTap = pts.size === 1 && !moved;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinchDist = 0;
+    if (pts.size === 1) { const p = [...pts.values()][0]; sx = p.x; sy = p.y; tx0 = mtx; ty0 = mty; }  // 남은 손가락이 새 팬 기준
+    else if (pts.size === 0) {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (wasTap) { const t = e.target as Element; const n = t && t.getAttribute ? t.getAttribute("data-n") : null; A.selectCountry(n || null); }
+    }
   };
   svg.addEventListener("pointerdown", (e) => {
-    drag = true; moved = false; sx = e.clientX; sy = e.clientY; tx0 = mtx; ty0 = mty;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) { moved = false; sx = e.clientX; sy = e.clientY; tx0 = mtx; ty0 = mty; }
+    else if (pts.size === 2) { const a = [...pts.values()]; pinchDist = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); pmx = (a[0].x + a[1].x) / 2; pmy = (a[0].y + a[1].y) / 2; }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   });
 
   document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
