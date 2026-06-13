@@ -198,7 +198,7 @@ function renderTop(s: GameState, A: Actions) {
   const me = s.firms[s.youIdx];
   const sp = (n: number, lab: string) => '<button class="spbtn' + (s.speed === n ? " on" : "") + '" data-sp="' + n + '">' + lab + '</button>';
   t.innerHTML =
-    '<div class="brand">산업 패권</div>' +
+    '<div class="brand">더 체어맨</div>' +
     '<div class="myfirm" title="내 기업" style="border-color:' + me.col + '"><span class="fdot" style="background:' + me.col + '"></span><b style="color:' + me.col + '">' + me.name + '</b></div>' +
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
@@ -496,12 +496,27 @@ const sectorKo: Record<string, string> = {
 export function renderTitle(app: HTMLElement, A: Actions) {
   // 정적 배포(GitHub Pages 등, VITE_STATIC=1)에는 WS 게임 서버가 없어 온라인 버튼을 숨긴다.
   const staticBuild = (import.meta as any).env?.VITE_STATIC === "1";
+  // 배경: 희미한 세계지도 + 주요 시장 맥동(레이더 핑). 회장이 글로벌 시장을 굽어보는 톤.
+  const land = MAPDATA.map(c => '<path d="' + c.d + '"></path>').join("");
+  const dots: [number, number, number][] = [
+    [180, 150, 0], [120, 168, 1.5], [410, 116, 0.6], [392, 104, 2.2], [560, 100, 1.1],
+    [620, 158, 0.3], [648, 150, 1.9], [560, 205, 0.9], [478, 188, 2.5], [430, 252, 1.4],
+    [270, 292, 0.7], [690, 312, 2.0], [640, 232, 1.2], [330, 206, 2.7],
+  ];
+  const pulses = dots.map(([x, y, d]) =>
+    '<circle class="dot" cx="' + x + '" cy="' + y + '" r="2.1"></circle>' +
+    '<circle class="ping" cx="' + x + '" cy="' + y + '" r="2.1" style="animation-delay:' + d + 's"></circle>').join("");
   app.innerHTML =
-    '<div class="screen title"><div class="hero">' +
-    '<div class="logo">🌐 산업 패권</div><div class="tag">Industry Hegemon</div>' +
-    '<p class="lede">오늘의 산업을 골라, 한 기업을 운영해 세계 시장을 점령하라.<br>' +
-    '시장이 무엇을 원하는지 <b>읽고</b>, 역량에 <b>투자</b>해 1위에 오르는 실시간 경영 전략.</p>' +
-    '<button class="btn big" id="toIndustry">산업 선택 →</button>' +
+    '<div class="screen title">' +
+    '<svg class="titlemap" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="land">' + land + '</g><g class="pulses">' + pulses + '</g></svg>' +
+    '<div class="titlevig"></div>' +
+    '<div class="hero chairman">' +
+    '<div class="kicker">THE INDUSTRY BRIEF · 실시간 경영 그랜드 전략</div>' +
+    '<div class="crest">🎩</div>' +
+    '<h1 class="gametitle">THE CHAIRMAN</h1>' +
+    '<div class="kotitle">더 체어맨</div>' +
+    '<p class="lede">당신은 회장이다.<br>매일의 <b>산업 브리프</b>를 읽고 자본을 배치해, 세계 시장을 손에 넣어라.</p>' +
+    '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
     (staticBuild
       ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
       : '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>') +

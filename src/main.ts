@@ -101,7 +101,7 @@ function startGame(youIdx: number) {
 }
 function introSpec() {
   return {
-    title: "🌐 산업 패권 — 처음이신가요?",
+    title: "🎩 더 체어맨 — 처음이신가요?",
     lines: [
       "한 기업을 키워 <b>세계 시장을 장악</b>하는 실시간 경영 전략입니다.",
       "🏆 <b>승리①</b> 모든 시장에서 점유율 1위 (지도 전체가 내 색)",

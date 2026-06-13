@@ -1,6 +1,6 @@
-# 산업 패권 (Industry Hegemon)
+# 더 체어맨 (The Chairman)
 
-실시간 경영 그랜드 전략 게임 — Vite + TypeScript.
+회장이 되어 산업 브리프를 읽고 세계 시장을 점령하는 실시간 경영 그랜드 전략 게임 — Vite + TypeScript.
 
 **▶ 바로 플레이: https://dshseungwon.github.io/industry-hegemon/** (싱글플레이, 설치 불필요)
 
