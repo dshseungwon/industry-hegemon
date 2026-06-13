@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, ALLOC_MAX } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -178,8 +178,9 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b>$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
-      mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("guide", "❓", s) + mbtn("codex", "📖", s) +
-      '<button class="mbtn" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
+      mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) +
+      '<span class="mgap"></span>' + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
+      '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
@@ -188,9 +189,9 @@ function renderTop(s: GameState, A: Actions) {
   // 드로어가 상단바(트렌드 줄) 아래에서 시작하도록 실제 높이를 반영(겹침 방지)
   document.documentElement.style.setProperty("--topbar-h", (t.offsetHeight + 2) + "px");
 }
-const mbtn = (p: string, ic: string, s: GameState) => {
+const mbtn = (p: string, ic: string, s: GameState, minor = false) => {
   const on = p === "company" ? s.ui.leftPanel === p : s.ui.panel === p;
-  return '<button class="mbtn' + (on ? " on" : "") + '" data-p="' + p + '">' + ic + '</button>';
+  return '<button class="mbtn' + (on ? " on" : "") + (minor ? " minor" : "") + '" data-p="' + p + '">' + ic + '</button>';
 };
 
 function bar(label: string, v: number, color?: string) {
@@ -379,23 +380,24 @@ function renderSheet(s: GameState, A: Actions) {
 // 자원 할당 — 진출한 시장에 자원을 단계로 배치(상시). 끊으면 영향력 감소→점유율 하락.
 function infBars(s: GameState, n: string): string {
   const rows = s.firms.map(f => ({ f, e: f.effort[n] || 0 })).filter(x => x.e > 0.05).sort((a, b) => b.e - a.e)
-    .map(({ f, e }) => '<div class="barrow"><span class="bl" style="color:' + f.col + '">' + f.name + '</span><div class="bt"><div class="bf" style="width:' + Math.min(100, e / ALLOC_MAX * 100).toFixed(0) + '%;background:' + f.col + '"></div></div><span class="bv">' + e.toFixed(1) + '</span></div>').join("");
+    .map(({ f, e }) => '<div class="barrow"><span class="bl" style="color:' + f.col + '">' + f.name + '</span><div class="bt"><div class="bf" style="width:' + Math.min(100, e / 6 * 100).toFixed(0) + '%;background:' + f.col + '"></div></div><span class="bv">' + e.toFixed(1) + '</span></div>').join("");
   return '<div class="sect" style="margin-top:6px">기업별 영향력</div>' + (rows || '<div class="mute small">아직 아무도 영향력이 없습니다.</div>');
 }
 function allocSect(s: GameState): string {
   const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
-  const lvl = me.alloc[n] || 0;
+  const lvl = me.alloc[n] || 0; const mx = maxAllocFor(s, s.youIdx, n);
   const hereCost = allocUpkeepAt(s, n, lvl), total = allocUpkeep(s, s.youIdx), nextCost = allocUpkeepAt(s, n, lvl + 1) - hereCost;
-  return '<div class="sect">🎯 자원 할당</div><div class="card">' +
+  return '<div class="sect">🎯 자원 할당 <span class="mute small">(' + regionOf(n) + ' 지역)</span></div><div class="card">' +
     '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
     '<div class="allocrow"><span class="bl" style="width:auto">할당 단계</span>' +
       '<button class="abtn" id="allocMinus"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
-      '<b class="alvl">' + lvl + ' / ' + ALLOC_MAX + '</b>' +
-      '<button class="abtn" id="allocPlus"' + (lvl >= ALLOC_MAX ? ' disabled' : '') + '>＋</button>' +
-      '<span class="mute small" style="margin-left:auto">이 시장 월 $' + hereCost.toFixed(1) + 'B' + (lvl < ALLOC_MAX ? ' (+1단계 +$' + nextCost.toFixed(1) + ')' : '') + '</span></div>' +
+      '<b class="alvl">' + lvl + ' / ' + mx + '</b>' +
+      '<button class="abtn" id="allocPlus"' + (lvl >= mx ? ' disabled' : '') + '>＋</button>' +
+      '<span class="mute small" style="margin-left:auto">이 시장 월 $' + hereCost.toFixed(1) + 'B' + (lvl < mx ? ' (+1 → +$' + nextCost.toFixed(1) + ')' : '') + '</span></div>' +
+    (lvl >= mx && mx < 8 ? '<div class="mute small">상한 도달 — 🔬연구개발의 테크트리로 ' + regionOf(n) + ' 할당 상한을 올리세요.</div>' : '') +
     '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
     infBars(s, n) +
-    '<div class="mute small" style="margin-top:4px"><b>영향력 = 할당 × 역량(R&D) × KSF 적합도</b>. 많이 할당할수록 월 유지비가 커지니 <b>수입 관리</b>가 중요. 0으로 내리면 철수 — 점유율이 점차 줄어듭니다.</div></div>';
+    '<div class="mute small" style="margin-top:4px"><b>영향력 = 할당 × 역량 × KSF 적합도</b>. 할당이 많을수록 월 유지비↑ — <b>수입 관리</b> 필수. 0으로 내리면 철수해 점유율이 줄어듭니다.</div></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {
@@ -471,6 +473,13 @@ export function renderLobby(app: HTMLElement, A: Actions) {
 }
 export function lobbyError(msg: string) { const e = document.getElementById("lerr"); if (e) e.textContent = msg; }
 
+// 세계 흐름 이벤트 큰 토스트(HOI 스타일) — 4초 노출
+export function showEventBanner(icon: string, title: string, note: string) {
+  let b = document.getElementById("eventbanner");
+  if (!b) { b = document.createElement("div"); b.id = "eventbanner"; document.body.appendChild(b); }
+  b.innerHTML = '<div class="evico">' + icon + '</div><div class="evtxt"><div class="evlabel">세계 흐름</div><div class="evt">' + title + '</div><div class="evn">' + note + '</div></div>';
+  b.className = "show"; clearTimeout((b as any)._t); (b as any)._t = setTimeout(() => { b!.className = ""; }, 4200);
+}
 // 인게임 방 코드/인원 배지(온라인 전용)
 export function setRoomBadge(text: string | null) {
   let b = document.getElementById("roombadge");

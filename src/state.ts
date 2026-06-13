@@ -33,6 +33,7 @@ export interface Venture {
   cooldown: Record<string, number>; // action -> date it becomes available again
 }
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
+export interface GameEvent { title: string; note: string; id: number; icon: string; }
 export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; real?: boolean; }
 export interface GameState {
   date: number;              // months since start
@@ -43,6 +44,7 @@ export interface GameState {
   markets: Record<string, Market>;
   marketOrder: string[];
   trend: Trend;
+  event: GameEvent;          // 최신 세계 흐름 이벤트(트렌드·규제 변화) — id가 바뀌면 큰 토스트
   log: string[];
   fx: string[];              // 이번 tick에 발생한 연출/효과음 이벤트(main이 비움)
   ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: GameOver | null };
@@ -128,6 +130,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real },
     firms, youIdx, markets, marketOrder: order,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
+    event: { title: "", note: "", id: 0, icon: "" },
     log: [], fx: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
   };
 }

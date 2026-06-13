@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
 import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc } from "./engine";
-import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, Actions } from "./ui";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { sfx, unlockAudio, startBgm } from "./audio";
@@ -26,6 +26,8 @@ let rosterInfo: RosterEntry[] = [];
 const stepMs = (sp: number) => sp === 1 ? 7500 : sp === 2 ? 3800 : sp === 3 ? 1900 : 0;
 let timer: number | undefined;
 function drainFx() { if (!s) return; for (const e of s.fx) sfx(e); s.fx = []; }
+let lastEventId = 0;
+function checkEvent() { if (!s) return; if (s.event.id !== lastEventId) { lastEventId = s.event.id; if (s.event.id > 0) showEventBanner(s.event.icon, s.event.title, s.event.note); } }
 let wasCrisis = false;
 function crisisCheck() {
   if (!s) return;
@@ -36,7 +38,7 @@ function crisisCheck() {
 function schedule() {
   if (timer) clearTimeout(timer);
   if (online || phase !== "game" || !s || s.speed === 0 || s.ui.over) return;   // 온라인은 서버가 진행
-  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); crisisCheck(); schedule(); }, stepMs(s.speed));
+  timer = window.setTimeout(() => { tick(s!); render(s!, A); drainFx(); crisisCheck(); checkEvent(); schedule(); }, stepMs(s.speed));
 }
 
 // ----- 온라인 모드 (로비 → 방 생성/참가) -----
@@ -47,7 +49,7 @@ function connectOnline(join: { mode: "create" | "join"; room?: string; name?: st
   online = true; s = null; youIdxNet = -1; myKeyNet = "";
   net = connect(defaultUrl(), join, {
     onWelcome: (m) => {
-      roomCode = m.room; rosterInfo = m.roster || []; youIdxNet = m.youIdx;
+      roomCode = m.room; rosterInfo = m.roster || []; youIdxNet = m.youIdx; lastEventId = m.world?.event?.id ?? 0;
       myKeyNet = m.youIdx >= 0 ? (m.world.firms[m.youIdx]?.key || "") : "";
       phase = "game"; applyWorld(m.world); roomBadge();
       flash(m.youIdx >= 0 ? "방 " + m.room + " — " + (m.world.firms[m.youIdx]?.name || "내 기업") + "(으)로 플레이" : "방 " + m.room + " — 관전");
@@ -72,7 +74,7 @@ function applyWorld(w: any) {
     const ui = s.ui; ui.over = over;
     Object.assign(s, w); s.ui = ui; s.fx = []; s.youIdx = yi;
   }
-  render(s, A);
+  render(s, A); checkEvent();
 }
 
 function paint() {
@@ -86,7 +88,7 @@ function paint() {
 function startGame(youIdx: number) {
   s = newGame(pickedScenario!, youIdx);
   recomputeLeaders(s);
-  wasCrisis = false;
+  wasCrisis = false; lastEventId = 0;
   phase = "game";
   mountGame(app, A);   // 인게임 DOM 재구성
   // 첫 플레이엔 시작 가이드 1회 노출(이후엔 상단 ❓에서 다시 볼 수 있음)

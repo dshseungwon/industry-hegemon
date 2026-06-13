@@ -20,12 +20,26 @@ export const BALANCE = {
   upkeepRate: 0.002,      // 할당 월 유지비 계수(Σ (할당-1)×시장규모×rate)
 };
 
-export const ALLOC_MAX = 6;    // 시장당 자원 할당 절대 상한
-const ALLOC_BASE = 3;          // 기본 할당 상한(테크로 확장)
-// 테크트리로 할당 상한 확장: 글로벌SCM +1, 플랫폼생태계 +2
-export function maxAllocFor(s: GameState, fi: number) {
-  const t = s.firms[fi].tech; let b = ALLOC_BASE;
-  if (t.includes("globalscm")) b += 1; if (t.includes("ecosystem")) b += 2;
+export const ALLOC_MAX = 8;    // 시장당 자원 할당 절대 상한
+const ALLOC_BASE = 2;          // 기본 할당 상한(테크로 지역별 확장)
+// 시장 → 지역
+const REGION: Record<string, string> = {
+  "United States of America": "북미", "Canada": "북미", "Mexico": "북미",
+  "China": "아시아", "India": "아시아", "Japan": "아시아", "South Korea": "아시아", "Indonesia": "아시아", "Vietnam": "아시아",
+  "Germany": "유럽", "United Kingdom": "유럽", "France": "유럽", "Russia": "유럽", "Turkey": "유럽",
+  "Brazil": "신흥", "Saudi Arabia": "신흥", "Nigeria": "신흥", "Australia": "신흥",
+};
+export function regionOf(name: string) { return REGION[name] || "신흥"; }
+// 테크트리가 올려주는 할당 상한(지역별 또는 전 지역)
+const ALLOC_TECH: Record<string, { region: string; amt: number }> = {
+  rnd: { region: "all", amt: 1 }, ai: { region: "북미", amt: 1 }, globalscm: { region: "아시아", amt: 1 },
+  automation: { region: "유럽", amt: 1 }, brandlab: { region: "신흥", amt: 1 }, smartfactory: { region: "북미", amt: 1 },
+  ecosystem: { region: "all", amt: 2 },
+};
+// 한 시장의 할당 상한 = 기본 + 그 지역에 적용되는 테크 보너스 합
+export function maxAllocFor(s: GameState, fi: number, name: string) {
+  const region = regionOf(name); let b = ALLOC_BASE;
+  for (const k of s.firms[fi].tech) { const a = ALLOC_TECH[k]; if (a && (a.region === "all" || a.region === region)) b += a.amt; }
   return Math.min(ALLOC_MAX, b);
 }
 const ALLOC_RAMP = 0.2;        // 매월 현재 영향력이 할당 목표로 다가가는 비율(전개 지연 ≈ 5개월)
@@ -41,7 +55,7 @@ export function allocUpkeep(s: GameState, fi: number) { const f = s.firms[fi]; l
 // 자원 할당 조절: 시장 m에 delta(+/-). 단계 제한(0..MAX). 비용은 월 유지비로 부과. 0이면 철수.
 export function setAlloc(s: GameState, fi: number, name: string, delta: number) {
   const f = s.firms[fi]; if (!s.markets[name]) return;
-  const next = Math.max(0, Math.min(maxAllocFor(s, fi), (f.alloc[name] || 0) + delta));
+  const next = Math.max(0, Math.min(maxAllocFor(s, fi, name), (f.alloc[name] || 0) + delta));
   if (next === 0) delete f.alloc[name]; else f.alloc[name] = next;
 }
 export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }
@@ -169,14 +183,15 @@ export function setActCooldown(s: GameState, fi: number, key: string, months: nu
 
 // ---- 테크트리: 연구 노드를 해금해 영구 역량 + 경제 효과를 얻는 내부개발 심화 ----
 export interface TechNode { key: string; name: string; desc: string; cost: number; req: string[]; caps?: Partial<Record<Cap, number>>; }
+// 테크트리 = 자원 할당 상한 업그레이드(지역별). 역량은 '내부 개발'로 올림.
 export const TECH_NODES: TechNode[] = [
-  { key: "rnd",          name: "R&D 센터",      desc: "기술 +8 · 벤처 진행 +1.5/월", cost: 28,  req: [],                  caps: { tech: 8 } },
-  { key: "automation",   name: "생산 자동화",    desc: "가성비 +8 · 월 고정비 -1",     cost: 28,  req: [],                  caps: { scale: 8 } },
-  { key: "ai",           name: "AI 플랫폼",      desc: "기술 +10 · 마진↑",            cost: 50,  req: ["rnd"],             caps: { tech: 10 } },
-  { key: "brandlab",     name: "브랜드 랩",      desc: "브랜드 +10",                  cost: 48,  req: ["rnd"],             caps: { brand: 10 } },
-  { key: "smartfactory", name: "스마트 팩토리",  desc: "가성비 +10 · 고정비 -2",       cost: 50,  req: ["automation"],      caps: { scale: 10 } },
-  { key: "globalscm",    name: "글로벌 SCM",     desc: "글로벌 +10 · 마진↑ · 할당 상한 +1", cost: 54,  req: ["automation"],      caps: { global: 10 } },
-  { key: "ecosystem",    name: "플랫폼 생태계",  desc: "전 역량 +6 · 마진↑↑ · 할당 상한 +2", cost: 110, req: ["ai", "brandlab"],  caps: { tech: 6, brand: 6, scale: 6, global: 6 } },
+  { key: "rnd",          name: "R&D 센터",      desc: "전 지역 할당 상한 +1 · 개발 속도↑", cost: 30, req: [] },
+  { key: "automation",   name: "생산 자동화",    desc: "유럽 할당 상한 +1 · 월 고정비 -1",   cost: 30, req: [] },
+  { key: "ai",           name: "AI 플랫폼",      desc: "북미 할당 상한 +1 · 마진↑",          cost: 52, req: ["rnd"] },
+  { key: "brandlab",     name: "브랜드 랩",      desc: "신흥시장 할당 상한 +1",              cost: 50, req: ["rnd"] },
+  { key: "smartfactory", name: "스마트 팩토리",  desc: "북미 할당 상한 +1 · 고정비 -2",      cost: 52, req: ["automation"] },
+  { key: "globalscm",    name: "글로벌 SCM",     desc: "아시아 할당 상한 +1 · 마진↑",        cost: 56, req: ["automation"] },
+  { key: "ecosystem",    name: "플랫폼 생태계",  desc: "전 지역 할당 상한 +2 · 마진↑↑",      cost: 120, req: ["ai", "brandlab"] },
 ];
 export function researchOptions(s: GameState, fi: number = s.youIdx) {
   const have = new Set(s.firms[fi].tech);
@@ -186,9 +201,8 @@ export function doResearch(s: GameState, fi: number, key: string) {
   const you = s.firms[fi];
   if (you.tech.includes(key)) return;
   const n = TECH_NODES.find(x => x.key === key); if (!n || !n.req.every(r => you.tech.includes(r))) return;
-  if (n.caps) for (const k of CAPS) if (n.caps[k]) you.caps[k] = clamp(you.caps[k] + n.caps[k]!, 0, 100);
-  you.tech.push(key); recomputeLeaders(s);
-  pushLog(s, "🔬 " + you.name + " " + n.name + " 개발 완료");
+  you.tech.push(key); recomputeLeaders(s);   // 테크는 할당 상한↑(maxAllocFor) — 역량은 안 올림
+  pushLog(s, "🔬 " + you.name + " " + n.name + " 완료 — 할당 상한 확장");
 }
 // 해금 노드들의 지속 효과(마진·고정비·벤처속도) 합산 — firm별
 export function techMods(s: GameState, fi: number = s.youIdx) {
@@ -215,12 +229,16 @@ export function tick(s: GameState) {
   s.fx = [];
   s.date++;
   // trend cycle
-  if (s.date >= s.trend.until) { const t = TRENDS[ri(0, TRENDS.length - 1)]; s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline); s.fx.push("trend"); }
+  if (s.date >= s.trend.until) {
+    const t = TRENDS[ri(0, TRENDS.length - 1)];
+    s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline);
+    s.event = { title: t.headline, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
+  }
   // 정책/규제 이벤트 — 한 시장의 환경(규모·KSF)을 바꿈(법률·정치 흐름). 진단해서 대응해야 함.
   if (s.date > 1 && Math.random() < 0.11) {
     const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]];
-    if (Math.random() < 0.5) { m.size = Math.max(20, Math.round(m.size * 0.88)); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " 규제 강화 — 시장 위축·현지대응/컴플라이언스 중요"); }
-    else { m.size = Math.round(m.size * 1.12); const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " 시장 개방/부양 — 규모 확대, " + CAPKO[k] + " 수요↑"); }
+    if (Math.random() < 0.5) { m.size = Math.max(20, Math.round(m.size * 0.88)); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " 규제 강화"); s.event = { title: m.ko + " 규제 강화", note: "시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
+    else { m.size = Math.round(m.size * 1.12); const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " 시장 개방/부양"); s.event = { title: m.ko + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
     s.fx.push("trend");
   }
   // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)
@@ -299,8 +317,8 @@ function aiPolicy(s: GameState, fi: number) {
     if (worst) setAlloc(s, fi, worst, -1);
   } else if (f.cash > 30 && Math.random() < BALANCE.aiCampaignChance) {
     // 여유 현금이면 가장 적합한 시장에 자원 집중(유지비 감당 범위)
-    let best = "", bf = -1; const mx = maxAllocFor(s, fi);
-    for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= mx) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
+    let best = "", bf = -1;
+    for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
     if (best) setAlloc(s, fi, best, 1);
   }
   // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음
