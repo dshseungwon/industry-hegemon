@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "start": "tsx server/index.ts",
+    "lan": "npm run build && npm run server",
     "sim": "tsx sim/index.ts",
     "gen:data": "tsx scripts/gen-game-data.ts"
   },

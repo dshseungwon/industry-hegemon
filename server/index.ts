@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { readFileSync, existsSync } from "fs";
 import { join, extname } from "path";
 import { fileURLToPath } from "url";
+import { networkInterfaces } from "os";
 import { GameState, newGame, CAPKO, Cap } from "../src/state";
 import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
@@ -121,4 +122,15 @@ wss.on("connection", (ws) => {
   });
 });
 
-http.listen(PORT, () => console.log("Industry Hegemon server on http://localhost:" + PORT + "  (WebSocket: /ws)" + (existsSync(DIST) ? "  [serving dist/]" : "  [dev: client on vite]")));
+function lanIPs(): string[] {
+  const out: string[] = [];
+  for (const list of Object.values(networkInterfaces())) for (const ni of list || []) if (ni.family === "IPv4" && !ni.internal) out.push(ni.address);
+  return out;
+}
+http.listen(PORT, "0.0.0.0", () => {
+  const serving = existsSync(DIST);
+  console.log("더 체어맨 서버 실행 — 포트 " + PORT + (serving ? "  [dist/ 서빙: 브라우저로 바로 접속 가능]" : "  [클라이언트는 vite(npm run dev)에서]"));
+  console.log("  이 컴퓨터:  http://localhost:" + PORT + "/");
+  for (const ip of lanIPs()) console.log("  같은 LAN(아이패드 등): http://" + ip + ":" + PORT + "/");
+  if (!serving) console.log("  ⚠️ dist/ 없음 — 먼저 'npm run build' 하면 이 포트로 게임까지 바로 열립니다(npm run lan).");
+});
