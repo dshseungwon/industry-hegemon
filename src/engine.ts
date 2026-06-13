@@ -19,13 +19,13 @@ export const BALANCE = {
   aiCampaignChance: 0.10, // AI가 매월 시장 공략(자원 투입)할 확률
 };
 
-const EFFORT_W = 0.6;          // 공략 투입 1당 시장 가중치 배수(+60%). 적합도^β × (1 + EFFORT_W×effort).
-const EFFORT_STEP = 1.0;       // 1회 공략으로 투입 증가량
-const EFFORT_DECAY = 0.985;    // 월 감쇠(유지 안 하면 약해짐 — 능동 관리, 반감기 ~46개월)
+const SHIP_STEP = 0.6;         // 자원 1회 파견 도착 시 더해지는 영향력
+const TRAVEL_MONTHS = 3;       // 자원 이동(전송) 기간 — 이 동안은 영향력 없음
+const EFFORT_DECAY = 0.985;    // 도착 영향력 월 감쇠(유지선 1로 회귀 — 능동 관리)
 function scoreWith(caps: Record<Cap, number>, m: Market) { let s = 0; for (const k of CAPS) s += (m.pref[k] || 0) * gcap(caps[k]); return s; }
 export function matchScore(f: Firm, m: Market) { return scoreWith(f.caps, m); }
-// 한 시장에서 firm의 가중치 = 적합도^β × (1 + 공략 투입). 점유율·점령자 모두 이걸로 결정.
-function weightOf(f: Firm, m: Market, caps: Record<Cap, number>) { return Math.pow(scoreWith(caps, m), SHARE_BETA) * (1 + EFFORT_W * (f.effort[m.name] || 0)); }
+// 한 시장 가중치 = 적합도^β × 도착 영향력. 영향력 0 = 미진출(그 시장에서 점유율 0). 점유율·점령자 모두 이걸로.
+function weightOf(f: Firm, m: Market, caps: Record<Cap, number>) { return Math.pow(scoreWith(caps, m), SHARE_BETA) * (f.effort[m.name] || 0); }
 export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }
 export function recomputeLeaders(s: GameState) { for (const n of s.marketOrder) s.markets[n].leader = leaderOf(s, s.markets[n]).key; }
 
@@ -39,12 +39,18 @@ export function shareOf(s: GameState, m: Market, firmKey: string, capsOverride?:
   }
   return tot > 0 ? mine / tot : 0;
 }
-// ---- 공략(캠페인): 시장에 자원 투입 → 점유율 능동 상승. 적합도가 높을수록 효과적, 미유지 시 감쇠 ----
+// ---- 공략(캠페인): 본진→대상 시장으로 자원 파견. 도착(TRAVEL_MONTHS 뒤)해야 영향력 발휘 ----
 export function campaignCost(s: GameState, name: string) { const m = s.markets[name]; return m ? Math.max(4, Math.round(m.size * 0.025)) : 0; }
+export function inTransitTo(f: Firm, name: string) { return f.transit.some(x => x.to === name); }
+export const SHIP_TRAVEL = TRAVEL_MONTHS;
+function sendShipment(s: GameState, fi: number, to: string, amount: number) {
+  const f = s.firms[fi]; if (!s.markets[to] || inTransitTo(f, to)) return false;   // 시장당 동시 1건만 이동
+  f.transit.push({ to, amount, depart: s.date, arrive: s.date + TRAVEL_MONTHS });
+  return true;
+}
 export function doCampaign(s: GameState, fi: number, name: string) {
-  const f = s.firms[fi]; if (!s.markets[name]) return;
-  f.effort[name] = (f.effort[name] || 0) + EFFORT_STEP;
-  pushLog(s, "🎯 " + f.name + " " + s.markets[name].ko + " 공략 — 자원 투입");
+  const f = s.firms[fi];
+  if (sendShipment(s, fi, name, SHIP_STEP)) pushLog(s, "🚚 " + f.name + " " + s.markets[name].ko + " 자원 파견 (도착 " + TRAVEL_MONTHS + "개월)");
 }
 // firm이 전 세계에서 점령한 규모(가중) 단위
 export function capturedSize(s: GameState, firmKey: string, capsOverride?: Record<Cap, number>) {
@@ -121,15 +127,11 @@ function renorm(m: Market) { let t = 0; for (const p of CAPS) t += m.pref[p]; if
 export function isOpen(s: GameState, name: string) { return s.marketOrder.includes(name); }
 export function frontierMarkets(s: GameState): Market[] { return Object.values(s.markets).filter(m => !s.marketOrder.includes(m.name)); }
 export function entryCost(s: GameState, name: string) { const m = s.markets[name]; return m ? Math.max(15, Math.round(m.size * 0.4)) : 0; }
+// 개척: 프론티어로 개척단(자원) 파견. 도착하면 그 시장을 열고 우리가 100%로 진입(혼자이므로).
 export function doEnter(s: GameState, fi: number, name: string) {
+  const f = s.firms[fi];
   if (s.marketOrder.includes(name)) return;
-  const m = s.markets[name]; if (!m) return;
-  const you = s.firms[fi];
-  let best: Cap = "tech"; for (const k of CAPS) if (you.caps[k] > you.caps[best]) best = k;
-  // 진출 시장을 우리 강점으로 형성 → 선점 우위
-  for (const k of CAPS) m.pref[k] = 0.2; m.pref[best] += 0.25; renorm(m);
-  s.marketOrder.push(name); recomputeLeaders(s);
-  pushLog(s, "🌏 " + m.ko + " 해외진출 — 신규 시장 개척");
+  if (sendShipment(s, fi, name, SHIP_STEP)) pushLog(s, "🚩 " + f.name + " " + s.markets[name].ko + " 개척단 파견 (도착 " + TRAVEL_MONTHS + "개월)");
 }
 
 // ---- 로비: 선택 시장의 KSF를 우리 강점 쪽으로 유도(환경에 개입) ----
@@ -211,7 +213,17 @@ export function tick(s: GameState) {
   const youKey = s.firms[s.youIdx].key;
   for (let fi = 0; fi < s.firms.length; fi++) {
     const f = s.firms[fi];
-    for (const k in f.effort) { f.effort[k] *= EFFORT_DECAY; if (f.effort[k] < 0.02) delete f.effort[k]; }   // 공략 투입 감쇠
+    // 자원 도착 처리: 전송 완료 → 영향력 발휘. 프론티어면 시장 개척(혼자 → 100%).
+    for (let i = f.transit.length - 1; i >= 0; i--) {
+      const sh = f.transit[i];
+      if (s.date >= sh.arrive) {
+        const pioneer = !s.marketOrder.includes(sh.to);
+        f.effort[sh.to] = (f.effort[sh.to] || 1) + sh.amount;
+        if (pioneer) { s.marketOrder.push(sh.to); pushLog(s, "🚩 " + f.name + " " + s.markets[sh.to].ko + " 개척 — 100% 진입"); if (f.key === youKey) s.fx.push("conquer"); }
+        f.transit.splice(i, 1);
+      }
+    }
+    for (const k in f.effort) f.effort[k] = 1 + (f.effort[k] - 1) * EFFORT_DECAY;   // 영향력 감쇠(유지선 1)
     if (f.auto) aiPolicy(s, fi);
     progressVenture(s, fi);
     f.cash += monthlyCashflow(s, fi);
@@ -266,11 +278,16 @@ function aiPolicy(s: GameState, fi: number) {
   } else if (f.cash >= 10 && Math.random() < BALANCE.aiAccelChance && canOperate(s, fi, "accel")) {
     f.venture.progress = Math.min(100, f.venture.progress + 14); f.cash -= 10; setCooldown(s, fi, "accel", 2);
   }
-  // 공략: 적합도가 좋은데 아직 1위가 아닌 시장에 자원 투입(시장을 읽고 능동 확장)
+  // 공략: 적합도가 좋은데 아직 1위가 아닌 시장에 자원 파견(시장을 읽고 능동 확장)
   if (Math.random() < BALANCE.aiCampaignChance) {
     let target = "", bestFit = -1;
-    for (const n of s.marketOrder) { const m = s.markets[n]; if (m.leader === f.key) continue; const fit = matchScore(f, m); if (fit > bestFit) { bestFit = fit; target = n; } }
+    for (const n of s.marketOrder) { const m = s.markets[n]; if (m.leader === f.key || inTransitTo(f, n)) continue; const fit = matchScore(f, m); if (fit > bestFit) { bestFit = fit; target = n; } }
     if (target) { const c = campaignCost(s, target); if (f.cash >= c) { f.cash -= c; doCampaign(s, fi, target); } }
+  }
+  // 개척: 가끔 프론티어(미진출) 시장에 개척단 파견 — 경쟁사도 신규 국가를 뚫음
+  if (Math.random() < BALANCE.aiCampaignChance * 0.3) {
+    const fr = frontierMarkets(s).filter(m => !inTransitTo(f, m.name));
+    if (fr.length) { const m = fr[ri(0, fr.length - 1)]; const c = entryCost(s, m.name); if (f.cash >= c) { f.cash -= c; doEnter(s, fi, m.name); } }
   }
 }
 // 한 firm이 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음).

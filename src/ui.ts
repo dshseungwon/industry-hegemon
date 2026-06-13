@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize, borrowRoom, creditRating, leverage, debtRate, campaignCost } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, entryCost, capturedSize, borrowRoom, creditRating, leverage, debtRate, campaignCost, SHIP_TRAVEL } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { BUILTIN_META } from "./scenario";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -47,8 +47,32 @@ export function mountGame(app: HTMLElement, A: Actions) {
     '<div id="confirmwrap" class="hide"></div>' +
     '<div id="banner" class="hide"></div>';
   const svg = document.getElementById("map") as unknown as SVGSVGElement;
-  svg.innerHTML = MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("");
+  svg.innerHTML = MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("") + '<g id="transit"></g>';
   setupMapNav(svg, A);
+}
+// 자원 이동(전송) 시각화 — 본진→대상으로 점이 흐름(CoC식)
+const centroidCache: Record<string, [number, number] | null> = {};
+function centroidOf(name: string): [number, number] | null {
+  if (name in centroidCache) return centroidCache[name];
+  const el = document.querySelector<SVGPathElement>('#map path[data-n="' + esc(name) + '"]');
+  let c: [number, number] | null = null;
+  if (el) { try { const b = el.getBBox(); c = [b.x + b.width / 2, b.y + b.height / 2]; } catch { /* noop */ } }
+  centroidCache[name] = c; return c;
+}
+function renderTransit(s: GameState) {
+  const g = document.getElementById("transit"); if (!g) return;
+  const me = s.firms[s.youIdx]; const youKey = me.key; let html = "";
+  const hb = centroidOf(me.home);   // 내 본진(HQ) 마커
+  if (hb) html += '<circle cx="' + hb[0].toFixed(1) + '" cy="' + hb[1].toFixed(1) + '" r="4.5" fill="none" stroke="' + me.col + '" stroke-width="1.6" class="homebase"/>';
+  for (const f of s.firms) for (const sh of f.transit) {
+    const from = centroidOf(f.home), to = centroidOf(sh.to); if (!from || !to) continue;
+    const span = Math.max(1, sh.arrive - sh.depart); const p = clampN((s.date - sh.depart) / span, 0, 1);
+    const x = from[0] + (to[0] - from[0]) * p, y = from[1] + (to[1] - from[1]) * p;
+    const mine = f.key === youKey;
+    if (mine) html += '<line x1="' + from[0].toFixed(1) + '" y1="' + from[1].toFixed(1) + '" x2="' + to[0].toFixed(1) + '" y2="' + to[1].toFixed(1) + '" stroke="' + f.col + '" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>';
+    html += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (mine ? 3.2 : 2.2) + '" fill="' + f.col + '" class="ship"/>';
+  }
+  g.innerHTML = html;
 }
 
 // ---- 지도 팬/줌(스크롤) — CSS transform(스크린 좌표). 드래그 px = 이동 px. ----
@@ -129,6 +153,7 @@ export function render(s: GameState, A: Actions) {
   const sh = myShare(s);                       // 점유율 상황 → 배경음악 분위기
   setBgmMood(sh < 0.12 ? "crisis" : sh >= 0.55 ? "strong" : "calm");
   recolor(s);
+  renderTransit(s);
   renderTop(s, A);
   renderPanel(s, A);
   renderSheet(s, A);
@@ -307,15 +332,18 @@ function renderSheet(s: GameState, A: Actions) {
   const el = document.getElementById("sheet")!;
   if (!s.ui.country) { el.className = "hide"; el.innerHTML = ""; return; }
   const m = s.markets[s.ui.country]; if (!m) { el.className = "hide"; return; }
-  // 닫힌 프론티어 시장 → 해외진출 시트
+  // 닫힌 프론티어 시장 → 개척(개척단 파견) 시트
   if (!s.marketOrder.includes(m.name)) {
-    const cost = entryCost(s, m.name); const can = s.firms[s.youIdx].cash >= cost;
+    const me0 = s.firms[s.youIdx]; const cost = entryCost(s, m.name);
+    const inTransit = me0.transit.find(x => x.to === m.name);
+    const can = me0.cash >= cost && !inTransit;
     el.className = "sheet";
     el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
       '<div class="kv"><span>상태</span><b class="mute">미진출 시장</b></div>' +
       '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
-      '<div class="card mute small">진입장벽을 돌파해 개척하면 시장이 <b>우리 강점 KSF로 형성</b>돼 선점 우위를 얻습니다. 단, 전체 시장이 커져 점유율 관리 부담도 늘어납니다.</div>' +
-      '<button class="actbtn" id="enterBtn"' + (can ? '' : ' disabled') + '>해외진출 — 진입장벽 돌파 ($' + cost + 'B)</button>';
+      (inTransit ? '<div class="kv"><span>🚩 개척단 이동 중</span><b class="gold">' + Math.max(0, inTransit.arrive - s.date) + '개월 후 도착</b></div>' : '') +
+      '<div class="card mute small">개척단을 파견하면 <b>도착 시</b> 그 시장을 열고 <b>100% 점유율</b>로 진입합니다(아직 아무도 없으므로). 이후 경쟁사가 들어오면 영향력으로 다툽니다.</div>' +
+      '<button class="actbtn" id="enterBtn"' + (can ? '' : ' disabled') + '>' + (inTransit ? '🚩 개척단 이동 중…' : '🚩 개척단 파견 — $' + cost + 'B (도착 ' + SHIP_TRAVEL + '개월)') + '</button>';
     document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
     const eb = document.getElementById("enterBtn") as HTMLButtonElement | null;
     if (eb && !eb.disabled) eb.onclick = () => A.enter(m.name);
@@ -340,17 +368,20 @@ function renderSheet(s: GameState, A: Actions) {
   const lb = document.getElementById("lobbyBtn") as HTMLButtonElement | null;
   if (lb && !lb.disabled) lb.onclick = () => A.lobby(s.ui.country!);
 }
-// 공략(자원 투입) — 이 시장 점유율을 능동적으로 끌어올림
+// 공략 — 본진에서 자원을 파견(이동→도착→영향력). 도착해야 점유율이 오름.
 function campaignSect(s: GameState): string {
   const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
   const cost = campaignCost(s, n); const ok = canAct(s, s.youIdx, "camp:" + n);
   const cd = ok ? 0 : Math.max(0, (me.cooldowns["camp:" + n] || 0) - s.date);
-  const mine = (me.effort[n] || 0), tot = s.firms.reduce((a, f) => a + (f.effort[n] || 0), 0);
-  const dis = !ok || me.cash < cost;
-  return '<div class="sect">🎯 공략 — 자원 투입</div><div class="card">' +
-    '<div class="kv"><span>내 영향력 투입</span><b>' + mine.toFixed(1) + (tot > 0 ? ' / 전체 ' + tot.toFixed(1) : '') + '</b></div>' +
+  const inTransit = me.transit.find(x => x.to === n);
+  const mine = me.effort[n] || 0;
+  const dis = !ok || me.cash < cost || !!inTransit;
+  const label = inTransit ? '🚚 자원 이동 중…' : ok ? '🎯 자원 파견 — $' + cost + 'B (도착 ' + SHIP_TRAVEL + '개월)' : '쿨다운 ' + cd + '개월';
+  return '<div class="sect">🎯 공략 — 자원 파견</div><div class="card">' +
+    '<div class="kv"><span>내 영향력</span><b>' + mine.toFixed(1) + '</b></div>' +
     '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
-    '<button class="actbtn" id="campBtn"' + (dis ? ' disabled' : '') + '>🎯 자원 투입 — 점유율 끌어올리기 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button></div>';
+    (inTransit ? '<div class="kv"><span>🚚 본진→' + m.ko + '</span><b class="gold">' + Math.max(0, inTransit.arrive - s.date) + '개월 후 도착</b></div>' : '') +
+    '<button class="actbtn" id="campBtn"' + (dis ? ' disabled' : '') + '>' + label + '</button></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {
