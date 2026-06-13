@@ -18,9 +18,11 @@ export function cleanFirmName(raw: string): { en: string; ko?: string; isCountry
 }
 
 // ---- KSF 정규화/도출 ----
+const KSF_FLOOR = 0.06;   // 어떤 역량도 영향 0이 되지 않게(브랜드 등 0%는 어색). 바닥을 깔고 정규화.
 function normalize(p: Record<Cap, number>): Record<Cap, number> {
-  let t = 0; for (const k of CAPS) t += p[k] || 0;
-  const out = {} as Record<Cap, number>; for (const k of CAPS) out[k] = t > 0 ? (p[k] || 0) / t : 0.25; return out;
+  let t = 0; const f = {} as Record<Cap, number>;
+  for (const k of CAPS) { f[k] = Math.max(p[k] || 0, KSF_FLOOR); t += f[k]; }
+  const out = {} as Record<Cap, number>; for (const k of CAPS) out[k] = t > 0 ? f[k] / t : 0.25; return out;
 }
 function isFlat(ksf: Record<Cap, number>): boolean {
   let mn = 1, mx = 0; for (const k of CAPS) { mn = Math.min(mn, ksf[k]); mx = Math.max(mx, ksf[k]); }

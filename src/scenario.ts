@@ -53,9 +53,11 @@ function ensureDistinct(firms: FirmDef[]) {
   }
 }
 
+const KSF_FLOOR = 0.06;   // 어떤 역량도 영향 0이 되지 않게(표시·게임 공통). 바닥을 깔고 정규화.
 function normalize(p: Record<Cap, number>): Record<Cap, number> {
-  let t = 0; for (const k of CAPS) t += p[k];
-  const out = {} as Record<Cap, number>; for (const k of CAPS) out[k] = t > 0 ? p[k] / t : 0.25; return out;
+  let t = 0; const f = {} as Record<Cap, number>;
+  for (const k of CAPS) { f[k] = Math.max(p[k] || 0, KSF_FLOOR); t += f[k]; }
+  const out = {} as Record<Cap, number>; for (const k of CAPS) out[k] = t > 0 ? f[k] / t : 0.25; return out;
 }
 const full = (p: Partial<Record<Cap, number>>): Record<Cap, number> =>
   ({ tech: p.tech || 0, brand: p.brand || 0, scale: p.scale || 0, global: p.global || 0 });

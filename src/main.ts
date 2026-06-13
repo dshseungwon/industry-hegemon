@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
 import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyAusterity, liquidateVentures } from "./engine";
-import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
@@ -12,10 +12,11 @@ import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 const app = document.getElementById("app")!;
 
 // 앱 단계: 인게임 전에는 GameState가 없음. 시나리오를 고른 뒤 newGame으로 생성.
-type Phase = "title" | "lobby" | "industry" | "company" | "game";
+type Phase = "title" | "lobby" | "industry" | "company" | "claim" | "game";
 let phase: Phase = "title";
 let pickedScenario: IndustryScenario | null = null;
-let pendingOnlineName: string | null = null;   // 온라인 '방 만들기' 중이면(닉네임 보관) — 산업 선택 후 방 생성
+let pendingOnlineName: string | null = null;   // 온라인 '방 만들기' 중이면(닉네임 보관) — 산업·기업 선택 후 방 생성
+let claimWorld: any = null;                     // 참가자 기업 선택 화면용(방의 월드)
 let s: GameState | null = null;
 // 온라인(권위서버) 모드 — 서버가 시간·상태를 소유, 클라는 렌더+액션 전송
 let online = false;
@@ -55,21 +56,25 @@ function schedule() {
 
 // ----- 온라인 모드 (로비 → 방 생성/참가) -----
 function roomBadge() { const ppl = rosterInfo.filter(r => r.human).length; setRoomBadge("🌐 방 " + roomCode + " · " + ppl + "명"); }
-function connectOnline(join: { mode: "create" | "join"; room?: string; name?: string; scenario?: IndustryScenario }) {
+function connectOnline(join: { mode: "create" | "join"; room?: string; name?: string; scenario?: IndustryScenario; firm?: number }) {
   unlockAudio(); startBgm();
   if (timer) clearTimeout(timer);
   online = true; s = null; youIdxNet = -1; myKeyNet = "";
   net = connect(defaultUrl(), join, {
     onWelcome: (m) => {
       roomCode = m.room; rosterInfo = m.roster || []; youIdxNet = m.youIdx; lastEventId = m.world?.event?.id ?? 0;
-      myKeyNet = m.youIdx >= 0 ? (m.world.firms[m.youIdx]?.key || "") : "";
+      if (m.youIdx < 0) { claimWorld = m.world; phase = "claim"; paint(); return; }   // 참가자: 기업 선택 화면
+      myKeyNet = m.world.firms[m.youIdx]?.key || "";
       phase = "game"; applyWorld(m.world); roomBadge();
-      flash(m.youIdx >= 0 ? "방 " + m.room + " — " + (m.world.firms[m.youIdx]?.name || "내 기업") + "(으)로 플레이" : "방 " + m.room + " — 관전");
+      flash("방 " + m.room + " — " + (m.world.firms[m.youIdx]?.name || "내 기업") + "(으)로 플레이");
     },
     onWorld: (w) => applyWorld(w),
-    onRoster: (r) => { rosterInfo = r; if (online) roomBadge(); },
-    onClose: () => { if (online && phase === "game") flash("서버 연결이 종료되었습니다"); },
-    onError: (msg) => { online = false; net = null; if (phase === "lobby") lobbyError(msg); else { flash(msg); phase = "title"; paint(); } },
+    onRoster: (r) => { rosterInfo = r; if (online) roomBadge(); if (phase === "claim") paint(); },
+    onClose: () => { if (online && (phase === "game" || phase === "claim")) flash("서버 연결이 종료되었습니다"); },
+    onError: (msg) => {
+      if (phase === "claim") { flash(msg); return; }                  // 기업 선택 중 충돌 → 안내만(화면 유지)
+      online = false; net = null; if (phase === "lobby") lobbyError(msg); else { flash(msg); phase = "title"; paint(); }
+    },
   });
 }
 function applyWorld(w: any) {
@@ -94,6 +99,7 @@ function paint() {
   else if (phase === "lobby") renderLobby(app, A);
   else if (phase === "industry") renderIndustry(app, A);
   else if (phase === "company") renderCompany(app, pickedScenario!, A);
+  else if (phase === "claim") renderClaim(app, claimWorld, rosterInfo, A);
   else if (phase === "game" && s) render(s, A);
 }
 
@@ -137,15 +143,20 @@ const A: Actions = {
   createRoom(name) { pendingOnlineName = name || ""; phase = "industry"; sfx("select"); paint(); },
   joinRoom(code, name) { sfx("select"); connectOnline({ mode: "join", room: code, name }); },
   pickIndustry(meta: BriefMeta) {
-    const sc = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
-    if (pendingOnlineName !== null) {                // 온라인 방 만들기 — 이 시나리오로 방 생성
+    pickedScenario = meta.gics === BUILTIN_META.gics ? BUILTIN_SCENARIO : buildScenario(meta);
+    phase = "company"; sfx("select"); paint();   // 솔로·온라인 모두 기업 선택으로(방장도 기업을 고름)
+  },
+  pickCompany(youIdx: number) {
+    if (pendingOnlineName !== null) {   // 온라인 방 만들기 — 고른 산업+기업으로 방 생성(방장)
       const name = pendingOnlineName; pendingOnlineName = null;
-      sfx("invest"); connectOnline({ mode: "create", name, scenario: sc });
+      sfx("invest"); connectOnline({ mode: "create", name, scenario: pickedScenario!, firm: youIdx });
       return;
     }
-    pickedScenario = sc; phase = "company"; sfx("select"); paint();
+    sfx("invest"); startGame(youIdx);
   },
-  pickCompany(youIdx: number) { sfx("invest"); startGame(youIdx); },
+  // 참가자: 남은 기업 중 선택
+  claimFirm(idx: number) { sfx("invest"); net?.claim(idx); },
+  spectate() { if (claimWorld) { youIdxNet = -1; phase = "game"; applyWorld(claimWorld); roomBadge(); flash("관전 모드"); } },
 
   // ----- 인게임 -----
   setSpeed(n) { if (!s) return; if (online) { net?.send({ kind: "speed", n }); sfx("click"); return; } s.speed = n; sfx("click"); render(s, A); schedule(); },

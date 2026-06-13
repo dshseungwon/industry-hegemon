@@ -78,11 +78,14 @@ function loop(room: Room) {
   if (ms <= 0 || room.state.ui.over) return;
   room.timer = setTimeout(() => { tick(room.state); broadcast(room, { type: "world", world: world(room.state) }); loop(room); }, ms);
 }
-function claimFirm(room: Room, ws: WebSocket, name: string) {
+// 특정 기업(idx)을 이 클라이언트가 차지. 이미 보유 중이면 그 인덱스, 이미 남이 가져갔거나 잘못된 idx면 -1.
+function claimSpecific(room: Room, ws: WebSocket, name: string, idx: number) {
+  const have = room.players.get(ws); if (have) return room.state.firms.findIndex(f => f.key === have.key);
+  const f = room.state.firms[idx]; if (!f) return -1;
   const taken = new Set([...room.players.values()].map(p => p.key));
-  const free = room.state.firms.find(f => f.auto && !taken.has(f.key));
-  if (free) { free.auto = false; room.players.set(ws, { key: free.key, name: name || free.name }); }
-  return free ? room.state.firms.findIndex(f => f.key === free.key) : -1;
+  if (taken.has(f.key)) return -1;
+  f.auto = false; room.players.set(ws, { key: f.key, name: name || f.name });
+  return idx;
 }
 
 // ---- HTTP(정적) + WebSocket(/ws) ----
@@ -102,8 +105,18 @@ wss.on("connection", (ws) => {
       let room = msg.type === "create" ? newRoom(sc) : rooms.get(String(msg.room || "").toUpperCase());
       if (!room) { send(ws, { type: "error", msg: "방을 찾을 수 없습니다: " + msg.room }); return; }
       room.clients.add(ws); roomOf.set(ws, room);
-      const youIdx = claimFirm(room, ws, String(msg.name || ""));
+      // 방장(create)은 고른 기업(msg.firm)을 차지. 참가자(join)는 일단 미선택(welcome 후 기업 선택).
+      const youIdx = msg.type === "create" ? claimSpecific(room, ws, String(msg.name || ""), typeof msg.firm === "number" ? msg.firm : 0) : -1;
       send(ws, { type: "welcome", room: room.code, youIdx, role: youIdx >= 0 ? "player" : "spectator", world: world(room.state), roster: roster(room) });
+      broadcast(room, { type: "roster", roster: roster(room) });
+      broadcast(room, { type: "world", world: world(room.state) });
+      return;
+    }
+    if (msg.type === "claim") {           // 참가자: 남은 기업 중 선택
+      const room = roomOf.get(ws); if (!room) return;
+      const youIdx = claimSpecific(room, ws, String(msg.name || ""), Number(msg.firm));
+      if (youIdx < 0) { send(ws, { type: "error", msg: "이미 선택된 기업입니다 — 다른 기업을 고르세요" }); send(ws, { type: "roster", roster: roster(room) }); return; }
+      send(ws, { type: "welcome", room: room.code, youIdx, role: "player", world: world(room.state), roster: roster(room) });
       broadcast(room, { type: "roster", roster: roster(room) });
       broadcast(room, { type: "world", world: world(room.state) });
       return;

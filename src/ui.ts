@@ -16,6 +16,8 @@ export interface Actions {
   restart(): void;
   pickIndustry(meta: BriefMeta): void;
   pickCompany(youIdx: number): void;
+  claimFirm(idx: number): void;
+  spectate(): void;
   toTitle(): void;
   toIndustry(): void;
   toCompany(): void;
@@ -595,6 +597,27 @@ export function renderLobby(app: HTMLElement, A: Actions) {
 }
 export function lobbyError(msg: string) { const e = document.getElementById("lerr"); if (e) e.textContent = msg; }
 
+// 온라인 참가자 — 방의 시나리오에서 '남은 기업'을 선택. roster의 human=이미 선택됨.
+export function renderClaim(app: HTMLElement, world: any, roster: { key: string; human: boolean; name: string }[], A: Actions) {
+  const firms: any[] = world?.firms || [];
+  const taken: Record<string, string> = {};
+  for (const r of (roster || [])) if (r.human) taken[r.key] = r.name || "참가자";
+  const card = (f: any, idx: number) => {
+    const t = taken[f.key];
+    return '<div class="ccard" style="border-left:4px solid ' + f.col + '"><div class="ch"><b style="color:' + f.col + '">' + esc(f.name) + '</b><span class="chip">' + (t ? esc(t) + ' 선택됨' : '선택 가능') + '</span></div>' +
+      '<div class="cbars">' + capBars(k => f.caps[k]) + '</div>' +
+      '<button class="btn" data-idx="' + idx + '"' + (t ? ' disabled' : '') + '>' + (t ? '선택됨' : '이 기업으로 플레이') + '</button></div>';
+  };
+  app.innerHTML =
+    '<div class="screen list"><div class="cwrap"><div class="lhead"><button class="back" id="back">←</button>' +
+    '<div><h2>기업 선택</h2><div class="mute small">방 ' + esc(world?.scenario?.ko || '') + ' · 방 코드 공유됨 — 남은 기업에서 고르세요</div></div></div>' +
+    '<div class="ccards">' + firms.map((f, i) => card(f, i)).join("") + '</div>' +
+    '<button class="btn big ghost" id="spectate">관전하기</button></div></div>';
+  document.getElementById("back")!.onclick = () => A.toTitle();
+  app.querySelectorAll<HTMLElement>(".ccard .btn").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.claimFirm(Number(b.dataset.idx)); });
+  document.getElementById("spectate")!.onclick = () => A.spectate();
+}
+
 // 세계 흐름 이벤트 큰 토스트(HOI 스타일) — 4초 노출
 export function showEventBanner(icon: string, title: string, note: string) {
   let b = document.getElementById("eventbanner");
@@ -614,12 +637,10 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
   const all: BriefMeta[] = BRIEFS;   // 모든 산업을 동일하게(기준 시나리오 특별 취급 없음)
   const card = (m: BriefMeta) => {
     const link = m.file ? '<a class="rlink" data-gics="' + esc(m.gics) + '" href="https://dshseungwon.github.io/daily-industry-report/' + esc(m.file) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">리포트 ↗</a>' : '';
-    const it = industryIntel(m.gics);
     return '<button class="icard" data-gics="' + esc(m.gics) + '">' +
       '<div class="ih"><span class="chip">' + (sectorKo[m.sector] || m.sector) + '</span>' + link + '</div>' +
       '<div class="iname">' + m.industry_ko + '</div>' +
       '<div class="ihead">' + m.headline_ko + '</div>' +
-      (it.hasData && it.ksf ? ksfChips(it.ksf) : '') +
       '<div class="ico"><span>🌐 ' + m.global_company + '</span><span>🇰🇷 ' + m.korea_company + '</span></div>' +
       '</button>';
   };
