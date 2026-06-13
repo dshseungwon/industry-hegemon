@@ -9,8 +9,8 @@ export interface Firm {
   cash: number; debt: number; distress: number;
   venture: Venture | null; cooldowns: Record<string, number>; tech: string[];
   home: string;                     // 본진(HQ) 시장명 — 자원 전송의 출발지
-  effort: Record<string, number>;   // 시장명 -> 도착한 영향력. 존재(>0)할 때만 그 시장에서 경쟁. 시간 경과 시 1로 감쇠.
-  transit: Shipment[];              // 이동 중인 자원(도착 전엔 영향력 없음)
+  alloc: Record<string, number>;    // 시장명 -> 자원 할당 목표(0~ALLOC_MAX). 0이면 철수(영향력 0으로 감소).
+  effort: Record<string, number>;   // 시장명 -> 현재 배치된 영향력. 매월 alloc 쪽으로 램프(전개 지연).
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
@@ -31,7 +31,6 @@ export interface Venture {
   name: string; cap: Cap; payoff: number; progress: number; risk: number;
   cooldown: Record<string, number>; // action -> date it becomes available again
 }
-export interface Shipment { to: string; amount: number; depart: number; arrive: number; } // 본진→to로 이동하는 자원
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
 export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; real?: boolean; }
 export interface GameState {
@@ -112,10 +111,10 @@ export const CODEX = [
 export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 0): GameState {
   const homePref = ["South Korea", "United States of America", "China", "Japan", "Germany", "India"];
   const firms: Firm[] = scenario.firms.map((f, i) => {
-    const effort: Record<string, number> = {};
-    for (const m of scenario.markets) effort[m.name] = 1;   // 기존 12개 시장엔 모두 진출(영향력 1). 프론티어는 미진출.
+    const alloc: Record<string, number> = {}, effort: Record<string, number> = {};
+    for (const m of scenario.markets) { alloc[m.name] = 1; effort[m.name] = 1; }   // 기존 12개 시장엔 기본 할당 1로 진출. 프론티어는 미진출.
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [], home, effort, transit: [], auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, venture: null, cooldowns: {}, tech: [], home, alloc, effort, auto: i !== youIdx };
   });
   const youKey = firms[youIdx].key;
   const markets: Record<string, Market> = {};

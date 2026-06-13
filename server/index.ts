@@ -10,7 +10,7 @@ import { GameState, newGame, CAPKO, Cap } from "../src/state";
 import {
   tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown,
   acquireTargets, doAcquire, raiseDebt, borrowRoom, lobbyCost, doLobby, canAct, setActCooldown,
-  TECH_NODES, doResearch, entryCost, doEnter, campaignCost, doCampaign,
+  TECH_NODES, doResearch, setAlloc,
 } from "../src/engine";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -21,7 +21,7 @@ const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javasc
 type Action =
   | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; action: string }
   | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
-  | { kind: "research"; key: string } | { kind: "enter"; market: string } | { kind: "campaign"; market: string };
+  | { kind: "research"; key: string } | { kind: "alloc"; market: string; delta: number };
 
 interface Player { key: string; name: string; }
 interface Room { code: string; state: GameState; clients: Set<WebSocket>; players: Map<WebSocket, Player>; timer?: NodeJS.Timeout; }
@@ -57,8 +57,7 @@ function applyAction(state: GameState, fi: number, a: Action) {
     case "raiseDebt": { const amt = Math.min(40, Math.floor(borrowRoom(state, fi))); if (amt >= 5) raiseDebt(state, fi, amt); break; }
     case "lobby": { if (!canAct(state, fi, "lobby:" + a.market)) break; const c = lobbyCost(state, a.market); if (f.cash >= c) { f.cash -= c; doLobby(state, fi, a.market); setActCooldown(state, fi, "lobby:" + a.market, 5); recomputeLeaders(state); } break; }
     case "research": { const n = TECH_NODES.find(x => x.key === a.key); if (n && !f.tech.includes(a.key) && f.cash >= n.cost) { f.cash -= n.cost; doResearch(state, fi, a.key); } break; }
-    case "enter": { const c = entryCost(state, a.market); if (f.cash >= c) { f.cash -= c; doEnter(state, fi, a.market); } break; }
-    case "campaign": { const c = campaignCost(state, a.market); if (f.cash >= c) { f.cash -= c; doCampaign(state, fi, a.market); recomputeLeaders(state); } break; }
+    case "alloc": { setAlloc(state, fi, a.market, a.delta); recomputeLeaders(state); break; }
   }
 }
 

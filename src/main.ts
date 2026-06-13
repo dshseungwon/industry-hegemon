@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, entryCost, doEnter, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, campaignCost, doCampaign } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderLobby, lobbyError, setRoomBadge, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -253,36 +253,10 @@ const A: Actions = {
     };
     render(s, A);
   },
-  enter(marketName) {
+  alloc(marketName, delta) {
     if (!s) return;
-    if (s.marketOrder.includes(marketName)) return;
-    const cost = entryCost(s, marketName); const m = s.markets[marketName];
-    if (s.firms[s.youIdx].cash < cost) { flash("현금이 부족합니다 — 재무에서 자금 조달"); return; }
-    s.ui.confirm = {
-      title: "해외진출 — " + m.ko,
-      lines: [
-        "진입장벽 돌파 비용: <b>$" + cost + "B</b> (규모 $" + m.size + "B)",
-        "신규 시장을 <b>우리 강점 KSF로 형성</b>해 선점합니다.",
-        "전체 시장이 커지니 점유율 관리 부담도 함께 늘어납니다. 진행할까요?",
-      ],
-      okLabel: "진출",
-      onOk: () => {
-        if (!s) return;
-        if (online) { net?.send({ kind: "enter", market: marketName }); s.ui.confirm = null; sfx("conquer"); render(s, A); return; }
-        const me = s.firms[s.youIdx];
-        if (me.cash < cost) { s.ui.confirm = null; flash("현금이 부족합니다"); render(s, A); return; }
-        me.cash -= cost; doEnter(s, s.youIdx, marketName); s.ui.confirm = null; sfx("conquer"); render(s, A);
-      },
-    };
-    render(s, A);
-  },
-  campaign(marketName) {
-    if (!s) return;
-    if (online) { net?.send({ kind: "campaign", market: marketName }); sfx("accel"); return; }
-    const me = s.firms[s.youIdx]; const cost = campaignCost(s, marketName);
-    if (me.cash < cost) { flash("현금이 부족합니다"); return; }
-    me.cash -= cost; doCampaign(s, s.youIdx, marketName);   // 쿨다운 없음 — 계속 보낼 수 있음(현금이 한도)
-    recomputeLeaders(s); sfx("accel"); render(s, A);
+    if (online) { net?.send({ kind: "alloc", market: marketName, delta }); sfx(delta > 0 ? "accel" : "click"); return; }
+    setAlloc(s, s.youIdx, marketName, delta); recomputeLeaders(s); sfx(delta > 0 ? "accel" : "click"); render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
   confirmCancel() { if (!s) return; s.ui.confirm = null; render(s, A); },
