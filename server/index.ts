@@ -30,8 +30,8 @@ recomputeLeaders(state);
 const clients = new Set<WebSocket>();
 let controller: WebSocket | null = null;
 
-// 공유 월드 = 상태에서 클라이언트 로컬 UI(ui)·연출 큐(fx)를 제외한 부분
-function world() { const { ui, fx, ...rest } = state; void ui; void fx; return rest; }
+// 공유 월드 = 상태에서 클라이언트 로컬 UI(ui)·연출 큐(fx) 제외(+ 게임오버는 전달)
+function world() { const { ui, fx, ...rest } = state; void fx; return { ...rest, over: ui.over }; }
 function send(ws: WebSocket, msg: unknown) { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const ws of clients) if (ws.readyState === WebSocket.OPEN) ws.send(s); }
 

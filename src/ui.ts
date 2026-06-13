@@ -18,6 +18,7 @@ export interface Actions {
   pickCompany(youIdx: number): void;
   toTitle(): void;
   toIndustry(): void;
+  goOnline(): void;
   acquire(rivalKey: string): void;
   raiseDebt(): void;
   lobby(marketName: string): void;
@@ -369,9 +370,11 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<p class="lede">오늘의 산업을 골라, 한 기업을 운영해 세계 시장을 점령하라.<br>' +
     '시장이 무엇을 원하는지 <b>읽고</b>, 역량에 <b>투자</b>해 1위에 오르는 실시간 경영 전략.</p>' +
     '<button class="btn big" id="toIndustry">산업 선택 →</button>' +
+    '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>' +
     '<p class="src">데이터: <a href="https://dshseungwon.github.io/daily-industry-report/" target="_blank" rel="noopener">The Industry Brief</a></p>' +
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
+  document.getElementById("toOnline")!.onclick = () => A.goOnline();
 }
 
 export function renderIndustry(app: HTMLElement, A: Actions) {
