@@ -19,10 +19,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "에너지 장비 및 서비스",
     "sector": "Energy",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0.1333,
+      "global": 0.2667,
+      "scale": 0.2,
+      "tech": 0.4
     },
     "global_company": "SLB",
     "korea_company": "Hanwha Ocean (proxy)",
@@ -76,10 +76,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "석유·가스·소비연료",
     "sector": "Energy",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.125,
-      "scale": 0.375,
-      "global": 0.125
+      "brand": 0,
+      "global": 0,
+      "scale": 0.8571,
+      "tech": 0.1429
     },
     "global_company": "Saudi Aramco",
     "korea_company": "SK Innovation",
@@ -113,10 +113,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "화학",
     "sector": "Materials",
     "ksf_weights": {
-      "tech": 0.5,
-      "brand": 0.214,
-      "scale": 0.214,
-      "global": 0.071
+      "brand": 0,
+      "global": 0,
+      "scale": 0.55,
+      "tech": 0.45
     },
     "global_company": "BASF SE",
     "korea_company": "LG Chem",
@@ -230,10 +230,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "용기·포장",
     "sector": "Materials",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.214,
-      "scale": 0.357,
-      "global": 0.214
+      "brand": 0,
+      "global": 0.25,
+      "scale": 0.6667,
+      "tech": 0.0833
     },
     "global_company": "Smurfit WestRock",
     "korea_company": "Dongwon Systems",
@@ -281,10 +281,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "금속·광업",
     "sector": "Materials",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0,
+      "global": 0,
+      "scale": 0.9091,
+      "tech": 0.0909
     },
     "global_company": "BHP Group",
     "korea_company": "Korea Zinc",
@@ -327,10 +327,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "제지·임산물",
     "sector": "Materials",
     "ksf_weights": {
-      "tech": 0.083,
-      "brand": 0.417,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0,
+      "global": 0.1,
+      "scale": 0.55,
+      "tech": 0.35
     },
     "global_company": "Smurfit WestRock",
     "korea_company": "Hansol Paper",
@@ -373,10 +373,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "항공우주·방위",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.125,
-      "brand": 0.125,
-      "scale": 0.375,
-      "global": 0.375
+      "brand": 0.3846,
+      "global": 0.5385,
+      "scale": 0.0769,
+      "tech": 0
     },
     "global_company": "Lockheed Martin",
     "korea_company": "Hanwha Aerospace",
@@ -427,10 +427,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "건축자재",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.357,
-      "scale": 0.214,
-      "global": 0.214
+      "brand": 0.1905,
+      "global": 0.3333,
+      "scale": 0.3333,
+      "tech": 0.1429
     },
     "global_company": "Saint-Gobain",
     "korea_company": "KCC",
@@ -473,10 +473,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "건설·엔지니어링",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.5,
-      "brand": 0.1,
-      "scale": 0.1,
-      "global": 0.3
+      "brand": 0.4167,
+      "global": 0.25,
+      "scale": 0,
+      "tech": 0.3333
     },
     "global_company": "China State Construction Engineering",
     "korea_company": "Hyundai E&C",
@@ -528,10 +528,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "전기장비",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.125,
-      "scale": 0.125,
-      "global": 0.375
+      "brand": 0,
+      "global": 0.1818,
+      "scale": 0.4545,
+      "tech": 0.3636
     },
     "global_company": "Schneider Electric",
     "korea_company": "Hyosung Heavy",
@@ -574,10 +574,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "복합기업(산업재)",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.375,
-      "scale": 0.125,
-      "global": 0.125
+      "brand": 0.0667,
+      "global": 0.6,
+      "scale": 0,
+      "tech": 0.3333
     },
     "global_company": "Siemens AG",
     "korea_company": "Samsung C&T",
@@ -620,10 +620,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "기계",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.125,
-      "brand": 0.125,
-      "scale": 0.125,
-      "global": 0.625
+      "brand": 0,
+      "global": 0.6923,
+      "scale": 0,
+      "tech": 0.3077
     },
     "global_company": "Caterpillar",
     "korea_company": "Doosan Bobcat",
@@ -662,10 +662,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "종합상사·유통",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.083,
-      "scale": 0.25,
-      "global": 0.417
+      "brand": 0,
+      "global": 0.7895,
+      "scale": 0,
+      "tech": 0.2105
     },
     "global_company": "Mitsubishi Corporation",
     "korea_company": "POSCO International",
@@ -708,10 +708,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "상업 서비스·용품",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.083,
-      "global": 0.417
+      "brand": 0,
+      "global": 0.1429,
+      "scale": 0.7857,
+      "tech": 0.0714
     },
     "global_company": "Waste Management",
     "korea_company": "S-1 Corporation",
@@ -754,10 +754,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "전문 서비스",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.083
+      "brand": 0.0526,
+      "global": 0,
+      "scale": 0.2105,
+      "tech": 0.7368
     },
     "global_company": "ADP",
     "korea_company": "Saramin",
@@ -800,10 +800,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "항공화물·물류",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.188,
-      "brand": 0.188,
-      "scale": 0.438,
-      "global": 0.188
+      "brand": 0.1429,
+      "global": 0.1905,
+      "scale": 0.6667,
+      "tech": 0
     },
     "global_company": "FedEx",
     "korea_company": "CJ Logistics",
@@ -858,10 +858,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "여객 항공",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.214,
-      "scale": 0.357,
-      "global": 0.214
+      "brand": 0.2105,
+      "global": 0.2632,
+      "scale": 0.5263,
+      "tech": 0
     },
     "global_company": "Delta Air Lines",
     "korea_company": "Korean Air",
@@ -910,10 +910,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "해상운송",
     "sector": "Industrials",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.071,
-      "scale": 0.5,
-      "global": 0.214
+      "brand": 0,
+      "global": 0.3158,
+      "scale": 0.4737,
+      "tech": 0.2105
     },
     "global_company": "MSC",
     "korea_company": "HMM",
@@ -1028,10 +1028,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "자동차 부품",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0,
+      "global": 0.55,
+      "scale": 0.2,
+      "tech": 0.25
     },
     "global_company": "Bosch (Mobility)",
     "korea_company": "Hyundai Mobis",
@@ -1086,10 +1086,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "자동차",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.357,
-      "brand": 0.214,
-      "scale": 0.214,
-      "global": 0.214
+      "brand": 0.2,
+      "global": 0.1333,
+      "scale": 0.4,
+      "tech": 0.2667
     },
     "global_company": "Tesla",
     "korea_company": "Hyundai Motor",
@@ -1141,10 +1141,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "레저용품",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.125,
-      "scale": 0.375,
-      "global": 0.125
+      "brand": 0.3333,
+      "global": 0.4444,
+      "scale": 0,
+      "tech": 0.2222
     },
     "global_company": "LEGO Group",
     "korea_company": "Youngone",
@@ -1199,10 +1199,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "섬유·의류·명품",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.3,
-      "scale": 0.1,
-      "global": 0.3
+      "brand": 0.3529,
+      "global": 0.1176,
+      "scale": 0.2941,
+      "tech": 0.2353
     },
     "global_company": "LVMH",
     "korea_company": "Youngone",
@@ -1245,10 +1245,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "종합 소비자 서비스",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.357,
-      "brand": 0.214,
-      "scale": 0.071,
-      "global": 0.357
+      "brand": 0.2941,
+      "global": 0.1176,
+      "scale": 0.0588,
+      "tech": 0.5294
     },
     "global_company": "Service Corporation International",
     "korea_company": "MegaStudyEdu",
@@ -1287,10 +1287,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "유통(소비재)",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.1,
-      "scale": 0.3,
-      "global": 0.3
+      "brand": 0,
+      "global": 0,
+      "scale": 0.75,
+      "tech": 0.25
     },
     "global_company": "Genuine Parts Company",
     "korea_company": "K Car",
@@ -1329,10 +1329,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "종합 소매",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.1,
-      "brand": 0.3,
-      "scale": 0.3,
-      "global": 0.3
+      "brand": 0,
+      "global": 0.6154,
+      "scale": 0.0769,
+      "tech": 0.3077
     },
     "global_company": "Amazon",
     "korea_company": "Coupang",
@@ -1379,10 +1379,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "전문 소매",
     "sector": "Consumer Discretionary",
     "ksf_weights": {
-      "tech": 0.083,
-      "brand": 0.417,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0.0833,
+      "global": 0.4167,
+      "scale": 0.5,
+      "tech": 0
     },
     "global_company": "Home Depot",
     "korea_company": "Lotte Hi-Mart",
@@ -1429,10 +1429,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "필수소비재 유통·소매",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.1,
-      "scale": 0.3,
-      "global": 0.3
+      "brand": 0.1765,
+      "global": 0.2941,
+      "scale": 0.3529,
+      "tech": 0.1765
     },
     "global_company": "Walmart",
     "korea_company": "Emart",
@@ -1475,10 +1475,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "음료",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.312,
-      "brand": 0.312,
-      "scale": 0.062,
-      "global": 0.312
+      "brand": 0.2857,
+      "global": 0.3333,
+      "scale": 0.1429,
+      "tech": 0.2381
     },
     "global_company": "Coca-Cola",
     "korea_company": "Lotte Chilsung",
@@ -1521,10 +1521,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "식품",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.1,
-      "brand": 0.3,
-      "scale": 0.3,
-      "global": 0.3
+      "brand": 0.6667,
+      "global": 0.1111,
+      "scale": 0.2222,
+      "tech": 0
     },
     "global_company": "Nestlé",
     "korea_company": "CJ CheilJedang",
@@ -1571,10 +1571,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "담배",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.357,
-      "scale": 0.071,
-      "global": 0.357
+      "brand": 0.1875,
+      "global": 0.1875,
+      "scale": 0.375,
+      "tech": 0.25
     },
     "global_company": "Philip Morris International",
     "korea_company": "KT&G",
@@ -1617,10 +1617,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "생활용품",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.357,
-      "brand": 0.214,
-      "scale": 0.214,
-      "global": 0.214
+      "brand": 0.381,
+      "global": 0.1429,
+      "scale": 0.1905,
+      "tech": 0.2857
     },
     "global_company": "Procter & Gamble",
     "korea_company": "LG H&H",
@@ -1663,10 +1663,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "퍼스널케어 제품",
     "sector": "Consumer Staples",
     "ksf_weights": {
-      "tech": 0.312,
-      "brand": 0.188,
-      "scale": 0.062,
-      "global": 0.438
+      "brand": 0.4286,
+      "global": 0.3333,
+      "scale": 0,
+      "tech": 0.2381
     },
     "global_company": "L'Oréal",
     "korea_company": "Amorepacific",
@@ -1709,10 +1709,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "의료기기 및 용품",
     "sector": "Health Care",
     "ksf_weights": {
-      "tech": 0.357,
-      "brand": 0.071,
-      "scale": 0.357,
-      "global": 0.214
+      "brand": 0,
+      "global": 0.4706,
+      "scale": 0.1765,
+      "tech": 0.3529
     },
     "global_company": "Medtronic",
     "korea_company": "Osstem Implant",
@@ -1763,10 +1763,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "헬스케어 제공·서비스",
     "sector": "Health Care",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.214,
-      "scale": 0.357,
-      "global": 0.214
+      "brand": 0,
+      "global": 0.1429,
+      "scale": 0.7619,
+      "tech": 0.0952
     },
     "global_company": "UnitedHealth Group",
     "korea_company": "SD Biosensor (proxy)",
@@ -1809,10 +1809,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "헬스케어 기술",
     "sector": "Health Care",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.3,
-      "scale": 0.1,
-      "global": 0.3
+      "brand": 0.1,
+      "global": 0.5,
+      "scale": 0.4,
+      "tech": 0
     },
     "global_company": "Veeva Systems",
     "korea_company": "Lunit",
@@ -1922,10 +1922,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "생명과학 도구 및 서비스",
     "sector": "Health Care",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.083,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0,
+      "global": 0.3846,
+      "scale": 0.3846,
+      "tech": 0.2308
     },
     "global_company": "Thermo Fisher Scientific",
     "korea_company": "Samsung Biologics",
@@ -1968,10 +1968,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "은행",
     "sector": "Financials",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.125,
-      "scale": 0.375,
-      "global": 0.125
+      "brand": 0,
+      "global": 0,
+      "scale": 1,
+      "tech": 0
     },
     "global_company": "JPMorgan Chase",
     "korea_company": "KB Financial Group",
@@ -2028,10 +2028,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "금융 서비스",
     "sector": "Financials",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0.2941,
+      "global": 0.1176,
+      "scale": 0.3529,
+      "tech": 0.2353
     },
     "global_company": "Visa",
     "korea_company": "Samsung Card",
@@ -2136,10 +2136,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "자본시장",
     "sector": "Financials",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.083,
-      "scale": 0.25,
-      "global": 0.25
+      "brand": 0,
+      "global": 0.2308,
+      "scale": 0.4615,
+      "tech": 0.3077
     },
     "global_company": "BlackRock",
     "korea_company": "Mirae Asset",
@@ -2182,10 +2182,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "모기지 리츠",
     "sector": "Financials",
     "ksf_weights": {
-      "tech": 0.167,
-      "brand": 0.167,
-      "scale": 0.167,
-      "global": 0.5
+      "brand": 0,
+      "global": 0.8,
+      "scale": 0,
+      "tech": 0.2
     },
     "global_company": "Annaly Capital",
     "korea_company": "KHFC (proxy)",
@@ -2221,10 +2221,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "보험",
     "sector": "Financials",
     "ksf_weights": {
-      "tech": 0.375,
-      "brand": 0.125,
-      "scale": 0.125,
-      "global": 0.375
+      "brand": 0,
+      "global": 0.6,
+      "scale": 0,
+      "tech": 0.4
     },
     "global_company": "Allianz",
     "korea_company": "Samsung Life",
@@ -2267,10 +2267,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "IT 서비스",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0,
+      "global": 0,
+      "scale": 0.5,
+      "tech": 0.5
     },
     "global_company": "Accenture",
     "korea_company": "Samsung SDS",
@@ -2313,10 +2313,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "소프트웨어",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0.1667,
+      "global": 0,
+      "scale": 0.3333,
+      "tech": 0.5
     },
     "global_company": "Microsoft",
     "korea_company": "Samsung SDS",
@@ -2363,10 +2363,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "통신장비",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.5,
-      "brand": 0.214,
-      "scale": 0.214,
-      "global": 0.071
+      "brand": 0.125,
+      "global": 0,
+      "scale": 0.0625,
+      "tech": 0.8125
     },
     "global_company": "Cisco Systems",
     "korea_company": "Samsung Electronics",
@@ -2415,10 +2415,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "기술 하드웨어·스토리지·주변기기",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.083
+      "brand": 0.5,
+      "global": 0,
+      "scale": 0.1667,
+      "tech": 0.3333
     },
     "global_company": "Apple",
     "korea_company": "Samsung Electronics",
@@ -2457,10 +2457,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "전자장비·계측·부품",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.083
+      "brand": 0,
+      "global": 0.1,
+      "scale": 0.3,
+      "tech": 0.6
     },
     "global_company": "Hon Hai (Foxconn)",
     "korea_company": "LG Innotek",
@@ -2509,10 +2509,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "반도체·반도체장비",
     "sector": "Information Technology",
     "ksf_weights": {
-      "tech": 0.357,
-      "brand": 0.071,
-      "scale": 0.214,
-      "global": 0.357
+      "brand": 0,
+      "global": 0.3,
+      "scale": 0.3,
+      "tech": 0.4
     },
     "global_company": "NVIDIA",
     "korea_company": "Samsung Electronics",
@@ -2551,10 +2551,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "종합 통신 서비스",
     "sector": "Communication Services",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.25,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0.1667,
+      "global": 0.5,
+      "scale": 0.0833,
+      "tech": 0.25
     },
     "global_company": "Deutsche Telekom",
     "korea_company": "KT Corporation",
@@ -2597,10 +2597,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "무선 통신 서비스",
     "sector": "Communication Services",
     "ksf_weights": {
-      "tech": 0.417,
-      "brand": 0.25,
-      "scale": 0.25,
-      "global": 0.083
+      "brand": 0.1429,
+      "global": 0.5,
+      "scale": 0.3571,
+      "tech": 0
     },
     "global_company": "China Mobile",
     "korea_company": "SK Telecom",
@@ -2647,10 +2647,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "미디어",
     "sector": "Communication Services",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.3,
-      "scale": 0.3,
-      "global": 0.1
+      "brand": 0.1429,
+      "global": 0.0952,
+      "scale": 0.1905,
+      "tech": 0.5714
     },
     "global_company": "Omnicom",
     "korea_company": "Cheil Worldwide",
@@ -2697,10 +2697,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "엔터테인먼트",
     "sector": "Communication Services",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.417,
-      "scale": 0.25,
-      "global": 0.083
+      "brand": 0.6429,
+      "global": 0,
+      "scale": 0.3571,
+      "tech": 0
     },
     "global_company": "Netflix",
     "korea_company": "KRAFTON",
@@ -2747,10 +2747,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "인터랙티브 미디어·서비스",
     "sector": "Communication Services",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.3,
-      "scale": 0.3,
-      "global": 0.1
+      "brand": 0.0625,
+      "global": 0,
+      "scale": 0.375,
+      "tech": 0.5625
     },
     "global_company": "Alphabet (Google)",
     "korea_company": "NAVER",
@@ -2797,10 +2797,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "전력 유틸리티",
     "sector": "Utilities",
     "ksf_weights": {
-      "tech": 0.214,
-      "brand": 0.214,
-      "scale": 0.357,
-      "global": 0.214
+      "brand": 0,
+      "global": 0.4,
+      "scale": 0.3333,
+      "tech": 0.2667
     },
     "global_company": "NextEra Energy",
     "korea_company": "KEPCO",
@@ -2913,10 +2913,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "수도 유틸리티",
     "sector": "Utilities",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.083,
-      "scale": 0.417,
-      "global": 0.25
+      "brand": 0,
+      "global": 0.6154,
+      "scale": 0.3077,
+      "tech": 0.0769
     },
     "global_company": "American Water Works",
     "korea_company": "K-water (proxy)",
@@ -2957,10 +2957,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "민자·재생에너지 발전",
     "sector": "Utilities",
     "ksf_weights": {
-      "tech": 0.25,
-      "brand": 0.083,
-      "scale": 0.417,
-      "global": 0.25
+      "brand": 0,
+      "global": 0.3,
+      "scale": 0.6,
+      "tech": 0.1
     },
     "global_company": "NextEra Energy",
     "korea_company": "KEPCO (proxy)",
@@ -3004,10 +3004,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "종합 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.125,
-      "brand": 0.125,
-      "scale": 0.625,
-      "global": 0.125
+      "brand": 0,
+      "global": 0.3571,
+      "scale": 0.5714,
+      "tech": 0.0714
     },
     "global_company": "W.P. Carey",
     "korea_company": "SK REIT",
@@ -3050,10 +3050,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "산업·물류 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.3,
-      "brand": 0.1,
-      "scale": 0.5,
-      "global": 0.1
+      "brand": 0,
+      "global": 0,
+      "scale": 0.7778,
+      "tech": 0.2222
     },
     "global_company": "Prologis",
     "korea_company": "ESR Kendall Square REIT",
@@ -3092,10 +3092,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "호텔·리조트 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.1,
-      "brand": 0.3,
-      "scale": 0.5,
-      "global": 0.1
+      "brand": 0.3846,
+      "global": 0,
+      "scale": 0.6154,
+      "tech": 0
     },
     "global_company": "Host Hotels & Resorts",
     "korea_company": "Hotel Shilla (proxy)",
@@ -3130,10 +3130,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "오피스 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.5,
-      "brand": 0.1,
-      "scale": 0.3,
-      "global": 0.1
+      "brand": 0,
+      "global": 0,
+      "scale": 0.2727,
+      "tech": 0.7273
     },
     "global_company": "BXP (Boston Properties)",
     "korea_company": "Shinhan Alpha REIT",
@@ -3183,10 +3183,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "주거용 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.1,
-      "brand": 0.1,
-      "scale": 0.5,
-      "global": 0.3
+      "brand": 0,
+      "global": 0.0714,
+      "scale": 0.5714,
+      "tech": 0.3571
     },
     "global_company": "AvalonBay Communities",
     "korea_company": "SK REIT (proxy)",
@@ -3239,10 +3239,10 @@ export const GAME_DATA: Record<string, GameData> = {
     "industry_ko": "리테일 리츠",
     "sector": "Real Estate",
     "ksf_weights": {
-      "tech": 0.083,
-      "brand": 0.417,
-      "scale": 0.417,
-      "global": 0.083
+      "brand": 0,
+      "global": 0.125,
+      "scale": 0.875,
+      "tech": 0
     },
     "global_company": "Simon Property Group",
     "korea_company": "Lotte REIT",

@@ -1,7 +1,7 @@
 // 자매 레포(daily-industry-report)의 클린 game_data.json을 기존 src/game.data.ts에 병합해
 // 내장 스냅샷을 갱신한다(런타임 fetch와 별개 — 오프라인 기본값을 최신화·커밋용).
 // - 클린 데이터가 있는 산업: global_firms(실 점유율·정제 이름) 교체 + korea_firms 추가.
-// - ksf_weights: 기존 값 유지(회귀 방지). 기존에 없던 신규 산업만 클린 ksf 사용.
+// - ksf_weights: 라이브 실데이터 우선(없으면 기존). 스냅샷=오프라인/시뮬 기본을 실게임과 일치.
 // 데이터 출처: 로컬 ../daily-industry-report/game_data.json 우선, 없으면 발행 URL fetch.
 // 실행: npm run gen:data
 import { GAME_DATA } from "../src/game.data";
@@ -28,7 +28,7 @@ for (const [g, e] of Object.entries(sister)) {
     industry_en: e.industry_en || base.industry_en || "",
     industry_ko: e.industry_ko || base.industry_ko || "",
     sector: e.sector || base.sector || "",
-    ksf_weights: base.ksf_weights || e.ksf_weights,   // 기존 유지(회귀 방지), 없으면 클린
+    ksf_weights: e.ksf_weights || base.ksf_weights,   // 라이브 실데이터 우선 — 스냅샷을 실게임과 일치
     global_company: e.global_company || base.global_company || "",
     korea_company: e.korea_company || base.korea_company || "",
     global_firms: e.global_firms || base.global_firms || [],   // 클린(실 점유율)으로 교체
