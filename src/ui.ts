@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
@@ -442,6 +442,33 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
 const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
+// 적합도 진단 — 이 시장에서 나 vs 현재 1위(내가 1위면 최강 라이벌)를 KSF별 기여로 분해해 "왜 이기/지는지" 보여줌.
+function fitDiagnosis(s: GameState): string {
+  const me = s.firms[s.youIdx]; const m = s.markets[s.ui.country!];
+  // 비교 상대: 내가 1위면 최강 라이벌, 아니면 현재 1위
+  let opp = s.firms.find(f => f.key === m.leader)!;
+  if (opp.key === me.key) { let best = -1; for (const f of s.firms) { if (f.key === me.key) continue; const sc = matchScore(f, m); if (sc > best) { best = sc; opp = f; } } }
+  if (!opp || opp.key === me.key) return "";   // 라이벌 없음(독점)
+  const contrib = (f: typeof me, k: Cap) => (m.pref[k] || 0) * gcap(f.caps[k]);
+  const caps = CAPS.slice().sort((a, b) => (m.pref[b] || 0) - (m.pref[a] || 0));
+  let worstK: Cap = caps[0], worstGap = -Infinity;
+  const rows = caps.map(k => {
+    const my = contrib(me, k), op = contrib(opp, k); const gap = op - my; if (gap > worstGap) { worstGap = gap; worstK = k; }
+    const ahead = my >= op - 0.01;
+    return '<div class="fxrow"><span class="fxk">' + CAPKO[k] + ' <i>' + Math.round((m.pref[k] || 0) * 100) + '%</i></span>' +
+      '<b class="' + (ahead ? 'up' : 'dn') + '">' + my.toFixed(0) + '</b><span class="fxvs">vs</span><span class="fxop">' + op.toFixed(0) + '</span></div>';
+  }).join("");
+  const myFit = matchScore(me, m), opFit = matchScore(opp, m);
+  const why = m.leader === me.key
+    ? '📌 이 시장 1위 — 영향력을 유지해 방어하세요.'
+    : (worstGap > 0
+      ? '📌 ' + esc(opp.name) + '은(는) <b>' + CAPKO[worstK] + '</b>에서 가장 앞섭니다 — <b>' + CAPKO[worstK] + '</b> 투자가 점유율 회복의 핵심.'
+      : '📌 적합도는 앞서지만 영향력(할당)이 부족합니다 — 자원 할당을 늘리세요.');
+  return '<div class="sect">적합도 진단 <span class="mute small">나 vs ' + esc(opp.name) + '</span></div>' +
+    '<div class="card fitdx">' + rows +
+    '<div class="fxtot">종합 적합도 <b class="' + (myFit >= opFit ? 'up' : 'dn') + '">' + myFit.toFixed(0) + '</b><span class="fxvs">vs</span><span class="fxop">' + opFit.toFixed(0) + '</span></div>' +
+    '<div class="why">' + why + '</div></div>';
+}
 function renderSheet(s: GameState, A: Actions) {
   const el = document.getElementById("sheet")!;
   if (!s.ui.country) { el.className = "hide"; el.innerHTML = ""; return; }
@@ -472,6 +499,7 @@ function renderSheet(s: GameState, A: Actions) {
     '<div class="kv"><span>소비자 핵심 선호</span><b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율 · 소비자 선호(KSF)</div>' +
     '<div class="card splitrow"><div class="spcol-pie">' + sharePie + '</div><div class="spcol-bars">' + capBars(k => (m.pref[k] || 0) * 100) + '</div></div>' +
+    fitDiagnosis(s) +
     allocSect(s) +
     lobbyBtn(s);
   document.getElementById("closeSheet")!.onclick = () => A.selectCountry(null);
@@ -492,8 +520,13 @@ function allocSect(s: GameState): string {
   const me = s.firms[s.youIdx]; const n = s.ui.country!; const m = s.markets[n];
   const lvl = me.alloc[n] || 0; const mx = maxAllocFor(s, s.youIdx, n);
   const hereCost = allocUpkeepAt(s, n, lvl), total = allocUpkeep(s, s.youIdx), nextCost = allocUpkeepAt(s, n, lvl + 1) - hereCost;
+  const pct = (x: number) => (x * 100).toFixed(0) + "%";
+  const cur = shareOf(s, m, me.key), settle = projectShare(s, m, s.youIdx, lvl);
+  const up = lvl < mx ? pct(projectShare(s, m, s.youIdx, lvl + 1)) : null;
+  const down = lvl > 0 ? pct(projectShare(s, m, s.youIdx, lvl - 1)) : null;
   return '<div class="sect">🎯 자원 할당 <span class="mute small">(' + regionOf(n) + ' 지역)</span></div><div class="card">' +
-    '<div class="kv"><span>내 시장 점유율</span><b style="color:' + me.col + '">' + (shareOf(s, m, me.key) * 100).toFixed(0) + '%</b></div>' +
+    '<div class="kv"><span>내 점유율 <span class="mute small">현재·안착</span></span><b style="color:' + me.col + '">' + pct(cur) + ' → ~' + pct(settle) + '</b></div>' +
+    (up || down ? '<div class="kv"><span>할당 변경 예상</span><b>' + (up ? '<span class="up">+1 → ~' + up + '</span>' : '') + (up && down ? ' · ' : '') + (down ? '<span class="dn">−1 → ~' + down + '</span>' : '') + '</b></div>' : '') +
     '<div class="allocrow"><span class="bl" style="width:auto">할당 단계</span>' +
       '<button class="abtn" id="allocMinus"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
       '<b class="alvl">' + lvl + ' / ' + mx + '</b>' +

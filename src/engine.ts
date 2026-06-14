@@ -75,6 +75,16 @@ export function shareOf(s: GameState, m: Market, firmKey: string, capsOverride?:
   }
   return tot > 0 ? mine / tot : 0;
 }
+// 예측용: firm fi의 영향력을 effort로 바꿨을 때(타사 현 영향력 고정)의 점유율(steady-state). 할당 미리보기에 사용.
+export function projectShare(s: GameState, m: Market, fi: number, effort: number) {
+  let tot = 0, mine = 0;
+  for (let i = 0; i < s.firms.length; i++) {
+    const f = s.firms[i]; const e = i === fi ? effort : (f.effort[m.name] || 0);
+    const v = Math.pow(scoreWith(f.caps, m), SHARE_BETA) * e;
+    tot += v; if (i === fi) mine = v;
+  }
+  return tot > 0 ? mine / tot : 0;
+}
 // 영향력 램프 + 프론티어 개방 처리(매 tick, firm별). 영향력이 할당 목표로 다가감.
 function rampEffort(s: GameState, fi: number) {
   const f = s.firms[fi];

@@ -105,6 +105,15 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .splitrow .pie{gap:10px;}
 .splitrow .piesvg{width:62px;height:62px;}
 .splitrow .plgs{font-size:11.5px;}
+/* 적합도 진단(국가 시트) */
+.fitdx{font-size:12.5px;}
+.fxrow{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #122a45;}
+.fxrow .fxk{flex:1;color:var(--mute);} .fxrow .fxk i{font-style:normal;opacity:.6;font-size:11px;}
+.fxrow b{width:30px;text-align:right;font-weight:800;} .fxvs{color:var(--mute);font-size:11px;} .fxop{width:30px;text-align:right;color:#cfe0f3;}
+.fxtot{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:6px;font-weight:800;}
+.fxtot b{width:30px;text-align:right;}
+.fitdx .why{margin-top:7px;font-size:12px;line-height:1.5;color:#dCEBFb;background:#102a48;border:1px solid var(--line);border-radius:8px;padding:6px 8px;}
+.up{color:#aef0c8;} .dn{color:#ff9aa0;}
 /* 비상 경영 배너 (현금<0) */
 #emergency{position:fixed;top:calc(var(--topbar-h,68px) + 6px);left:50%;transform:translateX(-50%);z-index:28;background:#2a0e12f2;border:1px solid #ff5a5f;border-radius:12px;padding:10px 12px;max-width:min(580px,94%);box-shadow:0 8px 30px #000a;animation:empulse 1.7s ease-in-out infinite;}
 .emhead{font-size:13px;font-weight:800;color:#ffd0d4;margin-bottom:8px;text-align:center;}
