@@ -107,7 +107,17 @@ export function capturedSize(s: GameState, firmKey: string, capsOverride?: Recor
   let sz = 0; for (const n of s.marketOrder) { const m = s.markets[n]; sz += m.size * shareOf(s, m, firmKey, capsOverride); } return sz;
 }
 export function myShare(s: GameState, fi: number = s.youIdx) { let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size; return tot > 0 ? capturedSize(s, s.firms[fi].key) / tot : 0; }
-export function monthlyCashflow(s: GameState, fi: number = s.youIdx) { const m = techMods(s, fi); return capturedSize(s, s.firms[fi].key) * (MARGIN + m.marginAdd) - Math.max(0, OVERHEAD - m.overheadCut); }
+// ---- 월간 손익(회계 구조) ----
+// 공헌이익(≈매출총이익): 점령규모 × 마진. 변동원가는 마진에 반영됨.
+export function grossMargin(s: GameState, fi: number = s.youIdx) { const m = techMods(s, fi); return capturedSize(s, s.firms[fi].key) * (MARGIN + m.marginAdd); }
+// 고정비(판관비 중 고정): OVERHEAD − 테크 절감.
+export function fixedCost(s: GameState, fi: number = s.youIdx) { return Math.max(0, OVERHEAD - techMods(s, fi).overheadCut); }
+// 월 영업현금(공헌이익 − 고정비). ⚠️ 할당 유지비는 별도 차감(operatingIncome 참고).
+export function monthlyCashflow(s: GameState, fi: number = s.youIdx) { return grossMargin(s, fi) - fixedCost(s, fi); }
+// 영업이익(EBITDA, 감가상각 없음): 공헌이익 − 고정비 − 할당 유지비(판관비). 차입여력·신용의 기준.
+export function operatingIncome(s: GameState, fi: number = s.youIdx) { return monthlyCashflow(s, fi) - allocUpkeep(s, fi); }
+// 월 이자비용(영업외/금융원가): 부채 × 월이자율.
+export function monthlyInterest(s: GameState, fi: number = s.youIdx) { const f = s.firms[fi]; return f.debt > 0 ? f.debt * (debtRate(s, fi) / 12) : 0; }
 // 시간 종료 판정: 점령 규모 기준 전 기업 순위(내림차순). [0]이 1위.
 export function rankByCaptured(s: GameState) { return s.firms.map(f => ({ firm: f, size: capturedSize(s, f.key) })).sort((a, b) => b.size - a.size); }
 
@@ -120,7 +130,7 @@ export function irr(cf: number[]): number | null {
 }
 // ---- 재무: 차입여력은 벌이(EBITDA)에 비례. 순부채/EBITDA로 신용등급·이자율 결정 ----
 const LEV_MAX = 4;        // 대출 한도 = 4 × 연 EBITDA (Net Debt/EBITDA ≤ 4)
-export function annualEbitda(s: GameState, fi: number = s.youIdx) { return Math.max(0, monthlyCashflow(s, fi) * 12); }
+export function annualEbitda(s: GameState, fi: number = s.youIdx) { return Math.max(0, operatingIncome(s, fi) * 12); }   // 회계대로: 할당 유지비까지 차감한 영업이익 기준
 // 증자 신용 드래그: 유상증자 횟수×계수만큼 '유령 부채'로 신용에 부담(leverage·차입여력에 반영).
 export function creditDrag(s: GameState, fi: number = s.youIdx) { return s.firms[fi].equityRaises * EQUITY_CREDIT_DRAG; }
 export function leverage(s: GameState, fi: number = s.youIdx) { const e = annualEbitda(s, fi), d = s.firms[fi].debt + creditDrag(s, fi); return e > 0 ? d / e : (d > 0 ? 99 : 0); }
@@ -353,7 +363,7 @@ export function tick(s: GameState) {
     progressVenture(s, fi);
     f.cash += monthlyCashflow(s, fi);
     f.cash -= allocUpkeep(s, fi);                 // 자원 할당 월 유지비
-    if (f.debt > 0) f.cash -= f.debt * (debtRate(s, fi) / 12);
+    f.cash -= monthlyInterest(s, fi);             // 이자비용(영업외)
     if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
     else f.distress = 0;
   }

@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
+import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { tutorialActive, tutorialSteps, tutorialAllDone } from "./tutorial";
@@ -341,8 +341,21 @@ function panelBody(s: GameState, panel: string): string {
   let h = "";
   const you = s.firms[s.youIdx];
   if (panel === "company") {
-    const cf = monthlyCashflow(s); const upk = allocUpkeep(s, s.youIdx); const intr = you.debt > 0 ? you.debt * (debtRate(s) / 12) : 0; const net = cf - upk - intr;
-    h += '<div class="card"><div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div><div class="kv"><span>월 수입(영업)</span><b class="' + (cf >= 0 ? 'gold' : 'red') + '">' + (cf >= 0 ? '+' : '') + cf.toFixed(1) + 'B</b></div><div class="kv"><span>월 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div>' + (intr > 0 ? '<div class="kv"><span>월 이자(부채)</span><b class="red">-' + intr.toFixed(1) + 'B</b></div>' : '') + '<div class="kv"><span>월 순현금</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + (net >= 0 ? '+' : '') + net.toFixed(1) + 'B</b></div><div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' + (you.equityRaises > 0 ? '<div class="kv"><span>유상증자</span><b class="red">' + you.equityRaises + '회 · 신용 부담↑</b></div>' : '') + '</div>';
+    // 월간 손익계산서(회계 구조): 공헌이익 − 고정비 − 유지비 = 영업이익(EBITDA) − 이자 = 순이익
+    const gross = grossMargin(s), fixc = fixedCost(s), upk = allocUpkeep(s, s.youIdx);
+    const ebitda = operatingIncome(s), intr = monthlyInterest(s), net = ebitda - intr;
+    const sgn = (x: number) => (x >= 0 ? '+' : '') + x.toFixed(1) + 'B';
+    h += '<div class="card">'
+      + '<div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div>'
+      + '<div class="pnl">'
+      + '<div class="kv"><span>공헌이익(영업)</span><b class="' + (gross >= 0 ? 'gold' : 'red') + '">' + sgn(gross) + '</b></div>'
+      + '<div class="kv"><span>− 고정비</span><b class="red">-' + fixc.toFixed(1) + 'B</b></div>'
+      + '<div class="kv"><span>− 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div>'
+      + '<div class="kv tot"><span>= 영업이익(EBITDA)</span><b class="' + (ebitda >= 0 ? 'gold' : 'red') + '">' + sgn(ebitda) + '</b></div>'
+      + (intr > 0 ? '<div class="kv"><span>− 이자비용</span><b class="red">-' + intr.toFixed(1) + 'B</b></div>' : '')
+      + '<div class="kv tot"><span>= 월 순이익(현금증감)</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + sgn(net) + '</b></div>'
+      + '</div>'
+      + '<div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' + (you.equityRaises > 0 ? '<div class="kv"><span>유상증자</span><b class="red">' + you.equityRaises + '회 · 신용 부담↑</b></div>' : '') + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
