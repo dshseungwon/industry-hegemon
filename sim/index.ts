@@ -7,11 +7,19 @@ import { runMany, policies, crossoverMonth, median, firmNames, GameResult } from
 import { buildScenario } from "../src/scenario";
 import { BRIEFS } from "../src/reports.data";
 import { IndustryScenario } from "../src/state";
+import { refreshGameData, gameData } from "../src/gamedata";
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter(a => a.startsWith("--")).map(a => { const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? "true"]; })
 );
 const GAMES = Number(args.games ?? 40);
+
+// --live: 실게임처럼 발행 game_data.json을 받아 주입(헤드리스 기본은 내장 스냅샷이라 stale할 수 있음).
+if (args.live) {
+  await refreshGameData();
+  const probe = gameData("251010");
+  console.log("🔄 라이브 데이터 주입 시도 — 251010 KSF:", probe ? JSON.stringify(probe.ksf_weights) : "(없음)");
+}
 
 // --gics=<코드>가 있으면 그 산업 시나리오로 시뮬(없으면 빌트인). 임의 산업 승리 가능성 검증용.
 let SC: IndustryScenario | undefined;
