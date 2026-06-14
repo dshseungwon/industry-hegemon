@@ -93,31 +93,14 @@ function pad(c: AudioContext, freq: number, t0: number, dur: number, peak: numbe
   o.connect(g).connect(bgmGain!);
   o.start(t0); o.stop(t0 + dur + 0.7);
 }
-// 멜로디 한 음 — bgmGain 경유(BGM과 함께 페이드/정지, 음소거 시 BGM이 안 켜져 자동 무음). 짧은 어택.
-function mel(c: AudioContext, freq: number, t0: number, dur: number, peak: number) {
-  if (!bgmGain) return;
-  const o = c.createOscillator(), g = c.createGain();
-  o.type = "triangle"; o.frequency.setValueAtTime(freq, t0);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(peak, t0 + 0.08);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g).connect(bgmGain);
-  o.start(t0); o.stop(t0 + dur + 0.05);
-}
 function scheduleChord(c: AudioContext) {
   if (!bgmOn || !bgmGain) return;
-  const m = MOODS[mood]; const ch = m.prog[progIdx % m.prog.length];
+  const m = MOODS[mood]; const ch = m.prog[progIdx % m.prog.length]; progIdx++;
   const dur = m.dur; const t0 = c.currentTime + 0.05;
   for (const f of ch.triad) { pad(c, f, t0, dur, 0.045, "sine", -3); pad(c, f, t0, dur, 0.045, "sine", 3); }
   pad(c, ch.bass, t0, dur, 0.06, "triangle", 0);                 // 저음 루트
-  // 멜로디 레이어 — 코드 위 잔잔한 음으로 단조로움 완화. 타이틀은 더 또렷, 위기는 생략(긴장 유지).
-  if (mood !== "crisis") {
-    const v = mood === "title" ? 0.06 : 0.035;
-    const top = ch.triad[2] * 2, mid = ch.triad[1] * 2;          // 옥타브 위
-    mel(c, top, t0 + dur * 0.12, 1.1, v);
-    mel(c, (progIdx % 2 ? mid : top), t0 + dur * 0.55, 1.0, v * 0.85);
-  }
-  progIdx++;
+  // 타이틀 테마만 한 옥타브 위 패드를 얹어 더 밝고 웅장하게 → 인게임(따뜻한 패드)과 또렷이 구분.
+  if (mood === "title") { for (const f of ch.triad) pad(c, f * 2, t0, dur, 0.02, "sine", 4); pad(c, ch.bass / 2, t0, dur, 0.04, "sine", 0); }
   bgmTimer = window.setTimeout(() => scheduleChord(c), dur * 1000 - 250); // 살짝 겹쳐 끊김 없이
 }
 export function startBgm() {

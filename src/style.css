@@ -114,6 +114,16 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .fxtot b{width:30px;text-align:right;}
 .fitdx .why{margin-top:7px;font-size:12px;line-height:1.5;color:#dCEBFb;background:#102a48;border:1px solid var(--line);border-radius:8px;padding:6px 8px;}
 .up{color:#aef0c8;} .dn{color:#ff9aa0;}
+/* 할당 단계별 예상 점유율(−1 / 유지 / +1) */
+.predcap{margin:6px 0 3px;}
+.allocpred{display:flex;gap:6px;}
+.apseg{flex:1;text-align:center;background:#0e2745;border:1px solid var(--line);border-radius:8px;padding:5px 2px;}
+.apseg>span{display:block;font-size:10.5px;color:var(--mute);margin-bottom:1px;}
+.apseg b{font-size:15px;font-weight:800;}
+.apseg.up{border-color:#2e6b45;} .apseg.up b{color:#aef0c8;}
+.apseg.dn{border-color:#6b2a34;} .apseg.dn b{color:#ff9aa0;}
+.apseg.cur b{color:var(--gold);}
+.apseg.off{opacity:.4;}
 /* 전역 음소거 버튼(타이틀·로비·선택 화면 우상단) */
 #globalmute{position:fixed;top:12px;right:12px;z-index:45;width:40px;height:40px;font-size:18px;background:#11294593;border:1px solid var(--line);border-radius:10px;color:var(--ink);backdrop-filter:blur(3px);}
 #globalmute:hover{border-color:var(--gold);}

@@ -21,6 +21,7 @@ export interface Actions {
   spectate(): void;
   skipTutorial(): void;
   replayTutorial(): void;
+  startTutorialGame(): void;
   toTitle(): void;
   toIndustry(): void;
   toCompany(): void;
@@ -543,14 +544,19 @@ function allocSect(s: GameState): string {
   const cur = shareOf(s, m, me.key), settle = projectShare(s, m, s.youIdx, lvl);
   const up = lvl < mx ? pct(projectShare(s, m, s.youIdx, lvl + 1)) : null;
   const down = lvl > 0 ? pct(projectShare(s, m, s.youIdx, lvl - 1)) : null;
+  // 할당 단계별 예상 점유율(안착 기준) — −1 / 유지 / +1 을 버튼과 같은 좌·중·우로 정렬해 직관적으로.
+  const seg = (cls: string, top: string, val: string | null) =>
+    '<div class="apseg ' + (val === null ? "off" : cls) + '"><span>' + top + '</span><b>' + (val === null ? "—" : "~" + val) + '</b></div>';
+  const pred = '<div class="allocpred">' +
+    seg("dn", "－1단계", down) + seg("cur", "유지 " + lvl + "단계", pct(settle)) + seg("up", "＋1단계", up) + '</div>';
   return '<div class="sect">🎯 자원 할당 <span class="mute small">(' + regionOf(n) + ' 지역)</span></div><div class="card">' +
-    '<div class="kv"><span>내 점유율 <span class="mute small">현재·안착</span></span><b style="color:' + me.col + '">' + pct(cur) + ' → ~' + pct(settle) + '</b></div>' +
-    (up || down ? '<div class="kv"><span>할당 변경 예상</span><b>' + (up ? '<span class="up">+1 → ~' + up + '</span>' : '') + (up && down ? ' · ' : '') + (down ? '<span class="dn">−1 → ~' + down + '</span>' : '') + '</b></div>' : '') +
+    '<div class="kv"><span>내 점유율 <span class="mute small">지금</span></span><b style="color:' + me.col + '">' + pct(cur) + '</b></div>' +
     '<div class="allocrow"><span class="bl" style="width:auto">할당 단계</span>' +
       '<button class="abtn" id="allocMinus"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
       '<b class="alvl">' + lvl + ' / ' + mx + '</b>' +
       '<button class="abtn" id="allocPlus"' + (lvl >= mx ? ' disabled' : '') + '>＋</button>' +
-      '<span class="mute small" style="margin-left:auto">이 시장 월 $' + hereCost.toFixed(1) + 'B' + (lvl < mx ? ' (+1 → +$' + nextCost.toFixed(1) + ')' : '') + '</span></div>' +
+      '<span class="mute small" style="margin-left:auto">월 $' + hereCost.toFixed(1) + 'B' + (lvl < mx ? ' (+1: +$' + nextCost.toFixed(1) + ')' : '') + '</span></div>' +
+    '<div class="predcap mute small">할당 단계별 예상 점유율(안착)</div>' + pred +
     (lvl >= mx && mx < 8 ? '<div class="mute small">상한 도달 — 🔬연구개발의 테크트리로 ' + regionOf(n) + ' 할당 상한을 올리세요.</div>' : '') +
     '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
     infBars(s, n) +
@@ -630,12 +636,14 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<div class="kotitle">더 체어맨</div>' +
     '<p class="lede">당신은 회장이다.<br>한 기업을 운영해 변화하는 세계 시장을 공략하고, <b>점유율 1위</b>로 산업을 지배하라.</p>' +
     '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
+    '<button class="btn big ghost" id="tutBtn">🎓 튜토리얼 (연습)</button>' +
     (staticBuild
       ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
       : '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>') +
     '<p class="src">데이터: <a href="https://dshseungwon.github.io/daily-industry-report/" target="_blank" rel="noopener">The Industry Brief</a></p>' +
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
+  document.getElementById("tutBtn")!.onclick = () => A.startTutorialGame();
   const ob = document.getElementById("toOnline"); if (ob) ob.onclick = () => A.goOnline();
 }
 

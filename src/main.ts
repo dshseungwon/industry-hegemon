@@ -17,6 +17,7 @@ type Phase = "title" | "lobby" | "industry" | "company" | "claim" | "game";
 let phase: Phase = "title";
 let pickedScenario: IndustryScenario | null = null;
 let pendingOnlineName: string | null = null;   // 온라인 '방 만들기' 중이면(닉네임 보관) — 산업·기업 선택 후 방 생성
+let tutorialFromTitle = false;                  // 타이틀 '튜토리얼' 버튼으로 시작했나(끝나면 타이틀로 복귀)
 let claimWorld: any = null;                     // 참가자 기업 선택 화면용(방의 월드)
 let s: GameState | null = null;
 // 온라인(권위서버) 모드 — 서버가 시간·상태를 소유, 클라는 렌더+액션 전송
@@ -156,11 +157,22 @@ const A: Actions = {
     sfx("invest"); startGame(youIdx);
   },
   skipTutorial() {
-    const wasPractice = tutorialIsPractice(); endTutorial();
-    if (wasPractice && pickedScenario) startGame(s ? s.youIdx : 0);   // 연습 내용 반영 안 되게 게임 새로 시작
+    const wasPractice = tutorialIsPractice(); const fromTitle = tutorialFromTitle;
+    tutorialFromTitle = false; endTutorial();
+    if (wasPractice && fromTitle) { A.toTitle(); }                    // 타이틀발 연습 → 타이틀로 복귀
+    else if (wasPractice && pickedScenario) { startGame(s ? s.youIdx : 0); }   // 첫게임 연습 → 그 게임 새로 시작
     else if (s) render(s, A);
   },
   replayTutorial() { if (s) { startTutorial(s); s.ui.panel = "none"; render(s, A); } },   // 다시보기는 연습모드 아님(현재 게임 유지)
+  // 타이틀 '튜토리얼' 버튼 — 연습용 게임(빌트인 시나리오) 시작, 끝나면 타이틀 복귀. localStorage 무관 항상 동작.
+  startTutorialGame() {
+    online = false; pickedScenario = BUILTIN_SCENARIO;
+    s = newGame(BUILTIN_SCENARIO, 0); recomputeLeaders(s);
+    wasCrisis = false; wasInsolvent = false; lastEventId = 0; phase = "game";
+    mountGame(app, A); unlockAudio(); startBgm();
+    tutorialFromTitle = true; startTutorial(s, true);
+    render(s, A); schedule();
+  },
   // 참가자: 남은 기업 중 선택
   claimFirm(idx: number) { sfx("invest"); net?.claim(idx); },
   spectate() { if (claimWorld) { youIdxNet = -1; phase = "game"; applyWorld(claimWorld); roomBadge(); flash("관전 모드"); } },
