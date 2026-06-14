@@ -12,13 +12,15 @@ const LABELS = [
   "▶ 상단에서 시간을 진행하기",
 ];
 let active = false;
+let practice = false;              // 첫 연습 모드(끝나면 게임을 새로 시작해 연습 내용 반영 안 함). 다시보기는 false.
 let baseAlloc = 0;                 // 튜토리얼 시작 시 총 할당(이보다 늘면 '할당' 단계 완료)
 let done = [false, false, false, false];
 
 export function tutorialSeen(): boolean { try { return localStorage.getItem(LS) === "1"; } catch { return false; } }
 export function tutorialActive(): boolean { return active; }
-export function startTutorial(s: GameState) { active = true; baseAlloc = allocUsed(s.firms[s.youIdx]); done = [false, false, false, false]; }
-export function endTutorial() { active = false; try { localStorage.setItem(LS, "1"); } catch { /* noop */ } }
+export function tutorialIsPractice(): boolean { return practice; }
+export function startTutorial(s: GameState, isPractice = false) { active = true; practice = isPractice; baseAlloc = allocUsed(s.firms[s.youIdx]); done = [false, false, false, false]; }
+export function endTutorial() { active = false; practice = false; try { localStorage.setItem(LS, "1"); } catch { /* noop */ } }
 
 // 현재 충족 조건(즉시 반영: ▶는 speed>0이면 바로, 달 변화 기다리지 않음)
 function conds(s: GameState): boolean[] {

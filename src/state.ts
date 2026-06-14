@@ -51,7 +51,7 @@ export interface GameState {
   ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: GameOver | null };
 }
 export interface GameOver { won: boolean; msg: string; winnerKey?: string; }
-export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; }
+export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; cancelLabel?: string; onCancel?: () => void; }
 
 function full(p: Partial<Record<Cap, number>>): Record<Cap, number> {
   return { tech: p.tech || 0, brand: p.brand || 0, scale: p.scale || 0, global: p.global || 0 };

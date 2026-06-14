@@ -6,7 +6,7 @@ import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
 import { refreshGameData } from "./gamedata";
-import { startTutorial, endTutorial, tutorialSeen } from "./tutorial";
+import { startTutorial, endTutorial, tutorialSeen, tutorialIsPractice } from "./tutorial";
 import { sfx, unlockAudio, startBgm } from "./audio";
 import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 
@@ -112,24 +112,22 @@ function startGame(youIdx: number) {
   phase = "game";
   mountGame(app, A);   // 인게임 DOM 재구성
   // 첫 플레이엔 시작 가이드 1회 노출(이후엔 상단 ❓에서 다시 볼 수 있음)
-  let seen = false; try { seen = localStorage.getItem("ih_guide_seen") === "1"; } catch { /* noop */ }
-  if (!seen) { s.ui.confirm = introSpec(); try { localStorage.setItem("ih_guide_seen", "1"); } catch { /* noop */ } }
-  if (!online && !tutorialSeen()) startTutorial(s);   // 첫 솔로 게임 — 단계 가이드 체크리스트
+  if (!online && !tutorialSeen()) s.ui.confirm = firstTimeSpec();   // 처음이면 튜토리얼(연습) 여부 물어봄
   render(s, A);
   schedule();
 }
-function introSpec() {
+function firstTimeSpec() {
   return {
     title: "🎩 더 체어맨 — 처음이신가요?",
     lines: [
-      "한 기업을 키워 <b>세계 시장을 장악</b>하는 실시간 경영 전략입니다.",
-      "🏆 <b>승리①</b> 모든 시장에서 점유율 1위 (지도 전체가 내 색)",
-      "🏆 <b>승리②</b> " + dateLabel(END_MONTHS) + " 마감 시점에 <b>점유율 1위</b>",
-      "방법: 국가를 클릭해 그 시장이 원하는 <b>역량(KSF)</b>을 읽고, 📈[전략]에서 약한 역량에 투자하세요.",
-      "<b>▶</b> 진행 · <b>⏸</b> 멈춰 판단 · 환경은 계속 변합니다. 자세한 건 상단 <b>❓</b> 가이드.",
+      "한 기업을 운영해 <b>세계 시장 점유율 1위</b>에 오르는 실시간 경영 전략입니다.",
+      "🏆 모든 시장 1위(완전 장악) 또는 <b>" + dateLabel(END_MONTHS) + " 마감 시 1위</b>면 승리.",
+      "처음이라면 <b>연습 튜토리얼</b>로 조작을 익혀보세요 — <b>연습 내용은 반영되지 않고</b> 끝나면 새로 시작합니다.",
     ],
-    okLabel: "시작하기",
-    onOk: () => { if (s) { s.ui.confirm = null; render(s, A); } },
+    okLabel: "🎓 튜토리얼 (연습)",
+    onOk: () => { if (s) { s.ui.confirm = null; startTutorial(s, true); render(s, A); } },
+    cancelLabel: "바로 시작",
+    onCancel: () => { endTutorial(); if (s) render(s, A); },   // 안 보기(seen 처리) + 바로 플레이
   };
 }
 
@@ -157,8 +155,12 @@ const A: Actions = {
     }
     sfx("invest"); startGame(youIdx);
   },
-  skipTutorial() { endTutorial(); if (s) render(s, A); },
-  replayTutorial() { if (s) { startTutorial(s); s.ui.panel = "none"; render(s, A); } },
+  skipTutorial() {
+    const wasPractice = tutorialIsPractice(); endTutorial();
+    if (wasPractice && pickedScenario) startGame(s ? s.youIdx : 0);   // 연습 내용 반영 안 되게 게임 새로 시작
+    else if (s) render(s, A);
+  },
+  replayTutorial() { if (s) { startTutorial(s); s.ui.panel = "none"; render(s, A); } },   // 다시보기는 연습모드 아님(현재 게임 유지)
   // 참가자: 남은 기업 중 선택
   claimFirm(idx: number) { sfx("invest"); net?.claim(idx); },
   spectate() { if (claimWorld) { youIdxNet = -1; phase = "game"; applyWorld(claimWorld); roomBadge(); flash("관전 모드"); } },
@@ -300,7 +302,7 @@ const A: Actions = {
     recomputeLeaders(s); sfx(delta > 0 ? "accel" : "click"); render(s, A);
   },
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
-  confirmCancel() { if (!s) return; s.ui.confirm = null; render(s, A); },
+  confirmCancel() { if (!s) return; const f = s.ui.confirm?.onCancel; s.ui.confirm = null; if (f) f(); else render(s, A); },
   restart() { if (!pickedScenario) { A.toTitle(); return; } startGame(s ? s.youIdx : 0); },
 };
 

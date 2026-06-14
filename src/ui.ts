@@ -570,7 +570,7 @@ function renderConfirm(s: GameState, A: Actions) {
   if (!s.ui.confirm) { el.className = "hide"; el.innerHTML = ""; return; }
   const c = s.ui.confirm; el.className = "modalwrap";
   el.innerHTML = '<div class="modal"><h3>' + c.title + '</h3>' + c.lines.map(l => '<div class="mrow">' + l + '</div>').join("") +
-    '<div class="mbtns"><button class="btn ghost" id="cCancel">취소</button><button class="btn" id="cOk">' + c.okLabel + '</button></div></div>';
+    '<div class="mbtns"><button class="btn ghost" id="cCancel">' + (c.cancelLabel || "취소") + '</button><button class="btn" id="cOk">' + c.okLabel + '</button></div></div>';
   document.getElementById("cOk")!.onclick = () => A.confirmOk();
   document.getElementById("cCancel")!.onclick = () => A.confirmCancel();
 }
