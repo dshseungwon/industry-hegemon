@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
 import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures } from "./engine";
-import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, Actions } from "./ui";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
@@ -101,6 +101,7 @@ function paint() {
   else if (phase === "company") renderCompany(app, pickedScenario!, A);
   else if (phase === "claim") renderClaim(app, claimWorld, rosterInfo, A);
   else if (phase === "game" && s) render(s, A);
+  if (phase !== "game") renderGlobalMute(true);   // 인게임 외 모든 화면에 음소거 버튼
 }
 
 function startGame(youIdx: number) {

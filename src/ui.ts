@@ -3,7 +3,7 @@ import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
-import { sfx, isMuted, toggleMute, setBgmMood } from "./audio";
+import { sfx, isMuted, toggleMute, setBgmMood, startBgm, stopBgm } from "./audio";
 
 export interface Actions {
   setSpeed(n: 0 | 1 | 2 | 3): void;
@@ -218,6 +218,7 @@ export function render(s: GameState, A: Actions) {
   renderConfirm(s, A);
   renderBanner(s, A);
   renderEmergency(s, A);
+  renderGlobalMute(false);   // 인게임은 상단바 메뉴의 음소거 사용 → 전역 버튼 숨김
 }
 // 비상 경영 배너 — 현금<0 동안 상시. 파산 카운트다운 + 회생 조치 4종.
 function renderEmergency(s: GameState, A: Actions) {
@@ -595,11 +596,11 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<svg class="titlemap" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="land">' + land + '</g><g class="pulses">' + pulses + '</g></svg>' +
     '<div class="titlevig"></div>' +
     '<div class="hero chairman">' +
-    '<div class="kicker">THE INDUSTRY BRIEF · 실시간 경영 그랜드 전략</div>' +
+    '<div class="kicker">실시간 경영 그랜드 전략 · REAL-TIME BUSINESS STRATEGY</div>' +
     '<div class="crest">🎩</div>' +
     '<h1 class="gametitle">THE CHAIRMAN</h1>' +
     '<div class="kotitle">더 체어맨</div>' +
-    '<p class="lede">당신은 회장이다.<br>매일의 <b>산업 브리프</b>를 읽고 자본을 배치해, 세계 시장을 손에 넣어라.</p>' +
+    '<p class="lede">당신은 회장이다.<br>한 기업을 운영해 변화하는 세계 시장을 공략하고, <b>점유율 1위</b>로 산업을 지배하라.</p>' +
     '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
     (staticBuild
       ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
@@ -629,6 +630,23 @@ export function renderLobby(app: HTMLElement, A: Actions) {
   document.getElementById("lback")!.onclick = () => A.toTitle();
 }
 export function lobbyError(msg: string) { const e = document.getElementById("lerr"); if (e) e.textContent = msg; }
+
+// 전역 음소거 버튼 — 모든 화면(타이틀·로비·선택)에서 우상단에 고정. 인게임은 상단바 메뉴의 🔊가 담당하므로 숨김.
+export function renderGlobalMute(show: boolean) {
+  let b = document.getElementById("globalmute") as HTMLButtonElement | null;
+  if (!show) { if (b) b.style.display = "none"; return; }
+  if (!b) {
+    b = document.createElement("button"); b.id = "globalmute"; document.body.appendChild(b);
+    b.onclick = () => {
+      const m = toggleMute();
+      if (m) stopBgm(); else { startBgm(); sfx("select"); }
+      renderGlobalMute(true);
+    };
+  }
+  b.style.display = "";
+  b.textContent = isMuted() ? "🔇" : "🔊";
+  b.title = "소리 켜기/끄기";
+}
 
 // 온라인 참가자 — 방의 시나리오에서 '남은 기업'을 선택. roster의 human=이미 선택됨.
 export function renderClaim(app: HTMLElement, world: any, roster: { key: string; human: boolean; name: string }[], A: Actions) {

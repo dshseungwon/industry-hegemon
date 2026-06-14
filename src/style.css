@@ -114,6 +114,9 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .fxtot b{width:30px;text-align:right;}
 .fitdx .why{margin-top:7px;font-size:12px;line-height:1.5;color:#dCEBFb;background:#102a48;border:1px solid var(--line);border-radius:8px;padding:6px 8px;}
 .up{color:#aef0c8;} .dn{color:#ff9aa0;}
+/* 전역 음소거 버튼(타이틀·로비·선택 화면 우상단) */
+#globalmute{position:fixed;top:12px;right:12px;z-index:45;width:40px;height:40px;font-size:18px;background:#11294593;border:1px solid var(--line);border-radius:10px;color:var(--ink);backdrop-filter:blur(3px);}
+#globalmute:hover{border-color:var(--gold);}
 /* 비상 경영 배너 (현금<0) */
 #emergency{position:fixed;top:calc(var(--topbar-h,68px) + 6px);left:50%;transform:translateX(-50%);z-index:28;background:#2a0e12f2;border:1px solid #ff5a5f;border-radius:12px;padding:10px 12px;max-width:min(580px,94%);box-shadow:0 8px 30px #000a;animation:empulse 1.7s ease-in-out infinite;}
 .emhead{font-size:13px;font-weight:800;color:#ffd0d4;margin-bottom:8px;text-align:center;}
