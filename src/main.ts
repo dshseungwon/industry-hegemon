@@ -7,7 +7,7 @@ import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
 import { refreshGameData } from "./gamedata";
 import { startTutorial, endTutorial, tutorialSeen, tutorialIsPractice } from "./tutorial";
-import { sfx, unlockAudio, startBgm } from "./audio";
+import { sfx, unlockAudio, startBgm, setBgmMood } from "./audio";
 import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 
 const app = document.getElementById("app")!;
@@ -102,7 +102,7 @@ function paint() {
   else if (phase === "company") renderCompany(app, pickedScenario!, A);
   else if (phase === "claim") renderClaim(app, claimWorld, rosterInfo, A);
   else if (phase === "game" && s) render(s, A);
-  if (phase !== "game") renderGlobalMute(true);   // 인게임 외 모든 화면에 음소거 버튼
+  if (phase !== "game") { renderGlobalMute(true); setBgmMood("title"); }   // 인게임 외: 음소거 버튼 + 타이틀 테마
 }
 
 function startGame(youIdx: number) {

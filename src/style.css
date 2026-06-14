@@ -30,10 +30,10 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .alvl{min-width:54px;text-align:center;font-size:13px;font-weight:800;}
 .country.sel{stroke:#fff;stroke-width:1.4;}
 /* 점령 연출: 리더가 바뀐 국가가 잠깐 번쩍임 */
-.country.flash-win{animation:flashWin .9s ease-out;}
-.country.flash-lose{animation:flashLose .9s ease-out;}
-@keyframes flashWin{0%{filter:brightness(2.6) drop-shadow(0 0 7px var(--gold));}60%{filter:brightness(1.6);}100%{filter:none;}}
-@keyframes flashLose{0%{filter:brightness(.45) drop-shadow(0 0 6px var(--red));}100%{filter:none;}}
+.country.flash-win{animation:flashWin 1.1s ease-out;}
+.country.flash-lose{animation:flashLose 1s ease-out;}
+@keyframes flashWin{0%{filter:brightness(3.2) drop-shadow(0 0 11px var(--gold));}25%{filter:brightness(1.4) drop-shadow(0 0 4px var(--gold));}55%{filter:brightness(2.4) drop-shadow(0 0 9px var(--gold));}100%{filter:none;}}
+@keyframes flashLose{0%{filter:brightness(.38) drop-shadow(0 0 8px var(--red));}50%{filter:brightness(.7);}100%{filter:none;}}
 /* topbar */
 #topbar{position:absolute;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:10px;padding:8px 12px;
   background:linear-gradient(#0a1c30f5,#0a1c30e0);flex-wrap:wrap;}
@@ -125,6 +125,12 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .tutstep{font-size:12px;color:#cfe0f3;line-height:1.4;}
 .tutstep.done{color:var(--mute);text-decoration:line-through;}
 #tutorial .btn{width:100%;margin-top:8px;padding:9px;}
+/* 승리/패배 전체화면 플래시 */
+#screenflash{position:fixed;inset:0;z-index:38;pointer-events:none;opacity:0;}
+#screenflash.show{animation:flashScreen 1.4s ease-out;}
+#screenflash.win{background:radial-gradient(circle at 50% 44%,#ffe9a8cc,#ffb81c44 38%,transparent 70%);}
+#screenflash.lose{background:radial-gradient(circle at 50% 50%,#5a141c99,#2a0a0e66 50%,transparent 82%);}
+@keyframes flashScreen{0%{opacity:0;}14%{opacity:1;}100%{opacity:0;}}
 /* 비상 경영 배너 (현금<0) */
 #emergency{position:fixed;top:calc(var(--topbar-h,68px) + 6px);left:50%;transform:translateX(-50%);z-index:28;background:#2a0e12f2;border:1px solid #ff5a5f;border-radius:12px;padding:10px 12px;max-width:min(580px,94%);box-shadow:0 8px 30px #000a;animation:empulse 1.7s ease-in-out infinite;}
 .emhead{font-size:13px;font-weight:800;color:#ffd0d4;margin-bottom:8px;text-align:center;}

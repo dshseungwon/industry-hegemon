@@ -201,7 +201,7 @@ function recolor(s: GameState) {
       cls += win ? " flash-win" : " flash-lose";
       if (win) gained++; else if (prevLeaders[n] === youKey) lost++;
       // 애니메이션 재생을 위해 클래스 제거(리플로우 후 재적용)
-      window.setTimeout(() => { const el = p; el.setAttribute("class", el.getAttribute("class")!.replace(/ flash-(win|lose)/g, "")); }, 900);
+      window.setTimeout(() => { const el = p; el.setAttribute("class", el.getAttribute("class")!.replace(/ flash-(win|lose)/g, "")); }, 1200);
     }
     if (isOpen) prevLeaders[n] = m!.leader; else if (isFrontier) delete prevLeaders[n];
     p.setAttribute("class", cls);
@@ -574,9 +574,19 @@ function renderConfirm(s: GameState, A: Actions) {
   document.getElementById("cOk")!.onclick = () => A.confirmOk();
   document.getElementById("cCancel")!.onclick = () => A.confirmCancel();
 }
+// 전체화면 승리/패배 플래시 — 1회. (한 게임 오버당 한 번)
+let flashedOver = false;
+export function screenFlash(kind: "win" | "lose") {
+  let el = document.getElementById("screenflash");
+  if (!el) { el = document.createElement("div"); el.id = "screenflash"; document.body.appendChild(el); }
+  el.className = ""; void el.offsetWidth;   // 리플로우로 애니메이션 재생
+  el.className = "show " + kind;
+  window.setTimeout(() => { if (el) el.className = ""; }, 1400);
+}
 function renderBanner(s: GameState, A: Actions) {
   const el = document.getElementById("banner")!;
-  if (!s.ui.over) { el.className = "hide"; el.innerHTML = ""; return; }
+  if (!s.ui.over) { el.className = "hide"; el.innerHTML = ""; flashedOver = false; return; }
+  if (!flashedOver) { flashedOver = true; screenFlash(s.ui.over.won ? "win" : "lose"); }
   el.className = "modalwrap";
   const won = s.ui.over.won; const me = s.firms[s.youIdx];
   const head = won

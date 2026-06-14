@@ -52,8 +52,12 @@ export function sfx(name: string) {
     case "conquer":  tone(c, N.C5, t, 0.1, "triangle", 0.13); tone(c, N.G5, t + 0.03, 0.12, "sine", 0.08); break;
     case "lost":     seq(c, [N.E4, N.C4], 0.05, 0.16, "sine", 0.10); break;
     case "complete": seq(c, [N.C5, N.E5, N.G5, N.C6], 0.06, 0.28, "triangle", 0.16); break;
-    case "win":      seq(c, [N.C5, N.E5, N.G5, N.C6, N.G5, N.C6], 0.1, 0.5, "triangle", 0.18); break;
-    case "lose":     seq(c, [N.G4, N.E4, N.C4, 196.0], 0.13, 0.5, "sine", 0.14); break;
+    case "win":      // 승리 팡파르 — 상승 아르페지오 + 저음 받침
+      seq(c, [N.C5, N.E5, N.G5, N.C6, N.E5, N.G5, N.C6], 0.11, 0.55, "triangle", 0.18);
+      tone(c, N.C4, t, 0.9, "triangle", 0.12); tone(c, N.G4, t + 0.33, 0.7, "triangle", 0.10); break;
+    case "lose":     // 패배 — 느린 하강 단조 종지 + 어두운 저음
+      seq(c, [N.A4, N.F4 || 349.2, N.D4, N.C4], 0.18, 0.7, "sine", 0.15);
+      tone(c, 110.0, t, 1.4, "sine", 0.10); break;
   }
 }
 
@@ -65,14 +69,15 @@ const C:  Chord = { triad: [261.63, 329.63, 392.00], bass: 130.81 };
 const G:  Chord = { triad: [196.00, 246.94, 293.66], bass: 98.00 };
 const Dm: Chord = { triad: [293.66, 349.23, 440.00], bass: 146.83 };
 const E:  Chord = { triad: [329.63, 415.30, 493.88], bass: 164.81 }; // E major — 긴장
-type Mood = "calm" | "crisis" | "strong";
+type Mood = "calm" | "crisis" | "strong" | "title";
 const MOODS: Record<Mood, { prog: Chord[]; dur: number }> = {
   calm:   { prog: [Am, F, C, G], dur: 5.0 },   // vi–IV–I–V, 차분
   crisis: { prog: [Am, F, Dm, E], dur: 2.8 },  // i–VI–iv–V 단조 긴장, 빠르게
   strong: { prog: [C, G, Am, F], dur: 5.2 },   // I–V–vi–IV 밝고 당당
+  title:  { prog: [C, Am, F, G], dur: 5.6 },   // I–vi–IV–V 웅장한 타이틀 테마(멜로디 또렷)
 };
 let mood: Mood = "calm";
-export function setBgmMood(m: "calm" | "crisis" | "strong") { mood = m; }
+export function setBgmMood(m: Mood) { mood = m; }
 let bgmGain: GainNode | null = null;
 let bgmTimer: number | undefined;
 let bgmOn = false;
@@ -88,12 +93,31 @@ function pad(c: AudioContext, freq: number, t0: number, dur: number, peak: numbe
   o.connect(g).connect(bgmGain!);
   o.start(t0); o.stop(t0 + dur + 0.7);
 }
+// 멜로디 한 음 — bgmGain 경유(BGM과 함께 페이드/정지, 음소거 시 BGM이 안 켜져 자동 무음). 짧은 어택.
+function mel(c: AudioContext, freq: number, t0: number, dur: number, peak: number) {
+  if (!bgmGain) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = "triangle"; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(peak, t0 + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(bgmGain);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
 function scheduleChord(c: AudioContext) {
   if (!bgmOn || !bgmGain) return;
-  const m = MOODS[mood]; const ch = m.prog[progIdx % m.prog.length]; progIdx++;
+  const m = MOODS[mood]; const ch = m.prog[progIdx % m.prog.length];
   const dur = m.dur; const t0 = c.currentTime + 0.05;
   for (const f of ch.triad) { pad(c, f, t0, dur, 0.045, "sine", -3); pad(c, f, t0, dur, 0.045, "sine", 3); }
   pad(c, ch.bass, t0, dur, 0.06, "triangle", 0);                 // 저음 루트
+  // 멜로디 레이어 — 코드 위 잔잔한 음으로 단조로움 완화. 타이틀은 더 또렷, 위기는 생략(긴장 유지).
+  if (mood !== "crisis") {
+    const v = mood === "title" ? 0.06 : 0.035;
+    const top = ch.triad[2] * 2, mid = ch.triad[1] * 2;          // 옥타브 위
+    mel(c, top, t0 + dur * 0.12, 1.1, v);
+    mel(c, (progIdx % 2 ? mid : top), t0 + dur * 0.55, 1.0, v * 0.85);
+  }
+  progIdx++;
   bgmTimer = window.setTimeout(() => scheduleChord(c), dur * 1000 - 250); // 살짝 겹쳐 끊김 없이
 }
 export function startBgm() {
