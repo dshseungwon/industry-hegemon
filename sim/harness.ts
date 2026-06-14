@@ -28,7 +28,38 @@ export const policies: Record<string, Policy> = {
       else if (i >= 10 && (f.alloc[nm] || 0) > 1) E.setAlloc(s, fi, nm, -1);
     });
   },
+  // 공격적(부채·증자 풀활용) — 차입으로 밑천을 끌어 역량·테크·할당을 최대치로 밀어붙이고, 적자는 증자/긴급대출로 버팀.
+  aggressive: aggressivePolicy(99),       // 전 시장 광역 확장
+  aggressiveCore: aggressivePolicy(6),    // 상위 6개 시장 집중
 };
+
+// topN = 적합도 상위 몇 개 시장까지 할당을 max로 밀지(광역 vs 집중 변형).
+function aggressivePolicy(topN: number): Policy {
+  return (s, fi) => {
+    const f = s.firms[fi]; if (!f) return;
+    // 1) 차입 최대화 — 현금 여유가 적으면 차입여력을 끌어다 밑천으로
+    const room = E.borrowRoom(s, fi);
+    if (room > 5 && f.cash < 60) E.raiseDebt(s, fi, room);
+    // 2) 테크 전부(선행조건 충족·구매 가능한 것부터)
+    for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost) E.doResearch(s, fi, n.key);
+    // 3) 벤처 3개 상시 — 약한 캡부터 개발
+    const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]);
+    for (const cap of weak) {
+      if (f.ventures.length >= 3) break;
+      if (!f.ventures.some(v => v.cap === cap)) {
+        const p = E.strategyProjects(s, fi).find(x => x.cap === cap);
+        if (p && f.cash >= p.capex) { f.cash -= p.capex; f.ventures.push({ name: "개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); }
+      }
+    }
+    // 4) 모든 벤처 매 틱 가속
+    for (const v of f.ventures) if (f.cash >= 12 && E.canOperate(s, fi, v.cap, "accel")) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); E.setCooldown(s, fi, v.cap, "accel", 2); }
+    // 5) 할당 공격 — 적합도 상위 topN 시장을 max까지(+1씩 램프)
+    const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
+    ranked.forEach((nm, i) => { if (i < topN && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1); });
+    // 6) 파산 회피 — 적자면 증자+긴급대출로 엣지 라이딩(실제 파산만 면함)
+    if (E.insolvent(s, fi)) { if (E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi); E.emergencyLoan(s, fi); }
+  };
+}
 
 export interface RunOpts {
   youIdx?: number;            // 사람이 조종하는 firm 인덱스(나머지는 AI)
