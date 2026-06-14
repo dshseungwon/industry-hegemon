@@ -6,6 +6,7 @@ import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
 import { refreshGameData } from "./gamedata";
+import { startTutorial, endTutorial, tutorialSeen } from "./tutorial";
 import { sfx, unlockAudio, startBgm } from "./audio";
 import { connect, defaultUrl, NetClient, RosterEntry } from "./net";
 
@@ -113,6 +114,7 @@ function startGame(youIdx: number) {
   // 첫 플레이엔 시작 가이드 1회 노출(이후엔 상단 ❓에서 다시 볼 수 있음)
   let seen = false; try { seen = localStorage.getItem("ih_guide_seen") === "1"; } catch { /* noop */ }
   if (!seen) { s.ui.confirm = introSpec(); try { localStorage.setItem("ih_guide_seen", "1"); } catch { /* noop */ } }
+  if (!online && !tutorialSeen()) startTutorial(s);   // 첫 솔로 게임 — 단계 가이드 체크리스트
   render(s, A);
   schedule();
 }
@@ -155,6 +157,8 @@ const A: Actions = {
     }
     sfx("invest"); startGame(youIdx);
   },
+  skipTutorial() { endTutorial(); if (s) render(s, A); },
+  replayTutorial() { if (s) { startTutorial(s); s.ui.panel = "none"; render(s, A); } },
   // 참가자: 남은 기업 중 선택
   claimFirm(idx: number) { sfx("invest"); net?.claim(idx); },
   spectate() { if (claimWorld) { youIdxNet = -1; phase = "game"; applyWorld(claimWorld); roomBadge(); flash("관전 모드"); } },

@@ -3,6 +3,7 @@ import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
+import { tutorialActive, tutorialSteps, tutorialAllDone } from "./tutorial";
 import { sfx, isMuted, toggleMute, setBgmMood, startBgm, stopBgm } from "./audio";
 
 export interface Actions {
@@ -18,6 +19,8 @@ export interface Actions {
   pickCompany(youIdx: number): void;
   claimFirm(idx: number): void;
   spectate(): void;
+  skipTutorial(): void;
+  replayTutorial(): void;
   toTitle(): void;
   toIndustry(): void;
   toCompany(): void;
@@ -219,6 +222,19 @@ export function render(s: GameState, A: Actions) {
   renderBanner(s, A);
   renderEmergency(s, A);
   renderGlobalMute(false);   // 인게임은 상단바 메뉴의 음소거 사용 → 전역 버튼 숨김
+  renderTutorial(s, A);
+}
+// 첫 경영 가이드 체크리스트(진행 시 자동 체크)
+function renderTutorial(s: GameState, A: Actions) {
+  let el = document.getElementById("tutorial");
+  if (!tutorialActive()) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.id = "tutorial"; document.body.appendChild(el); }
+  const steps = tutorialSteps(s), allDone = tutorialAllDone(s);
+  el.innerHTML = '<div class="tuthead">🎓 첫 경영 가이드' + (allDone ? ' — 완료!' : '') + '<button class="x" id="tutSkip">✕</button></div>' +
+    '<div class="tutsteps">' + steps.map(x => '<div class="tutstep' + (x.done ? ' done' : '') + '">' + (x.done ? '✅' : '⬜') + ' ' + x.label + '</div>').join("") + '</div>' +
+    (allDone ? '<button class="btn" id="tutDone">좋아요, 시작!</button>' : '<div class="mute small">순서대로 해보세요 · 언제든 ✕로 닫기</div>');
+  document.getElementById("tutSkip")!.onclick = () => A.skipTutorial();
+  const d = document.getElementById("tutDone"); if (d) d.onclick = () => A.skipTutorial();
 }
 // 비상 경영 배너 — 현금<0 동안 상시. 파산 카운트다운 + 회생 조치 4종.
 function renderEmergency(s: GameState, A: Actions) {
@@ -318,6 +334,7 @@ function renderPanel(s: GameState, A: Actions) {
   const reI = document.getElementById("mReIndustry"); if (reI) reI.onclick = () => A.toIndustry();
   const reT = document.getElementById("mToTitle"); if (reT) reT.onclick = () => A.toTitle();
   o.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
+  const rt = document.getElementById("replayTut"); if (rt) rt.onclick = () => A.replayTutorial();
 }
 
 function panelBody(s: GameState, panel: string): string {
@@ -407,6 +424,7 @@ function panelBody(s: GameState, panel: string): string {
       '🏢 기업 내부 · 🔬 연구개발(역량·테크) · 🏛️ 로비(시장 선호를 우리에게 유리하게)<br>' +
       '📈 전략: <b>내부개발</b>(역량) · <b>M&A</b>(인수) · <b>재무</b>(부채) · <b>해외진출</b>' + '</div>';
     h += '<div class="sect">팁</div><div class="card mute small">점유율 <b class="red">10% 미만</b>이면 위기입니다. 약한 시장을 진단해 맞는 역량에 투자하거나, 약한 경쟁사를 <b>M&A</b>로 흡수해 단번에 점유율을 끌어올리세요.</div>';
+    h += '<button class="btn ghost" id="replayTut" style="width:100%;margin-top:8px">🎓 첫 경영 가이드 다시 보기</button>';
   } else if (panel === "intel") {
     const it = industryIntel(scenarioGics(s.scenario.key));
     h += '<div class="card mute small">현재 산업 <b>' + esc(it.ko) + '</b> — The Industry Brief 실데이터. KSF·실제 1위 기업을 읽고 어디에 투자할지 판단하세요.</div>';
