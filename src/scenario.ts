@@ -22,6 +22,16 @@ const SECTOR_PRESET: Record<string, Partial<Record<Cap, number>>> = {
 };
 const DEFAULT_PRESET: Partial<Record<Cap, number>> = { tech: .25, brand: .25, scale: .25, global: .25 };
 
+// GICS 섹터별 시장 연 성장률(근사) — 산업마다 파이가 자라는 속도가 달라 '템포'가 갈림.
+// IT/헬스케어는 빠르게, 유틸리티/에너지/소재는 느리게. tick에서 월율로 환산해 매월 적용.
+const SECTOR_GROWTH: Record<string, number> = {
+  "Information Technology": .09, "Communication Services": .05, "Consumer Discretionary": .05,
+  "Consumer Staples": .03, "Health Care": .07, "Financials": .04, "Industrials": .04,
+  "Materials": .03, "Energy": .02, "Utilities": .02, "Real Estate": .03,
+};
+const DEFAULT_GROWTH = .04;
+const monthlyGrowth = (annual: number) => Math.pow(1 + annual, 1 / 12) - 1;
+
 // 국가별 성향(약한 tilt) — 산업이 같아도 나라마다 KSF가 조금씩 달라 "어디가 약한지" 읽는 재미 유지.
 const COUNTRY_TILT: Record<string, Cap> = {
   "United States of America": "brand", "China": "scale", "India": "scale", "Japan": "tech",
@@ -110,6 +120,7 @@ export function buildScenario(meta: BriefMeta): IndustryScenario {
     key: "ind-" + g, name: meta.industry_en, ko: meta.industry_ko, sector: meta.sector,
     headline: meta.headline_ko, reportUrl: reportUrl(meta), preset: !gd, real: !!gd,
     markets: marketsFor(preset), firms,
+    growth: monthlyGrowth(SECTOR_GROWTH[meta.sector] ?? DEFAULT_GROWTH),
   };
 }
 

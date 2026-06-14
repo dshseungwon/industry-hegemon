@@ -28,6 +28,7 @@ export interface IndustryScenario {
   real?: boolean;                  // true = The Industry Brief 실데이터(KSF·경쟁사) 사용
   markets: MarketDef[];
   firms: FirmDef[];                // [0]은 기본 플레이어 후보(보통 한국 1위)
+  growth?: number;                 // 시장 월 성장률(섹터별). tick에서 매월 시장 규모에 적용.
 }
 export interface Venture {
   name: string; cap: Cap; payoff: number; progress: number; risk: number;
@@ -35,7 +36,7 @@ export interface Venture {
 }
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
 export interface GameEvent { title: string; note: string; id: number; icon: string; }
-export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; real?: boolean; }
+export interface ScenarioMeta { key: string; name: string; ko: string; sector: string; headline: string; reportUrl: string; preset: boolean; real?: boolean; growth?: number; }
 export interface GameState {
   date: number;              // months since start
   speed: 0 | 1 | 2 | 3;      // 0 = paused
@@ -99,7 +100,7 @@ export const BUILTIN_SCENARIO: IndustryScenario = {
   sector: "Information Technology",
   headline: "프리미엄·가성비·기술이 맞붙는 글로벌 스마트폰 패권전.",
   reportUrl: "https://dshseungwon.github.io/daily-industry-report/",
-  preset: false, markets: MARKET_DEFS, firms: FIRM_DEFS,
+  preset: false, markets: MARKET_DEFS, firms: FIRM_DEFS, growth: 0.0072,   // IT ≈ 연 9% → 월 0.72%
 };
 
 export const CODEX = [
@@ -160,7 +161,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: f.size, leader: youKey }; }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
-    scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real },
+    scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real, growth: scenario.growth },
     firms, youIdx, markets, marketOrder: order,
     trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
     event: { title: "", note: "", id: 0, icon: "" },

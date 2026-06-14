@@ -302,21 +302,39 @@ const TRENDS: { bias: Cap; headline: string; note: string }[] = [
   { bias: "scale", headline: "글로벌 경기 둔화", note: "가성비 수요가 늘어납니다." },
   { bias: "global", headline: "신흥시장 개방", note: "글로벌 접근이 중요해집니다." },
 ];
+// 산업 평균 KSF(전 시장 pref 평균) — 이 산업이 '본질적으로' 무엇을 원하는지. 트렌드 가중·문구에 사용.
+function industryKSF(s: GameState): Record<Cap, number> {
+  const sum = { tech: 0, brand: 0, scale: 0, global: 0 } as Record<Cap, number>;
+  const ns = s.marketOrder; if (!ns.length) return sum;
+  for (const n of ns) { const m = s.markets[n]; for (const k of CAPS) sum[k] += m.pref[k] || 0; }
+  for (const k of CAPS) sum[k] /= ns.length; return sum;
+}
+// 산업 KSF로 기울어진 트렌드 추첨 — 그 산업이 중시하는 역량 쪽 트렌드가 더 자주 뜸(균등 랜덤 아님).
+function pickTrend(s: GameState): typeof TRENDS[number] {
+  const ksf = industryKSF(s);
+  const w = TRENDS.map(t => Math.pow((ksf[t.bias] || 0.001) + 0.02, 1.6));   // +0.02: 비주력 KSF도 가끔은 등장
+  let tot = 0; for (const x of w) tot += x; let r = Math.random() * tot;
+  for (let i = 0; i < TRENDS.length; i++) { r -= w[i]; if (r <= 0) return TRENDS[i]; }
+  return TRENDS[TRENDS.length - 1];
+}
 export function tick(s: GameState) {
   if (s.ui.over) return;
   s.fx = [];
   s.date++;
-  // trend cycle
+  // 시장 성장 — 산업(섹터)별 속도로 매월 시장 규모가 커짐. float로 누적(작은 시장도 매끄럽게 성장).
+  const grow = s.scenario.growth || 0;
+  if (grow) for (const n in s.markets) s.markets[n].size *= (1 + grow);
+  // trend cycle — 산업 KSF로 기울어진 추첨 + 산업명 붙인 헤드라인
   if (s.date >= s.trend.until) {
-    const t = TRENDS[ri(0, TRENDS.length - 1)];
-    s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: t.headline, note: t.note }; pushLog(s, "📰 " + t.headline);
-    s.event = { title: t.headline, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
+    const t = pickTrend(s); const head = "「" + s.scenario.ko + "」 " + t.headline;
+    s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: head, note: t.note }; pushLog(s, "📰 " + head);
+    s.event = { title: head, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
   }
   // 정책/규제 이벤트 — 한 시장의 환경(규모·KSF)을 바꿈(법률·정치 흐름). 진단해서 대응해야 함.
   if (s.date > 1 && Math.random() < 0.11) {
-    const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]];
-    if (Math.random() < 0.5) { m.size = Math.max(20, Math.round(m.size * 0.88)); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " 규제 강화"); s.event = { title: m.ko + " 규제 강화", note: "시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
-    else { m.size = Math.round(m.size * 1.12); const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " 시장 개방/부양"); s.event = { title: m.ko + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
+    const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]]; const ind = s.scenario.ko;
+    if (Math.random() < 0.5) { m.size = Math.max(20, m.size * 0.88); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " · " + ind + " 규제 강화"); s.event = { title: m.ko + " " + ind + " 규제 강화", note: "현지 시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
+    else { m.size = m.size * 1.12; const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " · " + ind + " 시장 개방/부양"); s.event = { title: m.ko + " " + ind + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
     s.fx.push("trend");
   }
   // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)

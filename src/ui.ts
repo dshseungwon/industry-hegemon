@@ -375,7 +375,7 @@ function panelBody(s: GameState, panel: string): string {
     else fr.forEach(m => {
       const started = (you.alloc[m.name] || 0) > 0;
       const ec = entryCost(s, m.name); const broke = !started && you.cash < ec;
-      h += '<button class="proj enter" data-n="' + esc(m.name) + '"' + (started || broke ? ' disabled' : '') + '><div class="h">🌏 ' + m.ko + (started ? '<span class="bdg go">전개 중</span>' : '<span class="bdg">진입장벽 $' + ec + 'B</span>') + '</div><div class="e">규모 $' + m.size + 'B · 아무도 없는 시장 — 진출 시 100%로 시작' + (broke ? ' · <b>자금 부족</b>' : '') + '</div></button>';
+      h += '<button class="proj enter" data-n="' + esc(m.name) + '"' + (started || broke ? ' disabled' : '') + '><div class="h">🌏 ' + m.ko + (started ? '<span class="bdg go">전개 중</span>' : '<span class="bdg">진입장벽 $' + ec + 'B</span>') + '</div><div class="e">규모 $' + Math.round(m.size) + 'B · 아무도 없는 시장 — 진출 시 100%로 시작' + (broke ? ' · <b>자금 부족</b>' : '') + '</div></button>';
     });
   } else if (panel === "tech") {
     // 1) 진행 중인 개발(동시 여러 개) — 가속/리스크/취소
@@ -499,7 +499,7 @@ function renderSheet(s: GameState, A: Actions) {
     el.className = "sheet";
     el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>🌏 ' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
       '<div class="kv"><span>상태</span><b class="mute">' + (starting ? '진출 전개 중…' : '미진출 시장') + '</b></div>' +
-      '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
+      '<div class="kv"><span>시장 규모</span><b>$' + Math.round(m.size) + 'B</b></div>' +
       '<div class="kv"><span>진입장벽(일시금)</span><b>$' + ec + 'B</b></div>' +
       '<div class="card mute small">진출하려면 <b>진입장벽 돌파 비용 $' + ec + 'B</b>(목돈)를 한 번 지불합니다. 이후 본진에서 자원이 전개돼 <b>아무도 없는 시장이라 100%로 진입</b>합니다. 경쟁사가 들어오면 영향력으로 다툽니다. (1단계 유지는 무료, 집중할수록 월 유지비)</div>' +
       '<button class="actbtn" id="enterBtn"' + (starting || broke ? ' disabled' : '') + '>' + (starting ? '🚩 진출 전개 중…' : broke ? '💸 자금 부족 ($' + ec + 'B 필요)' : '🚩 진출 — 진입장벽 $' + ec + 'B 지불') + '</button>';
@@ -513,7 +513,7 @@ function renderSheet(s: GameState, A: Actions) {
   el.className = "sheet";
   const sharePie = pieChart(s.firms.map(f => ({ label: f.name, value: shareOf(s, m, f.key), color: f.col })).sort((a, b) => b.value - a.value));
   el.innerHTML = '<button class="x" id="closeSheet">✕</button><h3>' + m.ko + ' <span class="mute small">' + m.name + '</span></h3>' +
-    '<div class="kv"><span>시장 규모</span><b>$' + m.size + 'B</b></div>' +
+    '<div class="kv"><span>시장 규모</span><b>$' + Math.round(m.size) + 'B</b></div>' +
     '<div class="kv"><span>현재 1위</span><b style="color:' + lead.col + '">' + lead.name + '</b></div>' +
     '<div class="kv"><span>소비자 핵심 선호</span><b style="color:' + CAPCOL[top] + '">' + CAPKO[top] + '</b></div>' +
     '<div class="sect">기업별 점유율 · 소비자 선호(KSF)</div>' +
