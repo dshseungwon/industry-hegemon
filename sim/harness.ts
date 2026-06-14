@@ -34,15 +34,24 @@ export const policies: Record<string, Policy> = {
 };
 
 // topN = 적합도 상위 몇 개 시장까지 할당을 max로 밀지(광역 vs 집중 변형).
+// ⚠️ 실게임(main.ts) UI 규칙을 충실히 준수: ①적자(cash<0)면 할당 못 올림(main.ts:290) →
+// 비상수단(긴축·증자·긴급대출)으로 흑자 전환 우선. ②차입은 $40/클릭(main.ts:224). ③돈 없으면 못 씀.
 function aggressivePolicy(topN: number): Policy {
   return (s, fi) => {
     const f = s.firms[fi]; if (!f) return;
-    // 1) 차입 최대화 — 현금 여유가 적으면 차입여력을 끌어다 밑천으로
-    const room = E.borrowRoom(s, fi);
-    if (room > 5 && f.cash < 60) E.raiseDebt(s, fi, room);
-    // 2) 테크 전부(선행조건 충족·구매 가능한 것부터) — 비용 차감(실게임 main.ts:282와 동일)
+    // [적자 모드] 회생 우선 — 긴축으로 유지비↓ + 증자·긴급대출로 적자 메움. 확장(할당↑) 금지.
+    if (E.insolvent(s, fi)) {
+      E.emergencyAusterity(s, fi);
+      if (E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi);
+      E.emergencyLoan(s, fi);
+      return;
+    }
+    // [흑자 모드] 차입은 $40 단위 버튼 반복(쿨다운 없음)으로 현금 버퍼 확보(차입여력 내).
+    let guard = 0;
+    while (f.cash < 80 && E.borrowRoom(s, fi) >= 5 && guard++ < 40) E.raiseDebt(s, fi, 40);
+    // 테크(비용 차감) — 선행조건·현금 충족분
     for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost) { f.cash -= n.cost; E.doResearch(s, fi, n.key); }
-    // 3) 벤처 3개 상시 — 약한 캡부터 개발
+    // 벤처 3개 상시 — 약한 캡부터
     const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]);
     for (const cap of weak) {
       if (f.ventures.length >= 3) break;
@@ -51,13 +60,13 @@ function aggressivePolicy(topN: number): Policy {
         if (p && f.cash >= p.capex) { f.cash -= p.capex; f.ventures.push({ name: "개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); }
       }
     }
-    // 4) 모든 벤처 매 틱 가속
+    // 벤처 가속
     for (const v of f.ventures) if (f.cash >= 12 && E.canOperate(s, fi, v.cap, "accel")) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); E.setCooldown(s, fi, v.cap, "accel", 2); }
-    // 5) 할당 공격 — 적합도 상위 topN 시장을 max까지(+1씩 램프)
-    const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
-    ranked.forEach((nm, i) => { if (i < topN && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1); });
-    // 6) 파산 회피 — 적자면 증자+긴급대출로 엣지 라이딩(실제 파산만 면함)
-    if (E.insolvent(s, fi)) { if (E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi); E.emergencyLoan(s, fi); }
+    // 할당↑ — 흑자이고 현금 버퍼($30+) 있을 때만(유지비 충격 대비). 적자면 위에서 이미 return.
+    if (f.cash > 30) {
+      const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
+      ranked.forEach((nm, i) => { if (i < topN && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1); });
+    }
   };
 }
 
