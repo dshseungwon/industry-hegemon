@@ -21,7 +21,6 @@ export interface Actions {
   spectate(): void;
   skipTutorial(): void;
   replayTutorial(): void;
-  startTutorialGame(): void;
   toTitle(): void;
   toIndustry(): void;
   toCompany(): void;
@@ -636,14 +635,12 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<div class="kotitle">더 체어맨</div>' +
     '<p class="lede">당신은 회장이다.<br>한 기업을 운영해 변화하는 세계 시장을 공략하고, <b>점유율 1위</b>로 산업을 지배하라.</p>' +
     '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
-    '<button class="btn big ghost" id="tutBtn">🎓 튜토리얼 (연습)</button>' +
     (staticBuild
       ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
       : '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>') +
     '<p class="src">데이터: <a href="https://dshseungwon.github.io/daily-industry-report/" target="_blank" rel="noopener">The Industry Brief</a></p>' +
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
-  document.getElementById("tutBtn")!.onclick = () => A.startTutorialGame();
   const ob = document.getElementById("toOnline"); if (ob) ob.onclick = () => A.goOnline();
 }
 
