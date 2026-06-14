@@ -40,8 +40,8 @@ function aggressivePolicy(topN: number): Policy {
     // 1) 차입 최대화 — 현금 여유가 적으면 차입여력을 끌어다 밑천으로
     const room = E.borrowRoom(s, fi);
     if (room > 5 && f.cash < 60) E.raiseDebt(s, fi, room);
-    // 2) 테크 전부(선행조건 충족·구매 가능한 것부터)
-    for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost) E.doResearch(s, fi, n.key);
+    // 2) 테크 전부(선행조건 충족·구매 가능한 것부터) — 비용 차감(실게임 main.ts:282와 동일)
+    for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost) { f.cash -= n.cost; E.doResearch(s, fi, n.key); }
     // 3) 벤처 3개 상시 — 약한 캡부터 개발
     const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]);
     for (const cap of weak) {
