@@ -1,6 +1,6 @@
 // 자동 생성 스냅샷 — The Industry Brief 메타데이터 (dshseungwon/daily-industry-report).
 // 출처: https://raw.githubusercontent.com/dshseungwon/daily-industry-report/main/reports.json
-// gics별 최신 리포트만 유지. 갱신: reports.json을 다시 fetch해 재생성.
+// gics별 최신 리포트만 유지(gics 오름차순). 갱신: `npm run gen:reports`.
 export interface BriefMeta {
   industry_en: string; industry_ko: string; sector: string; gics: string;
   global_company: string; korea_company: string; headline_ko: string; file: string;
@@ -9,54 +9,214 @@ export const REPORT_BASE = "https://dshseungwon.github.io/daily-industry-report/
 export const reportUrl = (m: BriefMeta) => REPORT_BASE + m.file;
 export const BRIEFS: BriefMeta[] = [
   {
-    "industry_en": "Diversified Telecommunication Services",
-    "industry_ko": "종합 통신 서비스",
-    "sector": "Communication Services",
-    "gics": "501010",
-    "global_company": "Deutsche Telekom",
-    "korea_company": "KT Corporation",
-    "headline_ko": "종합 통신사들이 단순 연결에서 AI·데이터센터 인프라로 무게중심을 옮기고 있습니다.",
-    "file": "reports/2026-06-07/industry-report_2026-06-07_501010_diversified-telecom.html"
+    "industry_en": "Energy Equipment & Services",
+    "industry_ko": "에너지 장비 및 서비스",
+    "sector": "Energy",
+    "gics": "101010",
+    "global_company": "SLB",
+    "korea_company": "Hanwha Ocean (proxy)",
+    "headline_ko": "에너지 장비·서비스 업계는 투자 정체 구간을 인수합병으로 돌파하고 있습니다. 시추 용선료가 바닥을 다지는 사이 SLB, 베이커휴즈, 사이펨7은 생산·LNG·디지털에서 성장을 사들이고 있는 것으로 파악됩니다.",
+    "file": "reports/2026-06-10/industry-report_2026-06-10_101010_energy-equipment-services.html"
   },
   {
-    "industry_en": "Entertainment",
-    "industry_ko": "엔터테인먼트",
-    "sector": "Communication Services",
-    "gics": "502020",
-    "global_company": "Netflix",
-    "korea_company": "KRAFTON",
-    "headline_ko": "엔터테인먼트의 이익은 대형 스트리밍 플랫폼과 IP 보유 기업으로 쏠리고 있습니다. 넷플릭스는 광고·라이브·게임으로 무게를 옮기고 파라마운트-WBD 합병이 할리우드를 재편하는 가운데, 한국의 게임·K팝 선두 기업들은 소수 IP에 기댄 채 사상 최대 매출을 올렸습니다.",
-    "file": "reports/2026-06-10/industry-report_2026-06-10_502020_entertainment.html"
+    "industry_en": "Oil, Gas & Consumable Fuels",
+    "industry_ko": "석유·가스·소비연료",
+    "sector": "Energy",
+    "gics": "101020",
+    "global_company": "Saudi Aramco",
+    "korea_company": "SK Innovation",
+    "headline_ko": "석유·가스는 OPEC+와 2026년 호르무즈 해협 공급 충격에 좌우되는 약 8조 달러 규모의 복합 산업입니다. 사우디 아람코가 시가총액 기준 세계 1위이며, 상류 부문이 없는 한국은 정유사 SK이노베이션을 통해 하류에서 경쟁하고 있습니다.",
+    "file": "reports/2026-06-11/industry-report_2026-06-11_101020_oil-gas-consumable-fuels.html"
   },
   {
-    "industry_en": "Interactive Media & Services",
-    "industry_ko": "인터랙티브 미디어·서비스",
-    "sector": "Communication Services",
-    "gics": "502030",
-    "global_company": "Alphabet (Google)",
-    "korea_company": "NAVER",
-    "headline_ko": "검색·소셜 플랫폼이 글로벌 광고의 약 73%를 가져가는 가운데, 경쟁의 축은 이제 AI 답변으로 옮겨가고 있습니다. 시가총액 4조 달러를 넘어선 알파벳이 세계 1위이며, 국내 검색 점유율 63%의 네이버가 카카오에 맞서 안방 시장을 지키고 있습니다.",
-    "file": "reports/2026-06-11/industry-report_2026-06-11_502030_interactive-media-services.html"
+    "industry_en": "Chemicals",
+    "industry_ko": "화학",
+    "sector": "Materials",
+    "gics": "151010",
+    "global_company": "BASF SE",
+    "korea_company": "LG Chem",
+    "headline_ko": "중국발 공급과잉이 화학 산업의 깊은 다운사이클을 몰고 와, 생존 기업은 스페셜티 소재로 무게중심을 옮기고 있습니다.",
+    "file": "reports/2026-06-12/industry-report_2026-06-12_151010_chemicals.html"
   },
   {
-    "industry_en": "Media",
-    "industry_ko": "미디어",
-    "sector": "Communication Services",
-    "gics": "502010",
-    "global_company": "Omnicom",
-    "korea_company": "Cheil Worldwide",
-    "headline_ko": "광고 시장은 1조 달러를 넘어섰으나 성장은 모두 디지털에 쏠리고, 옴니콤-IPG 합병으로 규모가 통합되며 이제 데이터와 AI가 마진을 가릅니다.",
-    "file": "reports/2026-06-09/industry-report_2026-06-09_502010_media.html"
+    "industry_en": "Construction Materials",
+    "industry_ko": "건축자재",
+    "sector": "Materials",
+    "gics": "151020",
+    "global_company": "CRH plc",
+    "korea_company": "Ssangyong C&E",
+    "headline_ko": "글로벌 시멘트 시장은 CRH가 선두를 지키는 가운데 EU 탄소 규제가 비용을 높이고 국내 업체는 통합에 나서고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_151020_construction-materials.html"
   },
   {
-    "industry_en": "Wireless Telecommunication Services",
-    "industry_ko": "무선 통신 서비스",
-    "sector": "Communication Services",
-    "gics": "501020",
-    "global_company": "China Mobile",
-    "korea_company": "SK Telecom",
-    "headline_ko": "포화된 자본집약 통신사들이 ARPU 정체와 보안의 사활화 속에 AI·데이터센터로 전환하고 있습니다.",
-    "file": "reports/2026-06-08/industry-report_2026-06-08_501020_wireless-telecom.html"
+    "industry_en": "Containers & Packaging",
+    "industry_ko": "용기·포장",
+    "sector": "Materials",
+    "gics": "151030",
+    "global_company": "Smurfit WestRock",
+    "korea_company": "Dongwon Systems",
+    "headline_ko": "초대형 인수와 EU 포장 규제가 파편화된 산업을 재편하고 있습니다.",
+    "file": "reports/2026-06-04/industry-report_2026-06-04_151030_containers-packaging.html"
+  },
+  {
+    "industry_en": "Metals & Mining",
+    "industry_ko": "금속·광업",
+    "sector": "Materials",
+    "gics": "151040",
+    "global_company": "BHP Group",
+    "korea_company": "POSCO Holdings",
+    "headline_ko": "BHP는 사상 최고치의 구리·금 가격과 저비용 광체로 번창하는 반면, 철광석을 매입하는 포스코홀딩스의 철강 마진은 약한 업황에 눌려 있습니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_151040_metals-and-mining.html"
+  },
+  {
+    "industry_en": "Paper & Forest Products",
+    "industry_ko": "제지·임산물",
+    "sector": "Materials",
+    "gics": "151050",
+    "global_company": "Smurfit WestRock",
+    "korea_company": "Hansol Paper",
+    "headline_ko": "펄프 가격 급락이 제지사를 압박하는 와중에도, 플라스틱 규제가 종이 포장 수요를 끌어올리고 있습니다.",
+    "file": "reports/2026-06-06/industry-report_2026-06-06_151050_paper-forest-products.html"
+  },
+  {
+    "industry_en": "Aerospace & Defense",
+    "industry_ko": "항공우주·방위",
+    "sector": "Industrials",
+    "gics": "201010",
+    "global_company": "Lockheed Martin",
+    "korea_company": "Hanwha Aerospace",
+    "headline_ko": "재무장 흐름이 다년간의 방산 상승 사이클을 떠받치는 가운데, 한국의 방산 수출이 급증하고 있습니다.",
+    "file": "reports/2026-06-07/industry-report_2026-06-07_201010_aerospace-defense.html"
+  },
+  {
+    "industry_en": "Building Products",
+    "industry_ko": "건축자재",
+    "sector": "Industrials",
+    "gics": "201020",
+    "global_company": "Saint-Gobain",
+    "korea_company": "KCC",
+    "headline_ko": "관세와 고금리가 분절된 시장을 압박하는 가운데, 업계는 저탄소·고사양 제품으로 무게중심을 옮기고 있습니다.",
+    "file": "reports/2026-06-08/industry-report_2026-06-08_201020_building-products.html"
+  },
+  {
+    "industry_en": "Construction & Engineering",
+    "industry_ko": "건설·엔지니어링",
+    "sector": "Industrials",
+    "gics": "201030",
+    "global_company": "China State Construction Engineering",
+    "korea_company": "Hyundai E&C",
+    "headline_ko": "거대하나 분절된 건설 시장은 2029년 약 20조 달러를 향해 연 5.6% 성장하지만, 얇은 시공 마진이 글로벌 1위 CSCEC마저 압박하고 한국 현대건설을 2001년 이래 첫 영업적자로 내몰았습니다.",
+    "file": "reports/2026-06-09/industry-report_2026-06-09_201030_construction-engineering.html"
+  },
+  {
+    "industry_en": "Electrical Equipment",
+    "industry_ko": "전력기기",
+    "sector": "Industrials",
+    "gics": "201040",
+    "global_company": "ABB",
+    "korea_company": "HD Hyundai Electric",
+    "headline_ko": "전력기기는 연 약 6% 성장하는 약 1조 7,500억 달러 규모의 시장으로, AI 전력·전력망 슈퍼사이클을 타고 변압기 납기가 2년을 넘어선 것으로 파악됩니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_201040_electrical-equipment.html"
+  },
+  {
+    "industry_en": "Industrial Conglomerates",
+    "industry_ko": "복합기업(산업재)",
+    "sector": "Industrials",
+    "gics": "201050",
+    "global_company": "Siemens AG",
+    "korea_company": "Samsung C&T",
+    "headline_ko": "행동주의와 상법 개정이 복합기업 할인을 허무는 국면입니다.",
+    "file": "reports/2026-06-05/industry-report_2026-06-05_201050_industrial-conglomerates.html"
+  },
+  {
+    "industry_en": "Machinery",
+    "industry_ko": "기계",
+    "sector": "Industrials",
+    "gics": "201060",
+    "global_company": "Caterpillar",
+    "korea_company": "Doosan Bobcat",
+    "headline_ko": "AI 데이터센터의 전력 수요가 기계 산업의 새로운 성장 엔진으로 부상하고 있습니다.",
+    "file": "reports/2026-06-06/industry-report_2026-06-06_201060_machinery.html"
+  },
+  {
+    "industry_en": "Trading Companies & Distributors",
+    "industry_ko": "종합상사·유통",
+    "sector": "Industrials",
+    "gics": "201070",
+    "global_company": "Mitsubishi Corporation",
+    "korea_company": "POSCO International",
+    "headline_ko": "버핏의 베팅과 에너지 전환이 종합상사 모델을 다시 짜고 있습니다.",
+    "file": "reports/2026-06-07/industry-report_2026-06-07_201070_trading-companies-distributors.html"
+  },
+  {
+    "industry_en": "Commercial Services & Supplies",
+    "industry_ko": "상업 서비스·용품",
+    "sector": "Industrials",
+    "gics": "202010",
+    "global_company": "Waste Management",
+    "korea_company": "S-1 Corporation",
+    "headline_ko": "인건비와 규제가 옥죄는 가운데, 가격 결정력과 통합이 폐기물·시설관리 대형사를 끌어올리고 있습니다.",
+    "file": "reports/2026-06-08/industry-report_2026-06-08_202010_commercial-services-supplies.html"
+  },
+  {
+    "industry_en": "Professional Services",
+    "industry_ko": "전문 서비스",
+    "sector": "Industrials",
+    "gics": "202020",
+    "global_company": "ADP",
+    "korea_company": "Saramin",
+    "headline_ko": "AI가 전문 서비스를 고마진 데이터 사업과 압박받는 인력 사업으로 가르는 가운데, 글로벌은 ADP가 선두이며 한국의 가장 가까운 상장 대용주는 사람인입니다.",
+    "file": "reports/2026-06-09/industry-report_2026-06-09_202020_professional-services.html"
+  },
+  {
+    "industry_en": "Air Freight & Logistics",
+    "industry_ko": "항공화물·물류",
+    "sector": "Industrials",
+    "gics": "203010",
+    "global_company": "FedEx",
+    "korea_company": "CJ Logistics",
+    "headline_ko": "항공화물은 2025년 사상 최대 물동량을 기록했습니다. 다만 소액 면세 제도가 사라지면서 물류 흐름이 아시아-미국에서 아시아-유럽으로 옮겨가고 있으며, 통관 역량을 갖춘 통합 물류사가 유리해진 상황입니다.",
+    "file": "reports/2026-06-10/industry-report_2026-06-10_203010_air-freight-logistics.html"
+  },
+  {
+    "industry_en": "Passenger Airlines",
+    "industry_ko": "여객 항공",
+    "sector": "Industrials",
+    "gics": "203020",
+    "global_company": "Delta Air Lines",
+    "korea_company": "Korean Air",
+    "headline_ko": "여객 항공은 사상 최대 수송량을 회복했으나, 2026년 6월 항공유 가격 급등으로 IATA의 2026년 이익 전망이 230억 달러로 반토막 났습니다. 시가총액 기준 글로벌 1위는 델타항공이며, 대한항공은 아시아나 인수를 마무리하며 통합 단일 항공사로 나아가고 있습니다.",
+    "file": "reports/2026-06-11/industry-report_2026-06-11_203020_passenger-airlines.html"
+  },
+  {
+    "industry_en": "Marine Transportation",
+    "industry_ko": "해상운송",
+    "sector": "Industrials",
+    "gics": "203030",
+    "global_company": "MSC",
+    "korea_company": "HMM",
+    "headline_ko": "홍해 우회로 해상운임이 반등했으나, 역대급 수주잔고가 공급 과잉 위험으로 남아 있습니다.",
+    "file": "reports/2026-06-12/industry-report_2026-06-12_203030_marine-transportation.html"
+  },
+  {
+    "industry_en": "Ground Transportation",
+    "industry_ko": "육상운송",
+    "sector": "Industrials",
+    "gics": "203040",
+    "global_company": "Union Pacific",
+    "korea_company": "CJ Logistics",
+    "headline_ko": "운임이 저점에서 회복되는 가운데 Union Pacific은 대륙횡단 합병을 추진하고 CJ대한통운은 택배 1위를 지키고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_203040_ground-transportation.html"
+  },
+  {
+    "industry_en": "Transportation Infrastructure",
+    "industry_ko": "교통 인프라",
+    "sector": "Industrials",
+    "gics": "203050",
+    "global_company": "Aena",
+    "korea_company": "맥쿼리한국인프라투융자 (MKIF)",
+    "headline_ko": "교통 인프라는 필수 자산의 장기·물가연동 양허권을 보유하는 데서 이익이 나오는 규제 독점 양허 사업이며, 수익률은 경쟁이 아니라 금리와 요금 재산정이 좌우합니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_203050_transportation-infrastructure.html"
   },
   {
     "industry_en": "Automobile Components",
@@ -79,36 +239,6 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-11/industry-report_2026-06-11_251020_automobiles.html"
   },
   {
-    "industry_en": "Broadline Retail",
-    "industry_ko": "종합 소매",
-    "sector": "Consumer Discretionary",
-    "gics": "255030",
-    "global_company": "Amazon",
-    "korea_company": "Coupang",
-    "headline_ko": "박한 마진의 규모 경쟁이 AI 설비투자 경쟁과 맞물리고, 국경 간 초저가 업체는 관세 허점을 잃었습니다.",
-    "file": "reports/2026-06-08/industry-report_2026-06-08_255030_broadline-retail.html"
-  },
-  {
-    "industry_en": "Distributors",
-    "industry_ko": "유통(소비재)",
-    "sector": "Consumer Discretionary",
-    "gics": "255010",
-    "global_company": "Genuine Parts Company",
-    "korea_company": "K Car",
-    "headline_ko": "관세와 수리권이 유통 구조를 재편하는 가운데, 1위 기업이 둘로 분할되고 있습니다.",
-    "file": "reports/2026-06-07/industry-report_2026-06-07_255010_distributors.html"
-  },
-  {
-    "industry_en": "Diversified Consumer Services",
-    "industry_ko": "종합 소비자 서비스",
-    "sector": "Consumer Discretionary",
-    "gics": "253010",
-    "global_company": "Service Corporation International",
-    "korea_company": "MegaStudyEdu",
-    "headline_ko": "AI 튜터링과 인구 감소가 교육·소비자 서비스를 함께 재편하고 있습니다.",
-    "file": "reports/2026-06-06/industry-report_2026-06-06_253010_diversified-consumer-services.html"
-  },
-  {
     "industry_en": "Household Durables",
     "industry_ko": "내구소비재",
     "sector": "Consumer Discretionary",
@@ -119,14 +249,14 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-12/industry-report_2026-06-12_252010_household-durables.html"
   },
   {
-    "industry_en": "Specialty Retail",
-    "industry_ko": "전문 소매",
+    "industry_en": "Leisure Products",
+    "industry_ko": "레저용품",
     "sector": "Consumer Discretionary",
-    "gics": "255040",
-    "global_company": "Home Depot",
-    "korea_company": "Lotte Hi-Mart",
-    "headline_ko": "관세와 가성비를 좇는 소비자가 전문 소매업을 재편하는 가운데, 규모와 프로·서비스 역량이 승부를 가릅니다.",
-    "file": "reports/2026-06-09/industry-report_2026-06-09_255040_specialty-retail.html"
+    "gics": "252020",
+    "global_company": "LEGO Group",
+    "korea_company": "Youngone",
+    "headline_ko": "완만한 성장의 완구 시장에서 LEGO가 선두를 넓히는 가운데 관세와 새 완구 안전 규제가 비용을 끌어올리고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_252020_leisure-products.html"
   },
   {
     "industry_en": "Textiles, Apparel & Luxury Goods",
@@ -139,6 +269,66 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-04/industry-report_2026-06-04_252030_textiles-apparel-luxury.html"
   },
   {
+    "industry_en": "Hotels, Restaurants & Leisure",
+    "industry_ko": "호텔·레스토랑·레저",
+    "sector": "Consumer Discretionary",
+    "gics": "253010",
+    "global_company": "Marriott International",
+    "korea_company": "Hotel Shilla",
+    "headline_ko": "약 5조 5,000억 달러 규모의 글로벌 환대 시장이 연 약 6% 성장하는 가운데 Marriott가 선두에 있고, 호텔신라가 한국의 호텔·여행소매를 이끌고 있습니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_253010_hotels-restaurants-and-leisure.html"
+  },
+  {
+    "industry_en": "Diversified Consumer Services",
+    "industry_ko": "종합 소비자 서비스",
+    "sector": "Consumer Discretionary",
+    "gics": "253020",
+    "global_company": "Service Corporation International",
+    "korea_company": "MegaStudyEdu",
+    "headline_ko": "AI 튜터링과 인구 감소가 교육·소비자 서비스를 함께 재편하고 있습니다.",
+    "file": "reports/2026-06-06/industry-report_2026-06-06_253020_diversified-consumer-services.html"
+  },
+  {
+    "industry_en": "Distributors",
+    "industry_ko": "유통(소비재)",
+    "sector": "Consumer Discretionary",
+    "gics": "255010",
+    "global_company": "Genuine Parts Company",
+    "korea_company": "K Car",
+    "headline_ko": "관세와 수리권이 유통 구조를 재편하는 가운데, 1위 기업이 둘로 분할되고 있습니다.",
+    "file": "reports/2026-06-07/industry-report_2026-06-07_255010_distributors.html"
+  },
+  {
+    "industry_en": "Broadline Retail",
+    "industry_ko": "종합 소매",
+    "sector": "Consumer Discretionary",
+    "gics": "255030",
+    "global_company": "Amazon",
+    "korea_company": "Coupang",
+    "headline_ko": "박한 마진의 규모 경쟁이 AI 설비투자 경쟁과 맞물리고, 국경 간 초저가 업체는 관세 허점을 잃었습니다.",
+    "file": "reports/2026-06-08/industry-report_2026-06-08_255030_broadline-retail.html"
+  },
+  {
+    "industry_en": "Specialty Retail",
+    "industry_ko": "전문 소매",
+    "sector": "Consumer Discretionary",
+    "gics": "255040",
+    "global_company": "Home Depot",
+    "korea_company": "Lotte Hi-Mart",
+    "headline_ko": "관세와 가성비를 좇는 소비자가 전문 소매업을 재편하는 가운데, 규모와 프로·서비스 역량이 승부를 가릅니다.",
+    "file": "reports/2026-06-09/industry-report_2026-06-09_255040_specialty-retail.html"
+  },
+  {
+    "industry_en": "Consumer Staples Distribution & Retail",
+    "industry_ko": "필수소비재 유통·소매",
+    "sector": "Consumer Staples",
+    "gics": "301010",
+    "global_company": "Walmart",
+    "korea_company": "E-Mart",
+    "headline_ko": "Walmart가 규모와 리테일 미디어로 약 12조 7,000억 달러 규모의 식품·식료품 시장을 이끄는 가운데, 이마트가 실적을 반등시키며 한국 최대 필수소비재 소매기업으로 자리하고 있습니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_301010_consumer-staples-distribution-and-retail.html"
+  },
+  {
     "industry_en": "Beverages",
     "industry_ko": "음료",
     "sector": "Consumer Staples",
@@ -149,16 +339,6 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-05/industry-report_2026-06-05_302010_beverages.html"
   },
   {
-    "industry_en": "Consumer Staples Distribution & Retail",
-    "industry_ko": "필수소비재 유통·소매",
-    "sector": "Consumer Staples",
-    "gics": "301010",
-    "global_company": "Walmart",
-    "korea_company": "Emart",
-    "headline_ko": "얇은 식료품 마진의 성패가 이제 데이터·멤버십·이커머스에 달려 있습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_301010_consumer-staples-retail.html"
-  },
-  {
     "industry_en": "Food Products",
     "industry_ko": "식품",
     "sector": "Consumer Staples",
@@ -167,6 +347,16 @@ export const BRIEFS: BriefMeta[] = [
     "korea_company": "CJ CheilJedang",
     "headline_ko": "원자재 인플레이션과 GLP-1이 수요를 재편하면서, 거대 식품사들이 분할에 나서고 있습니다.",
     "file": "reports/2026-06-06/industry-report_2026-06-06_302020_food-products.html"
+  },
+  {
+    "industry_en": "Tobacco",
+    "industry_ko": "담배",
+    "sector": "Consumer Staples",
+    "gics": "302030",
+    "global_company": "Philip Morris International",
+    "korea_company": "KT&G",
+    "headline_ko": "세대별 판매 금지가 임박한 가운데, 비연소 제품이 마진 기여 사업으로 전환되고 있습니다.",
+    "file": "reports/2026-06-07/industry-report_2026-06-07_302030_tobacco.html"
   },
   {
     "industry_en": "Household Products",
@@ -187,86 +377,6 @@ export const BRIEFS: BriefMeta[] = [
     "korea_company": "Amorepacific",
     "headline_ko": "브랜드가 주도하는 5,820억 달러 시장이 약 4.4% 성장하며 미국과 K뷰티 수출로 재편되는 가운데, 로레알은 더마뷰티에 집중하고 아모레퍼시픽은 중국 의존에서 벗어나는 데 주력하고 있습니다.",
     "file": "reports/2026-06-09/industry-report_2026-06-09_303020_personal-care-products.html"
-  },
-  {
-    "industry_en": "Tobacco",
-    "industry_ko": "담배",
-    "sector": "Consumer Staples",
-    "gics": "302030",
-    "global_company": "Philip Morris International",
-    "korea_company": "KT&G",
-    "headline_ko": "세대별 판매 금지가 임박한 가운데, 비연소 제품이 마진 기여 사업으로 전환되고 있습니다.",
-    "file": "reports/2026-06-07/industry-report_2026-06-07_302030_tobacco.html"
-  },
-  {
-    "industry_en": "Energy Equipment & Services",
-    "industry_ko": "에너지 장비 및 서비스",
-    "sector": "Energy",
-    "gics": "101010",
-    "global_company": "SLB",
-    "korea_company": "Hanwha Ocean (proxy)",
-    "headline_ko": "에너지 장비·서비스 업계는 투자 정체 구간을 인수합병으로 돌파하고 있습니다. 시추 용선료가 바닥을 다지는 사이 SLB, 베이커휴즈, 사이펨7은 생산·LNG·디지털에서 성장을 사들이고 있는 것으로 파악됩니다.",
-    "file": "reports/2026-06-10/industry-report_2026-06-10_101010_energy-equipment-services.html"
-  },
-  {
-    "industry_en": "Oil, Gas & Consumable Fuels",
-    "industry_ko": "석유·가스·소비연료",
-    "sector": "Energy",
-    "gics": "101020",
-    "global_company": "Saudi Aramco",
-    "korea_company": "SK Innovation",
-    "headline_ko": "석유·가스는 OPEC+와 2026년 호르무즈 해협 공급 충격에 좌우되는 약 8조 달러 규모의 복합 산업입니다. 사우디 아람코가 시가총액 기준 세계 1위이며, 상류 부문이 없는 한국은 정유사 SK이노베이션을 통해 하류에서 경쟁하고 있습니다.",
-    "file": "reports/2026-06-11/industry-report_2026-06-11_101020_oil-gas-consumable-fuels.html"
-  },
-  {
-    "industry_en": "Banks",
-    "industry_ko": "은행",
-    "sector": "Financials",
-    "gics": "401010",
-    "global_company": "JPMorgan Chase",
-    "korea_company": "KB Financial Group",
-    "headline_ko": "은행업은 2025년 매출 약 7.3조 달러로 경제 내 최대 이익 풀이지만, 금리 상승의 순풍은 약해지고 있습니다. 시가총액 기준 세계 1위는 JP모건, 한국 1위는 KB금융이며, 두 회사 모두 바젤 규제 완화와 한국의 밸류업 흐름 속에 사상 최대 규모의 주주환원을 진행하고 있습니다.",
-    "file": "reports/2026-06-11/industry-report_2026-06-11_401010_banks.html"
-  },
-  {
-    "industry_en": "Capital Markets",
-    "industry_ko": "자본시장",
-    "sector": "Financials",
-    "gics": "402030",
-    "global_company": "BlackRock",
-    "korea_company": "Mirae Asset",
-    "headline_ko": "패시브의 규모와 사모시장이 수수료 풀을 둘로 가르고 있습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_402030_capital-markets.html"
-  },
-  {
-    "industry_en": "Financial Services",
-    "industry_ko": "금융 서비스",
-    "sector": "Financials",
-    "gics": "402010",
-    "global_company": "Visa",
-    "korea_company": "Samsung Card",
-    "headline_ko": "Visa·Mastercard 복점이 복리로 성장하는 가운데, 스테이블코인과 규제가 수취율을 압박하고 있습니다.",
-    "file": "reports/2026-06-12/industry-report_2026-06-12_402010_financial-services.html"
-  },
-  {
-    "industry_en": "Insurance",
-    "industry_ko": "보험",
-    "sector": "Financials",
-    "gics": "403010",
-    "global_company": "Allianz",
-    "korea_company": "Samsung Life",
-    "headline_ko": "고금리 장기화가 운용수익을 키우는 한편, 재해 위험은 계속 커지고 있습니다.",
-    "file": "reports/2026-06-06/industry-report_2026-06-06_403010_insurance.html"
-  },
-  {
-    "industry_en": "Mortgage REITs",
-    "industry_ko": "모기지 리츠",
-    "sector": "Financials",
-    "gics": "402040",
-    "global_company": "Annaly Capital",
-    "korea_company": "KHFC (proxy)",
-    "headline_ko": "연준의 금리 인하가 수익률 곡선을 가파르게 하며 레버리지 스프레드 사업을 끌어올리고 있습니다.",
-    "file": "reports/2026-06-05/industry-report_2026-06-05_402040_mortgage-reits.html"
   },
   {
     "industry_en": "Health Care Equipment & Supplies",
@@ -299,6 +409,26 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-12/industry-report_2026-06-12_351030_health-care-technology.html"
   },
   {
+    "industry_en": "Biotechnology",
+    "industry_ko": "바이오테크",
+    "sector": "Health Care",
+    "gics": "352010",
+    "global_company": "Amgen",
+    "korea_company": "Samsung Biologics",
+    "headline_ko": "미국 약가 협상과 BIOSECURE 법이 바이오 산업을 재편하는 가운데 Amgen이 선두를 지키고 삼성바이오로직스는 CDMO 능력을 키우고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_352010_biotechnology.html"
+  },
+  {
+    "industry_en": "Pharmaceuticals",
+    "industry_ko": "제약",
+    "sector": "Health Care",
+    "gics": "352020",
+    "global_company": "Eli Lilly",
+    "korea_company": "유한양행",
+    "headline_ko": "GLP-1 슈퍼사이클과 조여드는 약가 압박이 맞물린 의약품 시장으로, 글로벌은 일라이 릴리가, 한국은 유한양행이 이끄는 것으로 파악됩니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_352020_pharmaceuticals.html"
+  },
+  {
     "industry_en": "Life Sciences Tools & Services",
     "industry_ko": "생명과학 도구 및 서비스",
     "sector": "Health Care",
@@ -309,144 +439,64 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-10/industry-report_2026-06-10_352030_life-sciences-tools-services.html"
   },
   {
-    "industry_en": "Aerospace & Defense",
-    "industry_ko": "항공우주·방위",
-    "sector": "Industrials",
-    "gics": "201010",
-    "global_company": "Lockheed Martin",
-    "korea_company": "Hanwha Aerospace",
-    "headline_ko": "재무장 흐름이 다년간의 방산 상승 사이클을 떠받치는 가운데, 한국의 방산 수출이 급증하고 있습니다.",
-    "file": "reports/2026-06-07/industry-report_2026-06-07_201010_aerospace-defense.html"
+    "industry_en": "Banks",
+    "industry_ko": "은행",
+    "sector": "Financials",
+    "gics": "401010",
+    "global_company": "JPMorgan Chase",
+    "korea_company": "KB Financial Group",
+    "headline_ko": "은행업은 2025년 매출 약 7.3조 달러로 경제 내 최대 이익 풀이지만, 금리 상승의 순풍은 약해지고 있습니다. 시가총액 기준 세계 1위는 JP모건, 한국 1위는 KB금융이며, 두 회사 모두 바젤 규제 완화와 한국의 밸류업 흐름 속에 사상 최대 규모의 주주환원을 진행하고 있습니다.",
+    "file": "reports/2026-06-11/industry-report_2026-06-11_401010_banks.html"
   },
   {
-    "industry_en": "Air Freight & Logistics",
-    "industry_ko": "항공화물·물류",
-    "sector": "Industrials",
-    "gics": "203010",
-    "global_company": "FedEx",
-    "korea_company": "CJ Logistics",
-    "headline_ko": "항공화물은 2025년 사상 최대 물동량을 기록했습니다. 다만 소액 면세 제도가 사라지면서 물류 흐름이 아시아-미국에서 아시아-유럽으로 옮겨가고 있으며, 통관 역량을 갖춘 통합 물류사가 유리해진 상황입니다.",
-    "file": "reports/2026-06-10/industry-report_2026-06-10_203010_air-freight-logistics.html"
+    "industry_en": "Financial Services",
+    "industry_ko": "금융 서비스",
+    "sector": "Financials",
+    "gics": "402010",
+    "global_company": "Visa",
+    "korea_company": "Samsung Card",
+    "headline_ko": "Visa·Mastercard 복점이 복리로 성장하는 가운데, 스테이블코인과 규제가 수취율을 압박하고 있습니다.",
+    "file": "reports/2026-06-12/industry-report_2026-06-12_402010_financial-services.html"
   },
   {
-    "industry_en": "Building Products",
-    "industry_ko": "건축자재",
-    "sector": "Industrials",
-    "gics": "201020",
-    "global_company": "Saint-Gobain",
-    "korea_company": "KCC",
-    "headline_ko": "관세와 고금리가 분절된 시장을 압박하는 가운데, 업계는 저탄소·고사양 제품으로 무게중심을 옮기고 있습니다.",
-    "file": "reports/2026-06-08/industry-report_2026-06-08_201020_building-products.html"
+    "industry_en": "Consumer Finance",
+    "industry_ko": "소비자금융",
+    "sector": "Financials",
+    "gics": "402020",
+    "global_company": "American Express",
+    "korea_company": "Shinhan Card",
+    "headline_ko": "Capital One의 Discover 인수가 미국 카드 시장을 재편하는 가운데 American Express가 카드 이용액 1위를 지키고 국내 카드사는 수수료 인하를 감내하고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_402020_consumer-finance.html"
   },
   {
-    "industry_en": "Commercial Services & Supplies",
-    "industry_ko": "상업 서비스·용품",
-    "sector": "Industrials",
-    "gics": "202010",
-    "global_company": "Waste Management",
-    "korea_company": "S-1 Corporation",
-    "headline_ko": "인건비와 규제가 옥죄는 가운데, 가격 결정력과 통합이 폐기물·시설관리 대형사를 끌어올리고 있습니다.",
-    "file": "reports/2026-06-08/industry-report_2026-06-08_202010_commercial-services-supplies.html"
+    "industry_en": "Capital Markets",
+    "industry_ko": "자본시장",
+    "sector": "Financials",
+    "gics": "402030",
+    "global_company": "BlackRock",
+    "korea_company": "Mirae Asset",
+    "headline_ko": "패시브의 규모와 사모시장이 수수료 풀을 둘로 가르고 있습니다.",
+    "file": "reports/2026-06-04/industry-report_2026-06-04_402030_capital-markets.html"
   },
   {
-    "industry_en": "Construction & Engineering",
-    "industry_ko": "건설·엔지니어링",
-    "sector": "Industrials",
-    "gics": "201030",
-    "global_company": "China State Construction Engineering",
-    "korea_company": "Hyundai E&C",
-    "headline_ko": "거대하나 분절된 건설 시장은 2029년 약 20조 달러를 향해 연 5.6% 성장하지만, 얇은 시공 마진이 글로벌 1위 CSCEC마저 압박하고 한국 현대건설을 2001년 이래 첫 영업적자로 내몰았습니다.",
-    "file": "reports/2026-06-09/industry-report_2026-06-09_201030_construction-engineering.html"
+    "industry_en": "Mortgage REITs",
+    "industry_ko": "모기지 리츠",
+    "sector": "Financials",
+    "gics": "402040",
+    "global_company": "Annaly Capital",
+    "korea_company": "SK REIT",
+    "headline_ko": "약 780억 달러 규모의 미국 모기지 리츠 시장을 Annaly가 주도하며 연준 완화 사이클을 타는 가운데, 한국에는 사실상 모기지 리츠가 없어 SK리츠가 가장 가까운 상장 대안으로 평가됩니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_402040_mortgage-reits.html"
   },
   {
-    "industry_en": "Electrical Equipment",
-    "industry_ko": "전기장비",
-    "sector": "Industrials",
-    "gics": "201040",
-    "global_company": "Schneider Electric",
-    "korea_company": "Hyosung Heavy",
-    "headline_ko": "AI 데이터센터와 전력망 투자가 변압기를 가장 희소한 자산으로 만들었습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_201040_electrical-equipment.html"
-  },
-  {
-    "industry_en": "Industrial Conglomerates",
-    "industry_ko": "복합기업(산업재)",
-    "sector": "Industrials",
-    "gics": "201050",
-    "global_company": "Siemens AG",
-    "korea_company": "Samsung C&T",
-    "headline_ko": "행동주의와 상법 개정이 복합기업 할인을 허무는 국면입니다.",
-    "file": "reports/2026-06-05/industry-report_2026-06-05_201050_industrial-conglomerates.html"
-  },
-  {
-    "industry_en": "Machinery",
-    "industry_ko": "기계",
-    "sector": "Industrials",
-    "gics": "201060",
-    "global_company": "Caterpillar",
-    "korea_company": "Doosan Bobcat",
-    "headline_ko": "AI 데이터센터의 전력 수요가 기계 산업의 새로운 성장 엔진으로 부상하고 있습니다.",
-    "file": "reports/2026-06-06/industry-report_2026-06-06_201060_machinery.html"
-  },
-  {
-    "industry_en": "Marine Transportation",
-    "industry_ko": "해상운송",
-    "sector": "Industrials",
-    "gics": "203030",
-    "global_company": "MSC",
-    "korea_company": "HMM",
-    "headline_ko": "홍해 우회로 해상운임이 반등했으나, 역대급 수주잔고가 공급 과잉 위험으로 남아 있습니다.",
-    "file": "reports/2026-06-12/industry-report_2026-06-12_203030_marine-transportation.html"
-  },
-  {
-    "industry_en": "Passenger Airlines",
-    "industry_ko": "여객 항공",
-    "sector": "Industrials",
-    "gics": "203020",
-    "global_company": "Delta Air Lines",
-    "korea_company": "Korean Air",
-    "headline_ko": "여객 항공은 사상 최대 수송량을 회복했으나, 2026년 6월 항공유 가격 급등으로 IATA의 2026년 이익 전망이 230억 달러로 반토막 났습니다. 시가총액 기준 글로벌 1위는 델타항공이며, 대한항공은 아시아나 인수를 마무리하며 통합 단일 항공사로 나아가고 있습니다.",
-    "file": "reports/2026-06-11/industry-report_2026-06-11_203020_passenger-airlines.html"
-  },
-  {
-    "industry_en": "Professional Services",
-    "industry_ko": "전문 서비스",
-    "sector": "Industrials",
-    "gics": "202020",
-    "global_company": "ADP",
-    "korea_company": "Saramin",
-    "headline_ko": "AI가 전문 서비스를 고마진 데이터 사업과 압박받는 인력 사업으로 가르는 가운데, 글로벌은 ADP가 선두이며 한국의 가장 가까운 상장 대용주는 사람인입니다.",
-    "file": "reports/2026-06-09/industry-report_2026-06-09_202020_professional-services.html"
-  },
-  {
-    "industry_en": "Trading Companies & Distributors",
-    "industry_ko": "종합상사·유통",
-    "sector": "Industrials",
-    "gics": "201070",
-    "global_company": "Mitsubishi Corporation",
-    "korea_company": "POSCO International",
-    "headline_ko": "버핏의 베팅과 에너지 전환이 종합상사 모델을 다시 짜고 있습니다.",
-    "file": "reports/2026-06-07/industry-report_2026-06-07_201070_trading-companies-distributors.html"
-  },
-  {
-    "industry_en": "Communications Equipment",
-    "industry_ko": "통신장비",
-    "sector": "Information Technology",
-    "gics": "452010",
-    "global_company": "Cisco Systems",
-    "korea_company": "Samsung Electronics",
-    "headline_ko": "AI 데이터센터 네트워킹은 호황인 반면 통신사 RAN은 정체돼 있고 지정학이 장비업체 지형을 재편하는 가운데, 매출은 시스코가, 통신사 점유율은 화웨이가 선두입니다.",
-    "file": "reports/2026-06-09/industry-report_2026-06-09_452010_communications-equipment.html"
-  },
-  {
-    "industry_en": "Electronic Equipment, Instruments & Components",
-    "industry_ko": "전자장비·계측·부품",
-    "sector": "Information Technology",
-    "gics": "452030",
-    "global_company": "Hon Hai (Foxconn)",
-    "korea_company": "LG Innotek",
-    "headline_ko": "AI 서버 증설이 부품·EMS 가치사슬을 재편하고 있습니다.",
-    "file": "reports/2026-06-05/industry-report_2026-06-05_452030_electronic-equipment-components.html"
+    "industry_en": "Insurance",
+    "industry_ko": "보험",
+    "sector": "Financials",
+    "gics": "403010",
+    "global_company": "Allianz",
+    "korea_company": "Samsung Life",
+    "headline_ko": "고금리 장기화가 운용수익을 키우는 한편, 재해 위험은 계속 커지고 있습니다.",
+    "file": "reports/2026-06-06/industry-report_2026-06-06_403010_insurance.html"
   },
   {
     "industry_en": "IT Services",
@@ -459,16 +509,6 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-07/industry-report_2026-06-07_451020_it-services.html"
   },
   {
-    "industry_en": "Semiconductors & Semiconductor Equipment",
-    "industry_ko": "반도체·반도체장비",
-    "sector": "Information Technology",
-    "gics": "453010",
-    "global_company": "NVIDIA",
-    "korea_company": "Samsung Electronics",
-    "headline_ko": "AI 슈퍼사이클이 사상 최대 메모리 부족과 1조 달러 반도체 시장을 견인하고 있습니다.",
-    "file": "reports/2026-06-06/industry-report_2026-06-06_453010_semiconductors.html"
-  },
-  {
     "industry_en": "Software",
     "industry_ko": "소프트웨어",
     "sector": "Information Technology",
@@ -479,54 +519,144 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-08/industry-report_2026-06-08_451030_software.html"
   },
   {
+    "industry_en": "Communications Equipment",
+    "industry_ko": "통신장비",
+    "sector": "Information Technology",
+    "gics": "452010",
+    "global_company": "Cisco Systems",
+    "korea_company": "Samsung Electronics",
+    "headline_ko": "AI 데이터센터 네트워킹은 호황인 반면 통신사 RAN은 정체돼 있고 지정학이 장비업체 지형을 재편하는 가운데, 매출은 시스코가, 통신사 점유율은 화웨이가 선두입니다.",
+    "file": "reports/2026-06-09/industry-report_2026-06-09_452010_communications-equipment.html"
+  },
+  {
     "industry_en": "Technology Hardware, Storage & Peripherals",
     "industry_ko": "기술 하드웨어·스토리지·주변기기",
     "sector": "Information Technology",
     "gics": "452020",
     "global_company": "Apple",
     "korea_company": "Samsung Electronics",
-    "headline_ko": "AI발 메모리 부족이 반도체를 수익의 중심으로, 완제품을 희생양으로 만들었습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_452020_technology-hardware.html"
+    "headline_ko": "AI가 견인하는 메모리·스토리지 슈퍼사이클이 약 2조 1,400억 달러 규모의 IT 디바이스 시장을 재편하는 가운데, Apple이 최고 가치의 하드웨어 기업, 삼성전자가 한국 1위로 파악됩니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_452020_technology-hardware-storage-and-peripherals.html"
   },
   {
-    "industry_en": "Chemicals",
-    "industry_ko": "화학",
-    "sector": "Materials",
-    "gics": "151010",
-    "global_company": "BASF SE",
-    "korea_company": "LG Chem",
-    "headline_ko": "중국발 공급과잉이 화학 산업의 깊은 다운사이클을 몰고 와, 생존 기업은 스페셜티 소재로 무게중심을 옮기고 있습니다.",
-    "file": "reports/2026-06-12/industry-report_2026-06-12_151010_chemicals.html"
+    "industry_en": "Electronic Equipment, Instruments & Components",
+    "industry_ko": "전자장비·계측·부품",
+    "sector": "Information Technology",
+    "gics": "452030",
+    "global_company": "Hon Hai (Foxconn)",
+    "korea_company": "LG Innotek",
+    "headline_ko": "AI 서버 증설이 부품·EMS 가치사슬을 재편하고 있습니다.",
+    "file": "reports/2026-06-05/industry-report_2026-06-05_452030_electronic-equipment-components.html"
   },
   {
-    "industry_en": "Containers & Packaging",
-    "industry_ko": "용기·포장",
-    "sector": "Materials",
-    "gics": "151030",
-    "global_company": "Smurfit WestRock",
-    "korea_company": "Dongwon Systems",
-    "headline_ko": "초대형 인수와 EU 포장 규제가 파편화된 산업을 재편하고 있습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_151030_containers-packaging.html"
+    "industry_en": "Semiconductors & Semiconductor Equipment",
+    "industry_ko": "반도체·반도체장비",
+    "sector": "Information Technology",
+    "gics": "453010",
+    "global_company": "NVIDIA",
+    "korea_company": "Samsung Electronics",
+    "headline_ko": "AI 슈퍼사이클이 사상 최대 메모리 부족과 1조 달러 반도체 시장을 견인하고 있습니다.",
+    "file": "reports/2026-06-06/industry-report_2026-06-06_453010_semiconductors.html"
   },
   {
-    "industry_en": "Metals & Mining",
-    "industry_ko": "금속·광업",
-    "sector": "Materials",
-    "gics": "151040",
-    "global_company": "BHP Group",
-    "korea_company": "Korea Zinc",
-    "headline_ko": "구리 슈퍼사이클과 사상 최고치 금값이 광업의 수익 구조를 다시 짜고 있습니다.",
-    "file": "reports/2026-06-05/industry-report_2026-06-05_151040_metals-mining.html"
+    "industry_en": "Diversified Telecommunication Services",
+    "industry_ko": "종합 통신 서비스",
+    "sector": "Communication Services",
+    "gics": "501010",
+    "global_company": "Deutsche Telekom",
+    "korea_company": "KT Corporation",
+    "headline_ko": "종합 통신사들이 단순 연결에서 AI·데이터센터 인프라로 무게중심을 옮기고 있습니다.",
+    "file": "reports/2026-06-07/industry-report_2026-06-07_501010_diversified-telecom.html"
   },
   {
-    "industry_en": "Paper & Forest Products",
-    "industry_ko": "제지·임산물",
-    "sector": "Materials",
-    "gics": "151050",
-    "global_company": "Smurfit WestRock",
-    "korea_company": "Hansol Paper",
-    "headline_ko": "펄프 가격 급락이 제지사를 압박하는 와중에도, 플라스틱 규제가 종이 포장 수요를 끌어올리고 있습니다.",
-    "file": "reports/2026-06-06/industry-report_2026-06-06_151050_paper-forest-products.html"
+    "industry_en": "Wireless Telecommunication Services",
+    "industry_ko": "무선 통신 서비스",
+    "sector": "Communication Services",
+    "gics": "501020",
+    "global_company": "China Mobile",
+    "korea_company": "SK Telecom",
+    "headline_ko": "포화된 자본집약 통신사들이 ARPU 정체와 보안의 사활화 속에 AI·데이터센터로 전환하고 있습니다.",
+    "file": "reports/2026-06-08/industry-report_2026-06-08_501020_wireless-telecom.html"
+  },
+  {
+    "industry_en": "Media",
+    "industry_ko": "미디어",
+    "sector": "Communication Services",
+    "gics": "502010",
+    "global_company": "Omnicom",
+    "korea_company": "Cheil Worldwide",
+    "headline_ko": "광고 시장은 1조 달러를 넘어섰으나 성장은 모두 디지털에 쏠리고, 옴니콤-IPG 합병으로 규모가 통합되며 이제 데이터와 AI가 마진을 가릅니다.",
+    "file": "reports/2026-06-09/industry-report_2026-06-09_502010_media.html"
+  },
+  {
+    "industry_en": "Entertainment",
+    "industry_ko": "엔터테인먼트",
+    "sector": "Communication Services",
+    "gics": "502020",
+    "global_company": "Netflix",
+    "korea_company": "KRAFTON",
+    "headline_ko": "엔터테인먼트의 이익은 대형 스트리밍 플랫폼과 IP 보유 기업으로 쏠리고 있습니다. 넷플릭스는 광고·라이브·게임으로 무게를 옮기고 파라마운트-WBD 합병이 할리우드를 재편하는 가운데, 한국의 게임·K팝 선두 기업들은 소수 IP에 기댄 채 사상 최대 매출을 올렸습니다.",
+    "file": "reports/2026-06-10/industry-report_2026-06-10_502020_entertainment.html"
+  },
+  {
+    "industry_en": "Interactive Media & Services",
+    "industry_ko": "인터랙티브 미디어·서비스",
+    "sector": "Communication Services",
+    "gics": "502030",
+    "global_company": "Alphabet (Google)",
+    "korea_company": "NAVER",
+    "headline_ko": "검색·소셜 플랫폼이 글로벌 광고의 약 73%를 가져가는 가운데, 경쟁의 축은 이제 AI 답변으로 옮겨가고 있습니다. 시가총액 4조 달러를 넘어선 알파벳이 세계 1위이며, 국내 검색 점유율 63%의 네이버가 카카오에 맞서 안방 시장을 지키고 있습니다.",
+    "file": "reports/2026-06-11/industry-report_2026-06-11_502030_interactive-media-services.html"
+  },
+  {
+    "industry_en": "Electric Utilities",
+    "industry_ko": "전력 유틸리티",
+    "sector": "Utilities",
+    "gics": "551010",
+    "global_company": "NextEra Energy",
+    "korea_company": "KEPCO",
+    "headline_ko": "데이터센터 수요가 전력 유틸리티를 되살리며, NextEra와 Dominion이 초대형 합병에 나섰습니다.",
+    "file": "reports/2026-06-12/industry-report_2026-06-12_551010_electric-utilities.html"
+  },
+  {
+    "industry_en": "Gas Utilities",
+    "industry_ko": "가스 유틸리티",
+    "sector": "Utilities",
+    "gics": "551020",
+    "global_company": "Atmos Energy",
+    "korea_company": "Korea Gas Corp. (KOGAS)",
+    "headline_ko": "규제 기반 가스 공급사가 요금기저 성장으로 안정세를 보이는 가운데 Atmos Energy가 선두에 있고 한국가스공사는 미수금을 줄여가고 있습니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_551020_gas-utilities.html"
+  },
+  {
+    "industry_en": "Multi-Utilities",
+    "industry_ko": "복합 유틸리티",
+    "sector": "Utilities",
+    "gics": "551030",
+    "global_company": "National Grid",
+    "korea_company": "한국지역난방공사 (proxy)",
+    "headline_ko": "복합 유틸리티는 요금기저 성장에 기반한 규제 산업으로, AI 데이터센터 부하와 전기화가 이끄는 자본 슈퍼사이클을 맞고 있으며, National Grid가 글로벌 규모 선도 기업입니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_551030_multi-utilities.html"
+  },
+  {
+    "industry_en": "Water Utilities",
+    "industry_ko": "물 유틸리티",
+    "sector": "Utilities",
+    "gics": "551040",
+    "global_company": "American Water Works",
+    "korea_company": "K-water",
+    "headline_ko": "물 유틸리티는 PFAS·납관·하수 규제가 부르는 한 세대에 한 번의 투자 물결에 직면해 있으며, American Water Works가 글로벌 선두, 국영 K-water가 한국을 주도하는 것으로 파악됩니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_551040_water-utilities.html"
+  },
+  {
+    "industry_en": "Independent Power and Renewable Electricity Producers",
+    "industry_ko": "민자·재생에너지 발전",
+    "sector": "Utilities",
+    "gics": "551050",
+    "global_company": "NextEra Energy",
+    "korea_company": "KEPCO (proxy)",
+    "headline_ko": "AI 데이터센터가 청정 전력의 최종 매수자로 떠오르고 있습니다.",
+    "file": "reports/2026-06-05/industry-report_2026-06-05_551050_independent-power-renewables.html"
   },
   {
     "industry_en": "Diversified REITs",
@@ -539,16 +669,6 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-06/industry-report_2026-06-06_601010_diversified-reits.html"
   },
   {
-    "industry_en": "Hotel & Resort REITs",
-    "industry_ko": "호텔·리조트 리츠",
-    "sector": "Real Estate",
-    "gics": "601030",
-    "global_company": "Host Hotels & Resorts",
-    "korea_company": "Hotel Shilla (proxy)",
-    "headline_ko": "순자산가치 할인과 고금리가 인수 전략을 멈춰 세우고, RevPAR 성장세는 둔화 국면에 들어섰습니다.",
-    "file": "reports/2026-06-08/industry-report_2026-06-08_601030_hotel-resort-reits.html"
-  },
-  {
     "industry_en": "Industrial REITs",
     "industry_ko": "산업·물류 리츠",
     "sector": "Real Estate",
@@ -559,6 +679,16 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-07/industry-report_2026-06-07_601025_industrial-reits.html"
   },
   {
+    "industry_en": "Hotel & Resort REITs",
+    "industry_ko": "호텔·리조트 리츠",
+    "sector": "Real Estate",
+    "gics": "601030",
+    "global_company": "Host Hotels & Resorts",
+    "korea_company": "Hotel Shilla (proxy)",
+    "headline_ko": "순자산가치 할인과 고금리가 인수 전략을 멈춰 세우고, RevPAR 성장세는 둔화 국면에 들어섰습니다.",
+    "file": "reports/2026-06-08/industry-report_2026-06-08_601030_hotel-resort-reits.html"
+  },
+  {
     "industry_en": "Office REITs",
     "industry_ko": "오피스 리츠",
     "sector": "Real Estate",
@@ -567,6 +697,16 @@ export const BRIEFS: BriefMeta[] = [
     "korea_company": "Shinhan Alpha REIT",
     "headline_ko": "오피스 리츠는 공실률 변곡점에 서 있으며, 트로피 빌딩은 회복세인 반면 범용 빌딩은 차환의 벽에 직면해 있습니다.",
     "file": "reports/2026-06-09/industry-report_2026-06-09_601040_office-reits.html"
+  },
+  {
+    "industry_en": "Health Care REITs",
+    "industry_ko": "헬스케어 리츠",
+    "sector": "Real Estate",
+    "gics": "601050",
+    "global_company": "Welltower",
+    "korea_company": "LH Dongtan Healthcare REIT (proxy)",
+    "headline_ko": "역대 최저 수준의 신규 공급과 급증하는 80세 이상 인구가 맞물리며, 헬스케어 리츠는 사상 최고의 입주율과 실적 사이클을 맞고 있습니다.",
+    "file": "reports/2026-06-10/industry-report_2026-06-10_601050_health-care-reits.html"
   },
   {
     "industry_en": "Residential REITs",
@@ -589,33 +729,23 @@ export const BRIEFS: BriefMeta[] = [
     "file": "reports/2026-06-12/industry-report_2026-06-12_601070_retail-reits.html"
   },
   {
-    "industry_en": "Electric Utilities",
-    "industry_ko": "전력 유틸리티",
-    "sector": "Utilities",
-    "gics": "551010",
-    "global_company": "NextEra Energy",
-    "korea_company": "KEPCO",
-    "headline_ko": "데이터센터 수요가 전력 유틸리티를 되살리며, NextEra와 Dominion이 초대형 합병에 나섰습니다.",
-    "file": "reports/2026-06-12/industry-report_2026-06-12_551010_electric-utilities.html"
+    "industry_en": "Specialized REITs",
+    "industry_ko": "특수 리츠",
+    "sector": "Real Estate",
+    "gics": "601080",
+    "global_company": "American Tower",
+    "korea_company": "SK REIT",
+    "headline_ko": "AI발 데이터센터 수요가 특수 리츠를 끌어올리는 가운데 American Tower가 선두에 있고 국내에서는 SK리츠가 가장 가까운 대안으로 평가됩니다.",
+    "file": "reports/2026-06-13/industry-report_2026-06-13_601080_specialized-reits.html"
   },
   {
-    "industry_en": "Independent Power & Renewable Electricity Producers",
-    "industry_ko": "민자·재생에너지 발전",
-    "sector": "Utilities",
-    "gics": "551050",
-    "global_company": "NextEra Energy",
-    "korea_company": "KEPCO (proxy)",
-    "headline_ko": "AI 데이터센터가 청정 전력의 최종 매수자로 떠오르고 있습니다.",
-    "file": "reports/2026-06-05/industry-report_2026-06-05_551050_independent-power-renewables.html"
-  },
-  {
-    "industry_en": "Water Utilities",
-    "industry_ko": "수도 유틸리티",
-    "sector": "Utilities",
-    "gics": "551040",
-    "global_company": "American Water Works",
-    "korea_company": "K-water (proxy)",
-    "headline_ko": "규제 대상인 수도 독점 사업은 요금기저가 늘어나는 만큼만 성장할 수 있습니다.",
-    "file": "reports/2026-06-04/industry-report_2026-06-04_551040_water-utilities.html"
+    "industry_en": "Real Estate Management & Development",
+    "industry_ko": "부동산 관리·개발",
+    "sector": "Real Estate",
+    "gics": "602010",
+    "global_company": "Sun Hung Kai Properties",
+    "korea_company": "SK디앤디 (SK D&D)",
+    "headline_ko": "금리 인하가 홍콩과 아시아 부동산을 되살리는 가운데 중국 위기와 한국 PF 부실이 건설 주체를 재편하면서, 선훙카이처럼 토지가 풍부하고 차입이 낮은 디벨로퍼가 유리한 국면입니다.",
+    "file": "reports/2026-06-15/industry-report_2026-06-15_602010_real-estate-management-and-development.html"
   }
 ];

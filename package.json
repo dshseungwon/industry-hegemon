@@ -11,7 +11,8 @@
     "start": "tsx server/index.ts",
     "lan": "npm run build && npm run server",
     "sim": "tsx sim/index.ts",
-    "gen:data": "tsx scripts/gen-game-data.ts"
+    "gen:data": "tsx scripts/gen-game-data.ts",
+    "gen:reports": "tsx scripts/gen-reports-data.ts"
   },
   "dependencies": {
     "tsx": "^4.16.0",
