@@ -18,6 +18,7 @@ export interface Actions {
   confirmOk(): void;
   confirmCancel(): void;
   restart(): void;
+  continuePlaying(): void;
   pickIndustry(meta: BriefMeta): void;
   pickCompany(youIdx: number): void;
   claimFirm(idx: number): void;
@@ -884,9 +885,14 @@ function renderBanner(s: GameState, A: Actions) {
     : '<h3>' + s.ui.over.msg + '</h3>';
   el.innerHTML = '<div class="modal' + (won ? " victory" : "") + '">' + head +
     '<div class="mrow mute small">' + s.scenario.ko + ' · 최종 점유율 ' + (myShare(s) * 100).toFixed(0) + '%</div>' +
-    '<div class="mbtns"><button class="btn ghost" id="toTitle">' + (won ? "타이틀로" : "다른 산업 고르기") + '</button><button class="btn" id="restart">다시 하기</button></div></div>';
+    (won ? '<div class="mrow mute small">계속 경영하면 마감 제한 없이 자유롭게 세계를 운영합니다(승리 기록은 유지).</div>' : '') +
+    '<div class="mbtns">' +
+    (won ? '<button class="btn" id="keepPlaying">▶ 계속 경영하기</button>' : '') +
+    '<button class="btn' + (won ? ' ghost' : '') + '" id="restart">다시 하기</button>' +
+    '<button class="btn ghost" id="toTitle">' + (won ? "타이틀로" : "다른 산업 고르기") + '</button></div></div>';
   document.getElementById("restart")!.onclick = () => A.restart();
   document.getElementById("toTitle")!.onclick = () => A.toTitle();
+  const kp = document.getElementById("keepPlaying"); if (kp) kp.onclick = () => A.continuePlaying();
 }
 
 // ===== 사전 화면(타이틀 → 산업 선택 → 기업 선택) =====

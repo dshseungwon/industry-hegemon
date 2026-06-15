@@ -66,7 +66,7 @@ export interface GameState {
   event: GameEvent;          // 최신 세계 흐름 이벤트(트렌드·규제 변화) — id가 바뀌면 큰 토스트
   log: string[];
   fx: string[];              // 이번 tick에 발생한 연출/효과음 이벤트(main이 비움)
-  ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: GameOver | null };
+  ui: { panel: string; leftPanel: string; country: string | null; confirm: ConfirmSpec | null; over: GameOver | null; sandbox?: boolean };
 }
 export interface GameOver { won: boolean; msg: string; winnerKey?: string; }
 export interface ConfirmSpec { title: string; lines: string[]; okLabel: string; onOk: () => void; cancelLabel?: string; onCancel?: () => void; }

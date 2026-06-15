@@ -366,6 +366,11 @@ const A: Actions = {
   confirmOk() { const f = s?.ui.confirm?.onOk; if (f) f(); },
   confirmCancel() { if (!s) return; const f = s.ui.confirm?.onCancel; s.ui.confirm = null; if (f) f(); else render(s, A); },
   restart() { if (!pickedScenario) { A.toTitle(); return; } startGame(s ? s.youIdx : 0); },
+  continuePlaying() {   // 승리 후 계속 경영(샌드박스) — 마감·승리 재판정 끔, 파산은 유효
+    if (!s || !s.ui.over || online) return;
+    s.ui.over = null; s.ui.sandbox = true; s.speed = 0;
+    flash("▶ 계속 경영 — 마감 제한 없이 자유 운영"); sfx("select"); autosave(); render(s, A); schedule();
+  },
 };
 
 function flash(msg: string) {

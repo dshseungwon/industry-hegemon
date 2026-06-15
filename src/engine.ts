@@ -661,6 +661,8 @@ export function tick(s: GameState) {
   if (playerBankrupt) { s.ui.over = { won: false, msg: "💸 파산 — 채무 불이행으로 경영권 상실" }; s.speed = 0; s.fx.push("lose"); return; }
 
   // 승리: 완전 장악(전 시장 1위 + 결정적 점유율) / 마감 시 1위 — 단, 경영권(과반 지분) 보유가 필수.
+  // 샌드박스(승리 후 '계속 경영')에선 승리/마감 재판정 끔(파산은 위에서 그대로 적용).
+  if (s.ui.sandbox) return;
   const firstLeader = s.markets[s.marketOrder[0]].leader;
   const leadAll = s.marketOrder.every(n => s.markets[n].leader === firstLeader);
   const domIdx = leadAll ? s.firms.findIndex(x => x.key === firstLeader) : -1;
