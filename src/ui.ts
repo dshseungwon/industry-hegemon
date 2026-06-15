@@ -1,4 +1,4 @@
-import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
+import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
 import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
@@ -524,7 +524,7 @@ function panelBody(s: GameState, panel: string): string {
     const gapLab = gap >= 15 ? '고평가 — 증자 유리' : gap <= -15 ? '저평가' : '적정';
     h += '<div class="card">'
       + '<div class="kv"><span>내 주가</span><b class="gold">$' + (you.price || 100).toFixed(1) + ' <span class="small ' + (chg >= 0 ? 'gold' : 'red') + '">' + (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(1) + '%</span></b></div>'
-      + sparkline(you.priceHist)
+      + candleChart(you.candles)
       + '<div class="kv"><span class="mute small">주가 × 발행주식수 = 시가총액</span></div>'
       + '<div class="kv"><span>$' + (you.price || 100).toFixed(1) + ' × ' + fmt(you.shares) + '주</span><b class="gold">$' + fmt(mc) + 'B</b></div>'
       + '<div class="kv"><span>펀더멘털(내재가치)</span><b>$' + fmt(iv) + 'B</b></div>'
@@ -565,13 +565,24 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
 const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
-// 주가 추이 스파크라인(인라인 SVG, 의존성 없음). 상승=금/하락=적.
-function sparkline(hist: number[]): string {
-  if (!hist || hist.length < 2) return '';
-  const w = 300, hgt = 38, n = hist.length, mn = Math.min(...hist), mx = Math.max(...hist), rng = mx - mn || 1;
-  const pts = hist.map((v, i) => (i / (n - 1) * w).toFixed(1) + ',' + (hgt - (v - mn) / rng * hgt).toFixed(1)).join(' ');
-  const up = hist[n - 1] >= hist[0];
-  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + hgt + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + (up ? '#ffb81c' : '#e8556b') + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+// 일봉 캔들차트(인라인 SVG, 의존성 없음). 상승=초록/하락=빨강. 가격축에 맞춰 몸통+꼬리.
+function candleChart(candles: Candle[]): string {
+  if (!candles || candles.length < 2) return '';
+  const W = 300, H = 96, n = candles.length;
+  let lo = Infinity, hi = -Infinity;
+  for (const c of candles) { if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
+  const rng = hi - lo || 1, pad = rng * 0.06;
+  lo -= pad; hi += pad; const span = hi - lo;
+  const y = (v: number) => (H - (v - lo) / span * H).toFixed(1);
+  const cw = W / n, bw = Math.max(1.2, cw * 0.62);
+  const body = candles.map((c, i) => {
+    const x = i * cw + cw / 2;
+    const up = c.c >= c.o, col = up ? '#3fb568' : '#e8556b';
+    const yTop = Math.min(+y(c.o), +y(c.c)), bh = Math.max(0.8, Math.abs(+y(c.c) - +y(c.o)));
+    return '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + y(c.h) + '" y2="' + y(c.l) + '" stroke="' + col + '" stroke-width="1" vector-effect="non-scaling-stroke"/>'
+      + '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + yTop.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col + '"/>';
+  }).join("");
+  return '<svg class="candle" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + body + '</svg>';
 }
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 

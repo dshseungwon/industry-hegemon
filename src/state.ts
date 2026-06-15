@@ -24,9 +24,11 @@ export interface Firm {
   // 주식시장: 주가가 1차 상태변수, 시총 = price × shares. 엔진이 첫 사용 시 lazy-init(price=100 기준).
   shares: number;            // 발행주식수. 시작 0(센티넬) → 엔진이 intrinsicValue0/100로 초기화. 유상증자 희석 시 증가.
   price: number;             // 주가($/주). 시작 0(센티넬) → 100. 매월 펀더멘털 회귀 + 이벤트 충격(급등/급락).
-  priceHist: number[];       // 최근 주가 이력(스파크라인용, 최대 ~24).
+  priceHist: number[];       // 최근 월별 종가(상단바·변동률용, 최대 ~24).
+  candles: Candle[];         // 일봉 OHLC(차트용). 매월 전월종가→당월종가를 ~21개 일봉으로 분해(브라운 브리지). 최대 ~84.
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
+export interface Candle { o: number; h: number; l: number; c: number; }   // 일봉 OHLC(시·고·저·종)
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
 
 // 한 산업의 게임 시나리오 — 파이프라인(daily-industry-report 확장) 출력 계약.
@@ -138,7 +140,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, shares: 0, price: 0, priceHist: [], auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, shares: 0, price: 0, priceHist: [], candles: [], auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).

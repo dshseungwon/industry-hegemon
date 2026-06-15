@@ -1,4 +1,4 @@
-import { GameState, Cap, CAPS, CAPKO, Firm, Market } from "./state";
+import { GameState, Cap, CAPS, CAPKO, Firm, Market, Candle } from "./state";
 
 export function gcap(c: number) { return Math.pow(Math.max(0, Math.min(100, c)) / 100, 0.7) * 100; }
 export function clamp(x: number, a: number, b: number) { return x < a ? a : x > b ? b : x; }
@@ -198,6 +198,7 @@ function ensureShares(s: GameState, fi: number) {
   if (!f.shares || f.shares <= 0) {
     const iv = Math.max(1, intrinsicValue(s, fi));
     f.price = 100; f.shares = Math.max(1, Math.round(iv / 100)); f.priceHist = [100];
+    f.candles = [{ o: 100, h: 100, l: 100, c: 100 }];
   }
 }
 // 시가총액(지분가치) = 주가 × 발행주식수. 모든 거래가격(증자 조달액·지분매입·M&A)이 주가에 반응.
@@ -212,13 +213,34 @@ const PRICE_SHOCK = 0.8;                // 이벤트 충격 계수(정합도 ±1
 const PRICE_LO = 0.3, PRICE_HI = 5;     // 내재가 대비 주가 허용 밴드(급등 허용 + 0/무한 방지)
 function intrinsicPrice(s: GameState, fi: number) { return Math.max(0.01, intrinsicValue(s, fi) / Math.max(1, s.firms[fi].shares)); }
 function bandClamp(s: GameState, fi: number, price: number) { const ip = intrinsicPrice(s, fi); return clamp(price, ip * PRICE_LO, ip * PRICE_HI); }
-// 평상시 주가 갱신(매 tick): 약한 평균회귀 + 소음. 이력 푸시(스파크라인용).
+const DAILY_DAYS = 21;          // 한 달을 채우는 일봉 개수(영업일)
+const DAILY_VOL = 0.018;        // 일중 변동성(브리지 노이즈·꼬리)
+const CANDLE_CAP = 84;          // 보관 일봉 수(~4개월)
+// 전월 종가→당월 종가를 일봉으로 분해(브라운 브리지: 양 끝에서 노이즈 0, 마지막 일봉 종가=당월 종가).
+function genDaily(open: number, close: number): Candle[] {
+  const out: Candle[] = []; let prev = open;
+  for (let d = 1; d <= DAILY_DAYS; d++) {
+    const t = d / DAILY_DAYS;
+    const bridge = open + (close - open) * t;
+    const amp = DAILY_VOL * Math.sqrt(t * (1 - t)) * Math.max(1, open) * 2.5;   // 양 끝 0, 중간 최대
+    const c = d === DAILY_DAYS ? close : Math.max(0.01, bridge + (Math.random() * 2 - 1) * amp);
+    const o = prev;
+    const h = Math.max(o, c) * (1 + Math.random() * DAILY_VOL * 0.8);
+    const l = Math.min(o, c) * (1 - Math.random() * DAILY_VOL * 0.8);
+    out.push({ o: r2(o), h: r2(h), l: r2(l), c: r2(c) }); prev = c;
+  }
+  return out;
+}
+const r2 = (x: number) => Math.round(x * 100) / 100;
+// 평상시 주가 갱신(매 tick): 약한 평균회귀 + 소음. 당월을 일봉으로 분해해 캔들 누적 + 월별 종가 이력.
 export function updatePrices(s: GameState) {
   for (let fi = 0; fi < s.firms.length; fi++) {
     ensureShares(s, fi); const f = s.firms[fi];
+    const open = f.candles.length ? f.candles[f.candles.length - 1].c : f.price;   // 전월 종가 = 당월 시가
     const rev = PRICE_MEAN_REV * Math.log(intrinsicPrice(s, fi) / f.price);
     const noise = (Math.random() - 0.5) * PRICE_VOL;
-    f.price = bandClamp(s, fi, f.price * (1 + rev + noise));
+    f.price = bandClamp(s, fi, f.price * (1 + rev + noise));                       // 당월 종가(이벤트 충격 반영됨)
+    for (const c of genDaily(open, f.price)) { f.candles.push(c); if (f.candles.length > CANDLE_CAP) f.candles.shift(); }
     f.priceHist.push(Math.round(f.price * 10) / 10);
     if (f.priceHist.length > 24) f.priceHist.shift();
   }
