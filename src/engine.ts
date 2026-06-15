@@ -240,7 +240,8 @@ const PRICE_VOL = 0.012;                // 일중 소음 폭
 const PRICE_WICK = 0.006;               // 일봉 꼬리(고가/저가) 폭
 const PRICE_SHOCK = 0.8;                // 이벤트 충격 계수(정합도 ±1일 때 ±80% 급등/급락)
 const PRICE_LO = 0.3, PRICE_HI = 5;     // 내재가 대비 주가 허용 밴드(급등 허용 + 0/무한 방지)
-function intrinsicPrice(s: GameState, fi: number) { return Math.max(0.01, intrinsicValue(s, fi) / Math.max(1, s.firms[fi].shares)); }
+// 주가 기준 내재가 — 적자/고부채로 순지분가치가 음수여도 영업 going-concern 최소(점령규모×0.1)로 바닥 → 주가 0 붕괴 방지.
+function intrinsicPrice(s: GameState, fi: number) { const f = s.firms[fi]; const floor = Math.max(1, capturedSize(s, f.key) * 0.1); return Math.max(floor, intrinsicValue(s, fi)) / Math.max(1, f.shares); }
 function bandClamp(s: GameState, fi: number, price: number) { const ip = intrinsicPrice(s, fi); return clamp(price, ip * PRICE_LO, ip * PRICE_HI); }
 const CANDLE_CAP = 120;         // 보관 일봉 수(~4개월)
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -672,6 +673,8 @@ export function tick(s: GameState) {
   s.youIdx = Math.max(0, s.firms.findIndex(x => x.key === youKey));
   recomputeLeaders(s);
   if (playerBankrupt) { s.ui.over = { won: false, msg: "💸 파산 — 채무 불이행으로 경영권 상실" }; s.speed = 0; s.fx.push("lose"); return; }
+  // 경영권 상실 = 즉시 패배(회사 지배력을 잃으면 게임오버). 과도 희석(긴급증자·전환사채 전환)·적대적 지분에 의한 상실 포함.
+  if (s.firms[s.youIdx] && !hasControl(s, s.youIdx)) { s.ui.over = { won: false, msg: "👔 경영권 상실 — 회사에 대한 지배력을 잃었습니다" }; s.speed = 0; s.fx.push("lose"); return; }
 
   // 승리: 완전 장악(전 시장 1위 + 결정적 점유율) / 마감 시 1위 — 단, 경영권(과반 지분) 보유가 필수.
   // 샌드박스(승리 후 '계속 경영')에선 승리/마감 재판정 끔(파산은 위에서 그대로 적용).
