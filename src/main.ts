@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -232,6 +232,30 @@ const A: Actions = {
       ],
       okLabel: "조달",
       onOk: () => { if (!s) return; if (online) { net?.send({ kind: "raiseDebt" }); s.ui.confirm = null; sfx("select"); render(s, A); return; } engineRaiseDebt(s, s.youIdx, amt); s.ui.confirm = null; sfx("select"); render(s, A); },
+    };
+    render(s, A);
+  },
+  buildCapacity() {
+    if (!s) return;
+    const me = s.firms[s.youIdx];
+    const chunk = Math.max(10, Math.round(me.capacityTarget * 0.2));
+    const px = capacityCapex(s, chunk);
+    if (me.cash < px) { flash("증설 자금 부족 ($" + px + "B 필요)"); return; }
+    s.ui.confirm = {
+      title: "🏭 생산능력 증설",
+      lines: [
+        "투자(CAPEX): <b>$" + px + "B</b> · 생산능력 <b>+" + chunk + "</b>",
+        "가동까지 <b>수개월</b>(증설 지연). 생산능력이 점유율 상한을 정합니다.",
+        "가동 후 <b>월 고정비</b>가 늘어납니다. 진행할까요?",
+      ],
+      okLabel: "증설",
+      onOk: () => {
+        if (!s) return;
+        if (online) { net?.send({ kind: "buildCapacity" }); s.ui.confirm = null; sfx("invest"); render(s, A); return; }
+        const m = s.firms[s.youIdx]; m.cash -= capacityCapex(s, Math.max(10, Math.round(m.capacityTarget * 0.2)));
+        engineBuildCapacity(s, s.youIdx, Math.max(10, Math.round(m.capacityTarget * 0.2)));
+        s.ui.confirm = null; sfx("invest"); render(s, A);
+      },
     };
     render(s, A);
   },

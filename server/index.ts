@@ -13,6 +13,7 @@ import {
   acquireTargets, doAcquire, raiseDebt, borrowRoom, lobbyCost, doLobby, canAct, setActCooldown,
   TECH_NODES, doResearch, setAlloc, doEnter,
   raiseEquity, emergencyLoan, emergencyAusterity, liquidateVentures, insolvent,
+  capacityCapex, buildCapacity,
 } from "../src/engine";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -24,7 +25,7 @@ type Action =
   | { kind: "speed"; n: 0 | 1 | 2 | 3 } | { kind: "invest"; cap: Cap } | { kind: "operate"; cap: Cap; action: string }
   | { kind: "acquire"; rivalKey: string } | { kind: "raiseDebt" } | { kind: "lobby"; market: string }
   | { kind: "research"; key: string } | { kind: "alloc"; market: string; delta: number }
-  | { kind: "raiseEquity" } | { kind: "emergencyLoan" } | { kind: "austerity" } | { kind: "liquidate" };
+  | { kind: "raiseEquity" } | { kind: "emergencyLoan" } | { kind: "austerity" } | { kind: "liquidate" } | { kind: "buildCapacity" };
 
 interface Player { key: string; name: string; }
 interface Room { code: string; state: GameState; clients: Set<WebSocket>; players: Map<WebSocket, Player>; timer?: NodeJS.Timeout; }
@@ -57,6 +58,7 @@ function applyAction(state: GameState, fi: number, a: Action) {
     }
     case "acquire": { const t = acquireTargets(state, fi).find(x => x.key === a.rivalKey); if (t && f.cash >= t.price) { f.cash -= t.price; doAcquire(state, fi, a.rivalKey); } break; }
     case "raiseDebt": { const amt = Math.min(40, Math.floor(borrowRoom(state, fi))); if (amt >= 5) raiseDebt(state, fi, amt); break; }
+    case "buildCapacity": { const chunk = Math.max(10, Math.round(f.capacityTarget * 0.2)); const px = capacityCapex(state, chunk); if (f.cash >= px) { f.cash -= px; buildCapacity(state, fi, chunk); } break; }
     case "lobby": { if (!canAct(state, fi, "lobby:" + a.market)) break; const c = lobbyCost(state, a.market); if (f.cash >= c) { f.cash -= c; doLobby(state, fi, a.market); setActCooldown(state, fi, "lobby:" + a.market, 5); recomputeLeaders(state); } break; }
     case "research": { const n = TECH_NODES.find(x => x.key === a.key); if (n && !f.tech.includes(a.key) && f.cash >= n.cost) { f.cash -= n.cost; doResearch(state, fi, a.key); } break; }
     case "alloc": {
