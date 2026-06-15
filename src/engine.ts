@@ -200,17 +200,40 @@ export function strategyProjects(s: GameState, fi: number = s.youIdx): Project[]
   return list;
 }
 
-// ---- 전략: M&A(인수) / 재무(자금조달) ----
-export interface MnaTarget { key: string; name: string; col: string; price: number; share: number; }
-// 인수 후보: 경쟁사별 인수가(현재 점령 규모 가치 기준)와 점유율.
+// ---- 전략: M&A(인수) / 지분 매입 / 재무(자금조달) ----
+export interface MnaTarget { key: string; name: string; col: string; price: number; share: number; myStake: number; founder: number; controlled: boolean; }
+// 내가 보유한 라이벌 지분(blocs 중 owner==나).
+export function myStakeIn(s: GameState, fi: number, rivalKey: string): number {
+  const r = firmByKey(s, rivalKey), my = s.firms[fi].key; if (!r) return 0;
+  return r.blocs.reduce((a, b) => a + (b.owner === my ? b.stake : 0), 0);
+}
+// 인수 후보: 잔여 인수가(이미 보유한 지분만큼 저렴) + 내 지분·라이벌 경영권 상태.
 export function acquireTargets(s: GameState, fi: number = s.youIdx): MnaTarget[] {
   const you = s.firms[fi];
   let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size;
-  return s.firms.filter(f => f.key !== you.key).map(f => ({
-    key: f.key, name: f.name, col: f.col,
-    price: Math.max(30, Math.round(marketCap(s, s.firms.indexOf(f)) * 1.3)),   // 인수가 = 상대 기업가치 × 경영권 프리미엄(싸게 사서 즉시 승리 방지)
-    share: tot > 0 ? capturedSize(s, f.key) / tot : 0,
-  }));
+  return s.firms.filter(f => f.key !== you.key).map(f => {
+    const idx = s.firms.indexOf(f), my = myStakeIn(s, fi, f.key);
+    return {
+      key: f.key, name: f.name, col: f.col,
+      price: Math.max(20, Math.round((1 - my) * marketCap(s, idx) * 1.3)),   // 잔여 지분 인수가(경영권 프리미엄)
+      share: tot > 0 ? capturedSize(s, f.key) / tot : 0, myStake: my, founder: f.ownership, controlled: hasControl(s, idx),
+    };
+  });
+}
+// 지분 매입: 라이벌 공모주(float)에서 frac(절대비율 0~1) 매입 → 내 블록↑·라이벌 float↓. 비용=frac×시가총액×프리미엄.
+export function stakeBuyCost(s: GameState, fi: number, rivalKey: string, frac: number): number {
+  const r = firmByKey(s, rivalKey); if (!r) return 0; const idx = s.firms.findIndex(f => f.key === rivalKey);
+  return Math.round(Math.min(frac, r.float) * marketCap(s, idx) * 1.1);
+}
+export function buyStake(s: GameState, fi: number, rivalKey: string, frac: number) {
+  const you = s.firms[fi], r = firmByKey(s, rivalKey); if (!r) return;
+  const buy = Math.min(Math.max(0, frac), r.float); if (buy < 0.005) return;
+  const cost = stakeBuyCost(s, fi, rivalKey, buy); if (you.cash < cost) return;
+  you.cash -= cost; r.float -= buy;
+  const mine = r.blocs.find(b => b.owner === you.key);
+  if (mine) mine.stake += buy; else r.blocs.push({ name: you.name, stake: buy, owner: you.key });
+  recomputeLeaders(s);
+  pushLog(s, "📈 " + you.name + " " + r.name + " 지분 " + Math.round(buy * 100) + "% 매입 (보유 " + Math.round(myStakeIn(s, fi, rivalKey) * 100) + "%)" + (!hasControl(s, s.firms.indexOf(r)) ? " ⚠️ " + r.name + " 경영권 흔들림" : ""));
 }
 // 인수 실행: 경쟁자만 제거(점유율 분모 축소 → 그 시장 점유율이 남은 기업에 재분배).
 // 역량은 흡수하지 않음 — 그래야 강자가 약체를 사서 약점 역량까지 메워 전 시장을 석권하는 조기 완전장악 허점이 사라짐.

@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -30,6 +30,8 @@ export interface Actions {
   createRoom(name: string): void;
   joinRoom(code: string, name: string): void;
   acquire(rivalKey: string): void;
+  buyStakeOpen(rivalKey: string): void;
+  buyStake(rivalKey: string, frac: number): void;
   raiseDebt(): void;
   buildCapacity(): void;
   raiseFI(): void;
@@ -342,6 +344,7 @@ function renderPanel(s: GameState, A: Actions) {
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
   o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech):not(.enter)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
+  o.querySelectorAll<HTMLElement>(".buystake").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.buyStakeOpen(b.dataset.key!); });
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".enter").forEach(b => b.onclick = () => A.alloc(b.dataset.n!, 1));
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.cap as Cap, b.dataset.op!); });
@@ -413,12 +416,19 @@ function panelBody(s: GameState, panel: string): string {
     }).join("");
   } else if (panel === "strategy") {
     // M&A(경쟁사 인수)
-    h += '<div class="sect">M&A — 경쟁사 인수</div>';
+    h += '<div class="sect">M&A · 지분 — 경쟁사</div>';
     const tgts = acquireTargets(s);
-    if (!tgts.length) h += '<div class="card mute small">인수할 경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
+    if (!tgts.length) h += '<div class="card mute small">경쟁사가 없습니다 — 이미 시장을 정리했습니다.</div>';
     else tgts.forEach(t => {
+      const f = s.firms.find(x => x.key === t.key)!;
       const can = you.cash >= t.price;
-      h += '<button class="proj mna" data-key="' + t.key + '"><div class="h"><span style="color:' + t.col + '">' + t.name + '</span> 인수<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e"><b>경쟁자 제거</b> + 점유율 흡수(역량은 안 합쳐짐) · 현 점유율 ' + (t.share * 100).toFixed(0) + '%</div></button>';
+      h += '<div class="card">'
+        + '<div class="kv"><b style="color:' + t.col + '">' + t.name + '</b><span class="mute small">점유율 ' + (t.share * 100).toFixed(0) + '% · 내 보유 ' + (t.myStake * 100).toFixed(0) + '%</span></div>'
+        + capTableBar(f)
+        + '<div class="kv small"><span class="mute">창업자 ' + (t.founder * 100).toFixed(0) + '% · 공모주 ' + (f.float * 100).toFixed(0) + '%</span><span class="' + (t.controlled ? 'mute' : 'red') + '">' + (t.controlled ? '경영권 ✓' : '경영권 흔들림 ⚠️') + '</span></div>'
+        + '<button class="actbtn buystake" data-key="' + t.key + '"' + (f.float < 0.005 || you.cash < stakeBuyCost(s, s.youIdx, t.key, 0.05) ? ' disabled' : '') + '>📈 지분 매입 (공모주 ' + Math.round(f.float * 100) + '%까지)</button>'
+        + '<button class="proj mna" data-key="' + t.key + '"' + (can ? '' : ' disabled') + '><div class="h">🤝 인수(흡수)<span class="bdg ' + (can ? 'go' : 'no') + '">$' + fmt(t.price) + 'B</span></div><div class="e">경쟁자 제거 + <b>생산능력 흡수</b> · 점유율 재분배' + (t.myStake > 0 ? ' · 잔여 ' + Math.round((1 - t.myStake) * 100) + '% 인수' : '') + '</div></button>'
+        + '</div>';
     });
     // 3) 재무(자금 조달) — 차입여력은 벌이(EBITDA)에 비례
     const room = borrowRoom(s); const tranche = Math.min(40, Math.floor(room)); const canB = tranche >= 5;
@@ -674,6 +684,39 @@ export function openRaiseModal(s: GameState, A: Actions, asSI: boolean) {
   document.getElementById("rOk")!.onclick = () => { const amt = +slider.value; wrap.remove(); if (amt > 0) A.raiseExec(asSI, amt); };
   document.getElementById("rCancel")!.onclick = () => wrap.remove();
   wrap.querySelectorAll<HTMLElement>(".rtab").forEach(b => b.onclick = () => { wrap.remove(); openRaiseModal(s, A, b.dataset.si === "1"); });
+}
+// 경쟁사 지분 매입 슬라이더 팝업 — 공모주에서 %를 드래그(비용·라이벌 경영권 실시간).
+export function openStakeModal(s: GameState, A: Actions, rivalKey: string) {
+  const me = s.firms[s.youIdx].key, r = s.firms.find(f => f.key === rivalKey); if (!r) return;
+  const idx = s.firms.indexOf(r), pre = Math.max(1, marketCap(s, idx));
+  const myNow = r.blocs.reduce((a, b) => a + (b.owner === me ? b.stake : 0), 0);
+  const siNow = r.blocs.reduce((a, b) => a + b.stake, 0);
+  const maxPct = Math.floor(r.float * 100); const cash = s.firms[s.youIdx].cash;
+  document.getElementById("raisewrap")?.remove();
+  const wrap = document.createElement("div"); wrap.id = "raisewrap"; wrap.className = "modalwrap";
+  wrap.innerHTML = '<div class="modal"><h3>📈 ' + r.name + ' 지분 매입</h3>'
+    + '<div class="mrow mute small">공모주(자유 유통 지분)에서 매입합니다. 내 지분이 창업자(' + (r.ownership * 100).toFixed(0) + '%)를 넘으면 그 회사 경영권이 흔들립니다 → 인수가도 저렴해집니다.</div>'
+    + '<div class="rrow"><span>매입 비율</span><b id="sPct" class="gold"></b></div>'
+    + '<input type="range" id="sSlider" min="0" max="' + maxPct + '" value="' + Math.round(maxPct / 2) + '" step="1">'
+    + '<div class="rrow"><span>비용</span><b id="sCost"></b></div>'
+    + '<div class="rrow"><span>내 보유 지분</span><b id="sMy"></b></div>'
+    + '<div class="rrow"><span>' + r.name + ' 경영권</span><b id="sCtl"></b></div>'
+    + (maxPct <= 0 ? '<div class="mrow red small">공모주가 없어 매입할 수 없습니다(창업자·기존 주주만 보유).</div>' : '')
+    + '<div class="mbtns"><button class="btn ghost" id="sCancel">취소</button><button class="btn" id="sOk">지분 매입</button></div></div>';
+  document.body.appendChild(wrap);
+  const slider = document.getElementById("sSlider") as HTMLInputElement;
+  const upd = () => {
+    const frac = (+slider.value) / 100, cost = Math.round(frac * pre * 1.1);
+    const myAfter = myNow + frac, siAfter = siNow + frac, rivCtl = r.ownership >= siAfter - 1e-9;
+    document.getElementById("sPct")!.textContent = (+slider.value) + "%";
+    document.getElementById("sCost")!.innerHTML = "<b class='" + (cost <= cash ? "" : "red") + "'>$" + cost + "B</b>" + (cost > cash ? " (자금부족)" : "");
+    document.getElementById("sMy")!.innerHTML = (myNow * 100).toFixed(0) + "% → <b class='gold'>" + (myAfter * 100).toFixed(0) + "%</b>";
+    document.getElementById("sCtl")!.innerHTML = rivCtl ? "<span class='gold'>유지</span>" : "<span class='red'>⚠️ 흔들림(내가 최대주주)</span>";
+    (document.getElementById("sOk") as HTMLButtonElement).disabled = frac <= 0 || cost > cash;
+  };
+  slider.oninput = upd; upd();
+  document.getElementById("sOk")!.onclick = () => { const frac = (+slider.value) / 100; wrap.remove(); if (frac > 0) A.buyStake(rivalKey, frac); };
+  document.getElementById("sCancel")!.onclick = () => wrap.remove();
 }
 // 전체화면 승리/패배 플래시 — 1회. (한 게임 오버당 한 번)
 let flashedOver = false;

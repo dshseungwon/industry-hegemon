@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy } from "./engine";
-import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, Actions } from "./ui";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake } from "./engine";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, openStakeModal, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
@@ -194,6 +194,12 @@ const A: Actions = {
     else if (action === "risk") { if (v.risk <= 0) { flash("리스크 없음"); return; } v.risk--; setCooldown(s, s.youIdx, cap, "risk", 2); flash("리스크 해소"); sfx("select"); }
     else if (action === "cancel") { me.cash += 15; me.ventures = me.ventures.filter(x => x.cap !== cap); flash("취소 — 자금 회수"); sfx("cancel"); }
     render(s, A);
+  },
+  buyStakeOpen(rivalKey) { if (s) openStakeModal(s, A, rivalKey); },
+  buyStake(rivalKey, frac) {
+    if (!s || frac <= 0) return;
+    if (online) { net?.send({ kind: "buyStake", rivalKey, frac }); sfx("invest"); return; }
+    engineBuyStake(s, s.youIdx, rivalKey, frac); sfx("invest"); render(s, A);
   },
   acquire(rivalKey) {
     if (!s) return;
