@@ -28,7 +28,8 @@ export interface IndustryScenario {
   real?: boolean;                  // true = The Industry Brief 실데이터(KSF·경쟁사) 사용
   markets: MarketDef[];
   firms: FirmDef[];                // [0]은 기본 플레이어 후보(보통 한국 1위)
-  growth?: number;                 // 시장 월 성장률(섹터별). tick에서 매월 시장 규모에 적용.
+  growth?: number;                 // 시장 월 성장률(실 CAGR 우선, 없으면 섹터 근사). tick에서 매월 적용.
+  sizeFactor?: number;             // 실제 시장규모(trillion_usd) 기반 파이 스케일(프론티어에도 적용).
 }
 export interface Venture {
   name: string; cap: Cap; payoff: number; progress: number; risk: number;
@@ -157,8 +158,9 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   const markets: Record<string, Market> = {};
   const order: string[] = [];
   for (const m of scenario.markets) { markets[m.name] = { name: m.name, ko: m.ko, pref: mpref[m.name], size: m.size, leader: youKey }; order.push(m.name); }
-  // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방.
-  for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: f.size, leader: youKey }; }
+  // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방. 산업 규모 factor 동일 적용.
+  const sf = scenario.sizeFactor ?? 1;
+  for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: Math.round(f.size * sf), leader: youKey }; }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real, growth: scenario.growth },

@@ -31,6 +31,17 @@ const SECTOR_GROWTH: Record<string, number> = {
 };
 const DEFAULT_GROWTH = .04;
 const monthlyGrowth = (annual: number) => Math.pow(1 + annual, 1 / 12) - 1;
+// brief cagr 문자열("≈6.6%", "~13%") → 연 성장률(0.066). 못 읽으면 null.
+function parseCagr(s?: string): number | null {
+  if (!s) return null;
+  const m = s.match(/(-?[\d.]+)\s*%/);
+  return m ? parseFloat(m[1]) / 100 : null;
+}
+// 실제 시장규모(trillion_usd) → 파이 스케일 factor. REF=현 baseline(~1.5조). clamp로 폭주·초소형 즉사 방지.
+const SIZE_REF_TRILLION = 1.5;
+function sizeFactorOf(trillion?: number): number {
+  return trillion ? clamp(trillion / SIZE_REF_TRILLION, 0.5, 3) : 1;
+}
 
 // 국가별 성향(약한 tilt) — 산업이 같아도 나라마다 KSF가 조금씩 달라 "어디가 약한지" 읽는 재미 유지.
 const COUNTRY_TILT: Record<string, Cap> = {
@@ -78,11 +89,11 @@ const seedOf = (gics: string, salt: number) => {
   return (h % 1000) / 1000;
 };
 
-function marketsFor(preset: Record<Cap, number>): MarketDef[] {
+function marketsFor(preset: Record<Cap, number>, sizeFactor = 1): MarketDef[] {
   return WORLD_MARKETS.map(m => {
     const p = { ...preset };
     const tilt = COUNTRY_TILT[m.name]; if (tilt) p[tilt] += 0.15;   // 국가 성향 가미
-    return { name: m.name, ko: m.ko, size: m.size, pref: normalize(p) };
+    return { name: m.name, ko: m.ko, size: Math.round(m.size * sizeFactor), pref: normalize(p) };
   });
 }
 
@@ -116,11 +127,14 @@ export function buildScenario(meta: BriefMeta): IndustryScenario {
       caps: capsFor(preset, 64, 25, g, 70) },   // 산업 KSF 기반의 신빙성 있는 글로벌 경쟁사
   ];
   ensureDistinct(firms);
+  // 실제 시장규모 → 파이 스케일, 실제 CAGR → 성장률(없으면 섹터 근사 폴백)
+  const sizeFactor = sizeFactorOf(gd?.market?.trillion_usd);
+  const annualGrowth = parseCagr(gd?.cagr) ?? SECTOR_GROWTH[meta.sector] ?? DEFAULT_GROWTH;
   return {
     key: "ind-" + g, name: meta.industry_en, ko: meta.industry_ko, sector: meta.sector,
     headline: meta.headline_ko, reportUrl: reportUrl(meta), preset: !gd, real: !!gd,
-    markets: marketsFor(preset), firms,
-    growth: monthlyGrowth(SECTOR_GROWTH[meta.sector] ?? DEFAULT_GROWTH),
+    markets: marketsFor(preset, sizeFactor), firms, sizeFactor,
+    growth: monthlyGrowth(annualGrowth),
   };
 }
 
