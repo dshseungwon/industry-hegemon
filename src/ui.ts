@@ -2,6 +2,7 @@ import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
+import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { tutorialActive, tutorialSteps, tutorialAllDone } from "./tutorial";
 import { sfx, isMuted, toggleMute, setBgmMood, startBgm, stopBgm } from "./audio";
@@ -664,6 +665,7 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<div class="crest">🎩</div>' +
     '<h1 class="gametitle">THE CHAIRMAN</h1>' +
     '<div class="kotitle">더 체어맨</div>' +
+    '<div style="opacity:.45;font-size:12px;letter-spacing:1px;margin-top:4px">v' + VERSION + '</div>' +
     '<p class="lede">당신은 회장이다.<br>한 기업을 운영해 변화하는 세계 시장을 공략하고, <b>점유율 1위</b>로 산업을 지배하라.</p>' +
     '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
     (staticBuild
