@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -256,7 +256,7 @@ function renderEmergency(s: GameState, A: Actions) {
   el.innerHTML =
     '<div class="emhead">🚨 비상 경영 — 파산까지 <b>' + months + '개월</b> <span class="emcash">현금 $' + fmt(me.cash) + 'B</span></div>' +
     '<div class="embtns">' +
-    b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + eqCd + '개월' : '+$' + eqAmt + 'B' + (me.equityRaises > 0 ? ' (' + (me.equityRaises + 1) + '회차·체감)' : ''))) +
+    b("emEquity", eqCd > 0, '🏦 증자 ' + (eqCd > 0 ? '쿨다운 ' + Math.ceil(eqCd / DAYS_PER_MONTH) + '개월' : '+$' + eqAmt + 'B' + (me.equityRaises > 0 ? ' (' + (me.equityRaises + 1) + '회차·체감)' : ''))) +
     b("emLoan", loan < 1, '💵 긴급 대출 ' + (loan < 1 ? '여력 없음' : '+$' + loan + 'B')) +
     b("emAusterity", save <= 0.05, '✂️ 비상 긴축 ' + (save > 0.05 ? '−$' + save.toFixed(1) + '/월' : '여지 없음')) +
     b("emLiquidate", liq <= 0, '🛑 개발 중단 ' + (liq > 0 ? '+$' + liq + 'B' : '없음')) +
@@ -278,7 +278,7 @@ function renderTop(s: GameState, A: Actions) {
   t.innerHTML =
     '<div class="brand">더 체어맨</div>' +
     '<div class="myfirm" title="내 기업" style="border-color:' + me.col + '"><span class="fdot" style="background:' + me.col + '"></span><b style="color:' + me.col + '">' + me.name + '</b></div>' +
-    '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
+    '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_DAYS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
     '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>주가 <b>$' + (me.price || 100).toFixed(0) + '</b>' + (Math.abs(pchg) >= 0.1 ? ' <span class="small ' + (pchg >= 0 ? 'gold' : 'red') + '">' + (pchg >= 0 ? '▲' : '▼') + Math.abs(pchg).toFixed(0) + '%</span>' : '') + '</span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
@@ -403,8 +403,8 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv"><span class="mute small">내 지분 ' + ownP.toFixed(0) + '% vs 최대 적대 지분 ' + threatP.toFixed(0) + '% (이보다 많아야 경영권 유지)</span></div>'
       + capTableBar(you)
       + '<div class="kv small"><span>창업자(나) <b class="gold">' + ownP.toFixed(0) + '%</b></span><span class="mute">재무적투자자 ' + (you.float * 100).toFixed(0) + '% · 전략적투자자 ' + threatP.toFixed(0) + '%</span></div>'
-      + '<button class="actbtn" id="raiseFI"' + (fiCd > 0 || fiMax <= 0 ? ' disabled' : '') + '>🏦 유상증자 — 재무적 투자자' + (fiCd > 0 ? ' · 재충전 ' + fiCd + '개월' : fiMax <= 0 ? ' · 지분 한도(20%)' : ' (최대 $' + fiMax + 'B)') + '</button>'
-      + '<button class="actbtn" id="raiseSI"' + (siCd > 0 || siMax <= 0 ? ' disabled' : '') + '>🤝 유상증자 — 전략적 투자자' + (siCd > 0 ? ' · 재충전 ' + siCd + '개월' : siMax <= 0 ? ' · 경영권 위협(불가)' : ' (최대 $' + siMax + 'B)') + '</button>'
+      + '<button class="actbtn" id="raiseFI"' + (fiCd > 0 || fiMax <= 0 ? ' disabled' : '') + '>🏦 유상증자 — 재무적 투자자' + (fiCd > 0 ? ' · 재충전 ' + Math.ceil(fiCd / DAYS_PER_MONTH) + '개월' : fiMax <= 0 ? ' · 지분 한도(20%)' : ' (최대 $' + fiMax + 'B)') + '</button>'
+      + '<button class="actbtn" id="raiseSI"' + (siCd > 0 || siMax <= 0 ? ' disabled' : '') + '>🤝 유상증자 — 전략적 투자자' + (siCd > 0 ? ' · 재충전 ' + Math.ceil(siCd / DAYS_PER_MONTH) + '개월' : siMax <= 0 ? ' · 경영권 위협(불가)' : ' (최대 $' + siMax + 'B)') + '</button>'
       + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
@@ -491,8 +491,8 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="card">한 기업을 운영해 <b>세계 시장 점유율 1위</b>에 오르는 실시간 경영 전략 게임입니다.</div>';
     h += '<div class="sect">🏆 승리 조건 (둘 중 하나)</div><div class="card">' +
       '<div class="kv"><span>① 완전 장악</span><b class="gold">모든 시장 1위</b></div>' +
-      '<div class="kv"><span>② 마감 시 1위</span><b class="gold">~' + dateLabel(END_MONTHS) + '</b></div>' +
-      '<div class="mute small" style="margin-top:4px">전 시장 1위(완전장악) 또는 마감(' + dateLabel(END_MONTHS) + ') 시 1위면 승리.</div></div>';
+      '<div class="kv"><span>② 마감 시 1위</span><b class="gold">~' + dateLabel(END_DAYS) + '</b></div>' +
+      '<div class="mute small" style="margin-top:4px">전 시장 1위(완전장악) 또는 마감(' + dateLabel(END_DAYS) + ') 시 1위면 승리.</div></div>';
     h += '<div class="sect">플레이 방법</div><div class="card mute small" style="line-height:1.7">' +
       '① <b>국가를 클릭</b> → 그 시장이 원하는 역량(KSF)·기업별 점유율 확인<br>' +
       '② 🎯<b>공략(자원 투입)</b> — 그 시장에 직접 자원을 부어 <b>점유율을 능동적으로</b> 끌어올립니다. 적합도(KSF)가 높을수록 효과적, 안 유지하면 약해집니다<br>' +
@@ -524,7 +524,7 @@ function panelBody(s: GameState, panel: string): string {
     const gapLab = gap >= 15 ? '고평가 — 증자 유리' : gap <= -15 ? '저평가' : '적정';
     h += '<div class="card">'
       + '<div class="kv"><span>내 주가</span><b class="gold">$' + (you.price || 100).toFixed(1) + ' <span class="small ' + (chg >= 0 ? 'gold' : 'red') + '">' + (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(1) + '%</span></b></div>'
-      + candleChart(you.candles)
+      + candleChart(you.candles, s.date)
       + '<div class="kv"><span class="mute small">주가 × 발행주식수 = 시가총액</span></div>'
       + '<div class="kv"><span>$' + (you.price || 100).toFixed(1) + ' × ' + fmt(you.shares) + '주</span><b class="gold">$' + fmt(mc) + 'B</b></div>'
       + '<div class="kv"><span>펀더멘털(내재가치)</span><b>$' + fmt(iv) + 'B</b></div>'
@@ -562,27 +562,45 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const v = s.firms[s.youIdx].ventures.find(x => x.cap === cap);
   const ok = canOperate(s, s.youIdx, cap, action);
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
-  return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
+  return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + Math.ceil(cd / DAYS_PER_MONTH) + '개월') + '</div></button>';
 }
 const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
-// 일봉 캔들차트(인라인 SVG, 의존성 없음). 상승=초록/하락=빨강. 가격축에 맞춰 몸통+꼬리.
-function candleChart(candles: Candle[]): string {
+// 일봉 캔들차트(인라인 SVG, 의존성 없음). 가격축 라벨·격자·현재가선·날짜. 상승=초록/하락=빨강.
+function candleChart(candles: Candle[], curDate: number): string {
   if (!candles || candles.length < 2) return '';
-  const W = 300, H = 96, n = candles.length;
+  const n = candles.length, W = 320, H = 150, padR = 40, padB = 14, padT = 6, padL = 4;
+  const x0 = padL, x1 = W - padR, y0 = padT, y1 = H - padB;
   let lo = Infinity, hi = -Infinity;
   for (const c of candles) { if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
-  const rng = hi - lo || 1, pad = rng * 0.06;
-  lo -= pad; hi += pad; const span = hi - lo;
-  const y = (v: number) => (H - (v - lo) / span * H).toFixed(1);
-  const cw = W / n, bw = Math.max(1.2, cw * 0.62);
+  const rng = hi - lo || 1, mg = rng * 0.08; lo -= mg; hi += mg; const span = hi - lo || 1;
+  const Y = (v: number) => y1 - (v - lo) / span * (y1 - y0);
+  const cw = (x1 - x0) / n, bw = Math.max(1, cw * 0.62);
+  // 가격 격자 + 우측 가격 라벨(5단계)
+  let grid = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + span * i / 4, yy = Y(v);
+    grid += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="rgba(255,255,255,.08)" stroke-width="0.5"/>'
+      + '<text x="' + (x1 + 3) + '" y="' + (yy + 2.6).toFixed(1) + '" font-size="8" fill="#8a93a0">' + v.toFixed(0) + '</text>';
+  }
+  // 캔들(몸통+꼬리)
   const body = candles.map((c, i) => {
-    const x = i * cw + cw / 2;
-    const up = c.c >= c.o, col = up ? '#3fb568' : '#e8556b';
-    const yTop = Math.min(+y(c.o), +y(c.c)), bh = Math.max(0.8, Math.abs(+y(c.c) - +y(c.o)));
-    return '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + y(c.h) + '" y2="' + y(c.l) + '" stroke="' + col + '" stroke-width="1" vector-effect="non-scaling-stroke"/>'
-      + '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + yTop.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col + '"/>';
+    const x = x0 + i * cw + cw / 2, up = c.c >= c.o, col = up ? '#3fb568' : '#e8556b';
+    const yt = Math.min(Y(c.o), Y(c.c)), bh = Math.max(0.6, Math.abs(Y(c.c) - Y(c.o)));
+    return '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + Y(c.h).toFixed(1) + '" y2="' + Y(c.l).toFixed(1) + '" stroke="' + col + '" stroke-width="0.6"/>'
+      + '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + yt.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col + '"/>';
   }).join("");
-  return '<svg class="candle" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + body + '</svg>';
+  // 현재가 점선 + 우측 강조 라벨
+  const last = candles[n - 1], yc = Y(last.c);
+  const cur = '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yc.toFixed(1) + '" y2="' + yc.toFixed(1) + '" stroke="#ffb81c" stroke-width="0.6" stroke-dasharray="3 2"/>'
+    + '<rect x="' + (x1 + 1) + '" y="' + (yc - 5).toFixed(1) + '" width="' + (padR - 2) + '" height="10" rx="1.5" fill="#ffb81c"/>'
+    + '<text x="' + (x1 + 3) + '" y="' + (yc + 2.6).toFixed(1) + '" font-size="8" font-weight="700" fill="#1a1330">' + last.c.toFixed(0) + '</text>';
+  // 날짜 라벨(시작·중간·끝)
+  let dates = '';
+  [[0, 'start'], [Math.floor((n - 1) / 2), 'middle'], [n - 1, 'end']].forEach(([i, anc]) => {
+    const idx = i as number, x = x0 + idx * cw + cw / 2;
+    dates += '<text x="' + x.toFixed(1) + '" y="' + (H - 3) + '" font-size="7.5" fill="#8a93a0" text-anchor="' + anc + '">' + dateLabel(curDate - (n - 1 - idx)) + '</text>';
+  });
+  return '<svg class="candle" viewBox="0 0 ' + W + ' ' + H + '">' + grid + body + cur + dates + '</svg>';
 }
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
@@ -692,7 +710,7 @@ function lobbyBtn(s: GameState): string {
   const n = s.ui.country!; const cost = lobbyCost(s, n); const ok = canAct(s, s.youIdx, "lobby:" + n);
   const cd = ok ? 0 : Math.max(0, (me.cooldowns["lobby:" + n] || 0) - s.date);
   const dis = !ok || me.cash < cost;
-  return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — 시장 선호를 우리에게 유리하게 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + cd + '개월)') + '</button>';
+  return '<button class="actbtn" id="lobbyBtn"' + (dis ? ' disabled' : '') + '>🏛️ 로비 — 시장 선호를 우리에게 유리하게 ' + (ok ? '($' + cost + 'B)' : '(쿨다운 ' + Math.ceil(cd / DAYS_PER_MONTH) + '개월)') + '</button>';
 }
 
 function renderConfirm(s: GameState, A: Actions) {

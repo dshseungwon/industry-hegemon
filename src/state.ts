@@ -191,7 +191,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real, growth: scenario.growth },
     firms, youIdx, markets, marketOrder: order,
-    trend: { bias: null, until: 6, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },
+    trend: { bias: null, until: 180, headline: "안정적 시장", note: "수요가 고르게 분포합니다." },   // until은 '일'(6개월=180일)
     event: { title: "", note: "", id: 0, icon: "" },
     log: [], fx: [], ui: { panel: "none", leftPanel: "company", country: null, confirm: null, over: null },
   };

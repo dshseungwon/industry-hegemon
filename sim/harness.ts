@@ -110,19 +110,20 @@ export function runGame(opts: RunOpts = {}): GameResult {
   E.recomputeLeaders(s);
   s.speed = 3;
   const youKey = s.firms[youIdx].key;
-  const max = opts.maxMonths ?? 240;
-  let mo = 0;
-  while (!s.ui.over && mo < max) {
+  const D = E.DAYS_PER_MONTH;
+  const max = (opts.maxMonths ?? 240) * D;   // 일 단위 진행 — 상한도 일로 환산
+  let day = 0;
+  while (!s.ui.over && day < max) {
     const fi = s.firms.findIndex(f => f.key === youKey);
-    if (fi >= 0) policy(s, fi);
-    E.tick(s); mo++;
-    if (opts.onTick) opts.onTick(s, mo);
+    if (fi >= 0 && s.date % D === 0) policy(s, fi);   // 의사결정은 월 경계에만(플레이어 cadence)
+    E.tick(s); day++;
+    if (opts.onTick) opts.onTick(s, Math.floor(s.date / D));
   }
   const yi = s.firms.findIndex(f => f.key === youKey);
   const youShare = yi >= 0 ? E.myShare(s, yi) : 0;
   let bestRivalShare = 0;
   for (let i = 0; i < s.firms.length; i++) if (s.firms[i].key !== youKey) bestRivalShare = Math.max(bestRivalShare, E.myShare(s, i));
-  return { winnerKey: s.ui.over?.winnerKey || (s.ui.over?.won ? youKey : ""), won: !!s.ui.over?.won, months: mo, youShare, bestRivalShare };
+  return { winnerKey: s.ui.over?.winnerKey || (s.ui.over?.won ? youKey : ""), won: !!s.ui.over?.won, months: Math.round(s.date / D), youShare, bestRivalShare };
 }
 
 export function runMany(n: number, opts: RunOpts = {}): GameResult[] {
@@ -138,12 +139,13 @@ export function crossoverMonth(youIdx: number, opts: RunOpts = {}): number | nul
   for (let i = 0; i < s.firms.length; i++) s.firms[i].auto = i !== youIdx;
   E.recomputeLeaders(s); s.speed = 3;
   const youKey = s.firms[youIdx].key;
-  const max = opts.maxMonths ?? 240;
-  for (let mo = 1; !s.ui.over && mo <= max; mo++) {
+  const D = E.DAYS_PER_MONTH;
+  const max = (opts.maxMonths ?? 240) * D;
+  for (let day = 1; !s.ui.over && day <= max; day++) {
     E.tick(s);
     const yi = s.firms.findIndex(f => f.key === youKey);
     const mine = yi >= 0 ? E.myShare(s, yi) : 0;
-    for (let i = 0; i < s.firms.length; i++) if (s.firms[i].key !== youKey && E.myShare(s, i) > mine) return mo;
+    for (let i = 0; i < s.firms.length; i++) if (s.firms[i].key !== youKey && E.myShare(s, i) > mine) return Math.round(s.date / D);
   }
   return null;
 }

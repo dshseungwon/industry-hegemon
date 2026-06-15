@@ -6,7 +6,9 @@ function ri(a: number, b: number) { return a + Math.floor(Math.random() * (b - a
 
 // ---- balance constants (튜닝 손잡이) ----
 export const SHARE_BETA = 6;   // 점유율 민감도: 적합도^β. 높을수록 승자독식, 낮을수록 균등.
-export const END_MONTHS = 120; // 게임 horizon(10년). 이 시점에 점유율 1위면 승리.
+export const END_MONTHS = 120; // 게임 horizon(10년, 개월). 점유율 1위면 승리.
+export const DAYS_PER_MONTH = 30;          // 일 단위 시뮬: 한 달 = 30일(달력). 월간 튜닝값은 그대로 두고 흐름만 일 단위로 환산.
+export const END_DAYS = END_MONTHS * DAYS_PER_MONTH;   // 게임 horizon(일). s.date는 이제 '일' 단위.
 const DOM_SHARE = 0.58;        // 완전 장악: 전 시장 1위 + 가중 점유율 이 값 이상(결정적 우위). 대부분 게임은 마감까지 감.
 const MARGIN = 0.012;          // 점령 규모 1단위당 월 현금($B)
 // 산업(섹터) 자본집약도 — 생산능력(공장) 1단위당 고정비·증설비 배수. 자본집약(반도체·유틸·에너지·소재) 高 / 자산경량(금융·SW·서비스) 低.
@@ -207,42 +209,29 @@ export function marketCap(s: GameState, fi: number = s.youIdx) {
   return Math.max(1, Math.round(f.price * f.shares));
 }
 // ---- 주식시장: 평상시(약한 평균회귀 + 소음) + 이벤트 충격(급등/급락). 핵심: 호재 급등 타이밍에 고가 증자 ----
-const PRICE_MEAN_REV = 0.12;            // 매월 펀더멘털(내재가)로 되돌리는 강도
-const PRICE_VOL = 0.04;                 // 평상시 소음 폭
+const PRICE_MEAN_REV = 0.05;            // 매일 펀더멘털(내재가)로 되돌리는 강도(일 단위)
+const PRICE_VOL = 0.012;                // 일중 소음 폭
+const PRICE_WICK = 0.006;               // 일봉 꼬리(고가/저가) 폭
 const PRICE_SHOCK = 0.8;                // 이벤트 충격 계수(정합도 ±1일 때 ±80% 급등/급락)
 const PRICE_LO = 0.3, PRICE_HI = 5;     // 내재가 대비 주가 허용 밴드(급등 허용 + 0/무한 방지)
 function intrinsicPrice(s: GameState, fi: number) { return Math.max(0.01, intrinsicValue(s, fi) / Math.max(1, s.firms[fi].shares)); }
 function bandClamp(s: GameState, fi: number, price: number) { const ip = intrinsicPrice(s, fi); return clamp(price, ip * PRICE_LO, ip * PRICE_HI); }
-const DAILY_DAYS = 21;          // 한 달을 채우는 일봉 개수(영업일)
-const DAILY_VOL = 0.018;        // 일중 변동성(브리지 노이즈·꼬리)
-const CANDLE_CAP = 84;          // 보관 일봉 수(~4개월)
-// 전월 종가→당월 종가를 일봉으로 분해(브라운 브리지: 양 끝에서 노이즈 0, 마지막 일봉 종가=당월 종가).
-function genDaily(open: number, close: number): Candle[] {
-  const out: Candle[] = []; let prev = open;
-  for (let d = 1; d <= DAILY_DAYS; d++) {
-    const t = d / DAILY_DAYS;
-    const bridge = open + (close - open) * t;
-    const amp = DAILY_VOL * Math.sqrt(t * (1 - t)) * Math.max(1, open) * 2.5;   // 양 끝 0, 중간 최대
-    const c = d === DAILY_DAYS ? close : Math.max(0.01, bridge + (Math.random() * 2 - 1) * amp);
-    const o = prev;
-    const h = Math.max(o, c) * (1 + Math.random() * DAILY_VOL * 0.8);
-    const l = Math.min(o, c) * (1 - Math.random() * DAILY_VOL * 0.8);
-    out.push({ o: r2(o), h: r2(h), l: r2(l), c: r2(c) }); prev = c;
-  }
-  return out;
-}
+const CANDLE_CAP = 120;         // 보관 일봉 수(~4개월)
 const r2 = (x: number) => Math.round(x * 100) / 100;
-// 평상시 주가 갱신(매 tick): 약한 평균회귀 + 소음. 당월을 일봉으로 분해해 캔들 누적 + 월별 종가 이력.
+// 매일 주가 갱신: 약한 평균회귀 + 일중 소음으로 하루치 일봉(OHLC) 1개 생성. 이벤트 충격은 그날 큰 캔들로 나타남.
 export function updatePrices(s: GameState) {
   for (let fi = 0; fi < s.firms.length; fi++) {
     ensureShares(s, fi); const f = s.firms[fi];
-    const open = f.candles.length ? f.candles[f.candles.length - 1].c : f.price;   // 전월 종가 = 당월 시가
+    const open = f.candles.length ? f.candles[f.candles.length - 1].c : f.price;   // 전일 종가 = 당일 시가
     const rev = PRICE_MEAN_REV * Math.log(intrinsicPrice(s, fi) / f.price);
     const noise = (Math.random() - 0.5) * PRICE_VOL;
-    f.price = bandClamp(s, fi, f.price * (1 + rev + noise));                       // 당월 종가(이벤트 충격 반영됨)
-    for (const c of genDaily(open, f.price)) { f.candles.push(c); if (f.candles.length > CANDLE_CAP) f.candles.shift(); }
+    f.price = bandClamp(s, fi, f.price * (1 + rev + noise));                       // 당일 종가(이벤트 충격 반영됨)
+    const h = Math.max(open, f.price) * (1 + Math.random() * PRICE_WICK);
+    const l = Math.min(open, f.price) * (1 - Math.random() * PRICE_WICK);
+    f.candles.push({ o: r2(open), h: r2(h), l: r2(l), c: r2(f.price) });
+    if (f.candles.length > CANDLE_CAP) f.candles.shift();
     f.priceHist.push(Math.round(f.price * 10) / 10);
-    if (f.priceHist.length > 24) f.priceHist.shift();
+    if (f.priceHist.length > 120) f.priceHist.shift();
   }
 }
 // 이벤트 충격: 정합도(−1~1)에 비례해 주가에 큰 배수 충격. bias=트렌드 방향 / market=규제·개방 시장. 반환=내 주가 변동률(시그널용).
@@ -481,7 +470,7 @@ export function doLobby(s: GameState, fi: number, marketName: string) {
 }
 // 벤처 외 행동 쿨다운(firm별)
 export function canAct(s: GameState, fi: number, key: string) { return (s.firms[fi].cooldowns[key] || 0) <= s.date; }
-export function setActCooldown(s: GameState, fi: number, key: string, months: number) { s.firms[fi].cooldowns[key] = s.date + months; }
+export function setActCooldown(s: GameState, fi: number, key: string, months: number) { s.firms[fi].cooldowns[key] = s.date + months * DAYS_PER_MONTH; }
 
 // ---- 테크트리: 연구 노드를 해금해 영구 역량 + 경제 효과를 얻는 내부개발 심화 ----
 export interface TechNode { key: string; name: string; desc: string; cost: number; req: string[]; caps?: Partial<Record<Cap, number>>; }
@@ -544,63 +533,74 @@ function pickTrend(s: GameState): typeof TRENDS[number] {
 export function tick(s: GameState) {
   if (s.ui.over) return;
   s.fx = [];
-  s.date++;
-  // 시장 성장 — 산업(섹터)별 속도로 매월 시장 규모가 커짐. float로 누적(작은 시장도 매끄럽게 성장).
+  s.date++;                                   // s.date: '일' 단위
+  const D = DAYS_PER_MONTH;
+  const monthEnd = s.date % D === 0;          // 한 달 경계 — 환경/AI/운영 등 이산(discrete) 로직은 여기서만(월간 튜닝 보존)
+  const youKey = s.firms[s.youIdx].key;
+  // 시장 성장 — 매일 1/D씩(월 누적 ≈ 기존 월 성장률).
   const grow = s.scenario.growth || 0;
-  if (grow) for (const n in s.markets) s.markets[n].size *= (1 + grow);
-  // trend cycle — 산업 KSF로 기울어진 추첨 + 산업명 붙인 헤드라인
-  if (s.date >= s.trend.until) {
-    const t = pickTrend(s); const head = "「" + s.scenario.ko + "」 " + t.headline;
-    s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: head, note: t.note }; pushLog(s, "📰 " + head);
-    s.event = { title: head, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
-    surgeSignal(s, shockPrices(s, { bias: t.bias }), head);   // 트렌드 정합도에 비례한 주가 급등/급락
-  }
-  // 정책/규제 이벤트 — 한 시장의 환경(규모·KSF)을 바꿈(법률·정치 흐름). 진단해서 대응해야 함.
-  if (s.date > 1 && Math.random() < 0.11) {
-    const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]]; const ind = s.scenario.ko;
-    if (Math.random() < 0.5) { m.size = Math.max(20, m.size * 0.88); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " · " + ind + " 규제 강화"); s.event = { title: m.ko + " " + ind + " 규제 강화", note: "현지 시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
-    else { m.size = m.size * 1.12; const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " · " + ind + " 시장 개방/부양"); s.event = { title: m.ko + " " + ind + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
-    s.fx.push("trend");
-    surgeSignal(s, shockPrices(s, { market: m.name }), m.ko + " 환경 변화");   // 그 시장 적합도에 비례한 주가 충격
-  }
-  // 투기 테마 — 가끔 무작위 역량 테마가 떠 관련주가 출렁(추가 변동성). 내 강점 테마면 급등 → 증자 기회.
-  if (s.date > 1 && Math.random() < 0.04) {
-    const k = CAPS[ri(0, 3)]; const d = shockPrices(s, { bias: k });
-    pushLog(s, "💸 시장에 「" + CAPKO[k] + "」 테마 부각 — 관련주 출렁"); surgeSignal(s, d, CAPKO[k] + " 테마");
-  }
-  // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)
-  for (const n of s.marketOrder) {
-    if (Math.random() < 0.18) {
-      const m = s.markets[n]; const k: Cap = (s.trend.bias && Math.random() < 0.75) ? s.trend.bias : CAPS[ri(0, 3)];
-      m.pref[k] = (m.pref[k] || 0) + 0.05; let tot = 0; for (const p of CAPS) tot += m.pref[p]; for (const p of CAPS) m.pref[p] /= tot;
+  if (grow) for (const n in s.markets) s.markets[n].size *= (1 + grow / D);
+  // ── 월 경계: 환경 이벤트(트렌드·규제·테마·소비자 드리프트) ──
+  if (monthEnd) {
+    if (s.date >= s.trend.until) {
+      const t = pickTrend(s); const head = "「" + s.scenario.ko + "」 " + t.headline;
+      s.trend = { bias: t.bias, until: s.date + ri(6, 11) * D, headline: head, note: t.note }; pushLog(s, "📰 " + head);
+      s.event = { title: head, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
+      surgeSignal(s, shockPrices(s, { bias: t.bias }), head);   // 트렌드 정합도에 비례한 주가 급등/급락
+    }
+    if (s.date > D && Math.random() < 0.11) {
+      const m = s.markets[s.marketOrder[ri(0, s.marketOrder.length - 1)]]; const ind = s.scenario.ko;
+      if (Math.random() < 0.5) { m.size = Math.max(20, m.size * 0.88); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " · " + ind + " 규제 강화"); s.event = { title: m.ko + " " + ind + " 규제 강화", note: "현지 시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
+      else { m.size = m.size * 1.12; const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " · " + ind + " 시장 개방/부양"); s.event = { title: m.ko + " " + ind + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
+      s.fx.push("trend");
+      surgeSignal(s, shockPrices(s, { market: m.name }), m.ko + " 환경 변화");   // 그 시장 적합도에 비례한 주가 충격
+    }
+    if (s.date > D && Math.random() < 0.04) {
+      const k = CAPS[ri(0, 3)]; const d = shockPrices(s, { bias: k });
+      pushLog(s, "💸 시장에 「" + CAPKO[k] + "」 테마 부각 — 관련주 출렁"); surgeSignal(s, d, CAPKO[k] + " 테마");
+    }
+    for (const n of s.marketOrder) {
+      if (Math.random() < 0.18) {
+        const m = s.markets[n]; const k: Cap = (s.trend.bias && Math.random() < 0.75) ? s.trend.bias : CAPS[ri(0, 3)];
+        m.pref[k] = (m.pref[k] || 0) + 0.05; let tot = 0; for (const p of CAPS) tot += m.pref[p]; for (const p of CAPS) m.pref[p] /= tot;
+      }
+    }
+    // ── 월 경계: AI 정책·영향력/생산능력 램프·벤처 진행(이산, 월간 그대로) ──
+    for (let fi = 0; fi < s.firms.length; fi++) {
+      const f = s.firms[fi];
+      if (f.auto) aiPolicy(s, fi);
+      rampEffort(s, fi);
+      if (f.capacityTarget !== f.capacity) {
+        const next = f.capacity + (f.capacityTarget - f.capacity) * CAP_RAMP;
+        f.capacity = Math.abs(next - f.capacityTarget) < 0.5 ? f.capacityTarget : next;
+      }
+      progressVenture(s, fi);
     }
   }
-  // 각 firm: AI 정책(auto) → 벤처 진행 → 재무(수입·이자) → 채무 카운터
-  const youKey = s.firms[s.youIdx].key;
+  // ── 매일: 재무 흐름(현금흐름·유지비·이자) 1/D씩 ──
   for (let fi = 0; fi < s.firms.length; fi++) {
     const f = s.firms[fi];
-    if (f.auto) aiPolicy(s, fi);
-    rampEffort(s, fi);     // 영향력이 할당 목표로 다가감(전개 지연) + 프론티어 개방
-    if (f.capacityTarget !== f.capacity) {            // 생산능력 증설/감축 램프(증설 지연)
-      const next = f.capacity + (f.capacityTarget - f.capacity) * CAP_RAMP;
-      f.capacity = Math.abs(next - f.capacityTarget) < 0.5 ? f.capacityTarget : next;
-    }
-    progressVenture(s, fi);
-    f.cash += monthlyCashflow(s, fi);
-    f.cash -= allocUpkeep(s, fi);                 // 자원 할당 월 유지비
-    f.cash -= monthlyInterest(s, fi);             // 이자비용(영업외)
-    if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
-    else f.distress = 0;
+    f.cash += monthlyCashflow(s, fi) / D;
+    f.cash -= allocUpkeep(s, fi) / D;
+    f.cash -= monthlyInterest(s, fi) / D;
   }
-  // 배당: 흑자 firm이 순이익×divRate를 지분 비례 지급. 다른 회사가 보유한 블록 몫 → 그 회사 현금(상호출자 수익).
+  // ── 매일: 배당(순이익×divRate를 1/D씩 지분 비례 지급). 다른 회사 보유 블록 몫 → 그 회사 현금(상호출자). ──
   for (let i = 0; i < s.firms.length; i++) {
     const f = s.firms[i]; const net = operatingIncome(s, i) - monthlyInterest(s, i);
-    const div = (f.divRate || 0) * Math.max(0, net); if (div <= 0) continue;
-    f.cash -= div; f.wealth = (f.wealth || 0) + div * f.ownership;   // 창업자 몫 누적(백그라운드), float 몫 소멸
+    const div = (f.divRate || 0) * Math.max(0, net) / D; if (div <= 0) continue;
+    f.cash -= div; f.wealth = (f.wealth || 0) + div * f.ownership;
     for (const b of f.blocs) if (b.owner) { const o = firmByKey(s, b.owner); if (o) o.cash += div * b.stake; }
   }
+  // ── 월 경계: 채무 위험 카운터(개월 단위 유지) ──
+  if (monthEnd) {
+    for (let fi = 0; fi < s.firms.length; fi++) {
+      const f = s.firms[fi];
+      if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
+      else f.distress = 0;
+    }
+  }
   recomputeLeaders(s);
-  updatePrices(s);            // 평상시 주가 갱신(평균회귀+소음) — 당월 밸류를 승리체크 전 반영
+  updatePrices(s);            // 매일 주가 갱신(일봉 1개) — 평균회귀+소음, 이벤트 충격 반영
 
   // 파산: 채무 불이행 12개월 지속 → 퇴출(AI) / 패배(플레이어)
   const playerBankrupt = (s.firms[s.youIdx]?.distress || 0) >= BANKRUPT_MONTHS;
@@ -621,7 +621,7 @@ export function tick(s: GameState) {
   if (leadAll && myShare(s, domIdx) >= DOM_SHARE && hasControl(s, domIdx)) {   // 전 시장 1위 + 결정적 점유율 + 경영권
     const w = s.firms[domIdx];
     s.ui.over = { winnerKey: firstLeader, won: firstLeader === youKey, msg: w.name + " — 시장 완전 장악!" }; s.speed = 0; s.fx.push(firstLeader === youKey ? "win" : "lose");
-  } else if (s.date >= END_MONTHS) {
+  } else if (s.date >= END_DAYS) {
     // 마감 승자 = 실현 점령규모 1위(연결은 '흡수(인수)'로만 — passive 지분 보유는 배당만, 자동승리 아님).
     const ranked = rankByCaptured(s);
     const top = ranked[0].firm; const ti = s.firms.findIndex(x => x.key === top.key);
@@ -698,9 +698,13 @@ function bestRivalCap(s: GameState, f: Firm): Cap | null {
   return best;
 }
 export function pushLog(s: GameState, m: string) { s.log.unshift("[" + dateLabel(s.date) + "] " + m); if (s.log.length > 40) s.log.pop(); }
-export function dateLabel(months: number) { const y = 2026 + Math.floor(months / 12); const mo = (months % 12) + 1; return y + "." + (mo < 10 ? "0" + mo : mo); }
+// s.date는 '일' 단위. 달력으로 연.월.일 표기(한 달 30일, 한 해 360일).
+export function dateLabel(days: number) {
+  const D = DAYS_PER_MONTH; const y = 2026 + Math.floor(days / (D * 12)); const mo = Math.floor(days / D) % 12 + 1; const dy = days % D + 1;
+  const p = (n: number) => (n < 10 ? "0" + n : "" + n); return y + "." + p(mo) + "." + p(dy);
+}
 
 // operate gating helpers (firm별 벤처 쿨다운)
 export function ventureOf(f: Firm, cap: Cap) { return f.ventures.find(v => v.cap === cap); }
 export function canOperate(s: GameState, fi: number, cap: Cap, action: string) { const v = ventureOf(s.firms[fi], cap); return !v || (v.cooldown[action] || 0) <= s.date; }
-export function setCooldown(s: GameState, fi: number, cap: Cap, action: string, months: number) { const v = ventureOf(s.firms[fi], cap); if (v) v.cooldown[action] = s.date + months; }
+export function setCooldown(s: GameState, fi: number, cap: Cap, action: string, months: number) { const v = ventureOf(s.firms[fi], cap); if (v) v.cooldown[action] = s.date + months * DAYS_PER_MONTH; }
