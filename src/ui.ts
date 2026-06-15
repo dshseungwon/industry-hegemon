@@ -318,6 +318,8 @@ function renderPanel(s: GameState, A: Actions) {
     left.className = "drawer left";
     left.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.leftPanel) + '</b><button class="x" id="closeL">✕</button></div><div class="dbody">' + panelBody(s, s.ui.leftPanel) + '</div>';
     document.getElementById("closeL")!.onclick = () => A.togglePanel(s.ui.leftPanel);
+    const bcL = document.getElementById("buildCap") as HTMLButtonElement | null;   // 회사 패널(왼쪽 드로어)의 증설 버튼 바인딩
+    if (bcL && !bcL.disabled) bcL.onclick = () => A.buildCapacity();
   }
   const o = document.getElementById("overlay")!;
   if (s.ui.panel === "none") { o.className = "hide"; o.innerHTML = ""; return; }
@@ -758,13 +760,39 @@ export function renderIndustry(app: HTMLElement, A: Actions) {
   };
   app.innerHTML =
     '<div class="screen list"><div class="lhead"><button class="back" id="back">←</button>' +
-    '<div><h2>산업 선택</h2><div class="mute small">The Industry Brief의 ' + BRIEFS.length + '개 산업 · 매일 갱신</div></div></div>' +
-    '<div class="igrid">' + all.map(m => card(m)).join("") + '</div></div>';
+    '<div style="flex:1"><h2>산업 선택</h2><div class="mute small">The Industry Brief의 ' + BRIEFS.length + '개 산업 · 매일 갱신</div></div>' +
+    '</div>' +
+    '<input id="indSearch" class="search" type="search" placeholder="🔍 산업·기업·섹터 검색 (예: 반도체, 현대, 은행)" autocomplete="off">' +
+    '<div class="igrid" id="igrid"></div></div>';
   document.getElementById("back")!.onclick = () => A.toTitle();
-  app.querySelectorAll<HTMLElement>(".icard").forEach(b => b.onclick = () => {
-    const g = b.dataset.gics!; const meta = all.find(m => m.gics === g)!; A.pickIndustry(meta);
-  });
-  app.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
+  const grid = document.getElementById("igrid")!;
+  const norm = (x: string) => (x || "").toLowerCase();
+  // 한글 기업명 별칭 → 영문(데이터는 영문 회사명) — 토큰별로 변형 매칭에 사용.
+  const KO_ALIAS: [string, string][] = [
+    ["삼성", "samsung"], ["현대", "hyundai"], ["기아", "kia"], ["엘지", "lg"], ["에스케이", "sk"],
+    ["롯데", "lotte"], ["한화", "hanwha"], ["포스코", "posco"], ["두산", "doosan"], ["카카오", "kakao"],
+    ["네이버", "naver"], ["쿠팡", "coupang"], ["대한항공", "korean air"], ["아모레", "amorepacific"],
+    ["코웨이", "coway"], ["신한", "shinhan"], ["미래에셋", "mirae"], ["한국전력", "kepco"], ["한전", "kepco"],
+    ["가스공사", "kogas"], ["크래프톤", "krafton"], ["제일제당", "cheiljedang"], ["모비스", "mobis"],
+    ["하이닉스", "hynix"], ["이마트", "mart"], ["하이마트", "hi-mart"], ["칠성", "chilsung"], ["한솔", "hansol"],
+    ["영원", "youngone"], ["오스템", "osstem"], ["루닛", "lunit"], ["메가스터디", "megastudy"],
+    ["사람인", "saramin"], ["케이티", "kt"], ["셀트리온", "celltrion"], ["코스맥스", "cosmax"],
+  ];
+  const variants = (t: string) => { const vs = [t]; for (const [ko, en] of KO_ALIAS) if (t.includes(ko)) vs.push(en); return vs; };
+  const matches = (m: BriefMeta, q: string) => {
+    if (!q) return true;
+    const hay = [m.industry_ko, m.industry_en, sectorKo[m.sector] || m.sector, m.sector, m.global_company, m.korea_company].map(norm).join(" ");
+    return q.split(/\s+/).filter(Boolean).every(t => variants(t).some(v => hay.includes(v)));
+  };
+  const paint = (q: string) => {
+    const list = all.filter(m => matches(m, norm(q)));
+    grid.innerHTML = list.length ? list.map(card).join("") : '<div class="mute" style="padding:24px;grid-column:1/-1">검색 결과가 없습니다.</div>';
+    grid.querySelectorAll<HTMLElement>(".icard").forEach(b => b.onclick = () => { const g = b.dataset.gics!; A.pickIndustry(all.find(m => m.gics === g)!); });
+    grid.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); A.studyIntel(b.dataset.gics!); }));
+  };
+  paint("");
+  const si = document.getElementById("indSearch") as HTMLInputElement;
+  si.oninput = () => paint(si.value);
 }
 
 // 산업 KSF 가중치를 칩 행으로(선택 카드용). 실데이터(0~1) → %.

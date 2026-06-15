@@ -218,6 +218,9 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .lhead{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .lhead h2{margin:0;font-size:20px;}
 .back{background:#1c3e63;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:16px;}
+.search{display:block;width:100%;max-width:1100px;margin:0 auto 14px;box-sizing:border-box;background:#0f2034;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;color:inherit;outline:none;}
+.search:focus{border-color:#3a78c8;}
+.search::placeholder{color:#7b8794;}
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;max-width:1100px;margin:0 auto;}
 .cwrap{max-width:1080px;margin:0 auto;}
 .ccards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;align-items:start;}

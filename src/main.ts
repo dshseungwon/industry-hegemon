@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -312,6 +312,7 @@ const A: Actions = {
     if (!s) return;
     const me = s.firms[s.youIdx];
     if (delta > 0 && insolvent(s, s.youIdx)) { flash("현금이 음수입니다 — 비상 경영(증자·긴축)으로 흑자 전환부터 하세요"); return; }
+    if (delta > 0 && naturalCaptured(s, me.key) > me.capacityTarget * 1.05) { flash("🏭 생산능력 부족 — 먼저 증설하세요 (생산 못 한 점유는 실현되지 않습니다)"); return; }
     const firstEntry = delta > 0 && !isOpen(s, marketName) && !(me.alloc[marketName] > 0);
     if (online) {
       if (firstEntry && me.cash < entryCost(s, marketName)) { flash("진입 자금이 부족합니다 (진입장벽 $" + entryCost(s, marketName) + "B)"); return; }
