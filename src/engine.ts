@@ -33,6 +33,12 @@ export const BALANCE = {
   aiCatchup: 0.4,         // 1위와 점유율 격차×이 값을 R&D/가속 확률에 가산(뒤처질수록 적극 추격·약체 역전 경로)
   aiVentureCost: 25,      // AI R&D 착수 비용(사람 strategyProjects capex=45와 분리 — 약체도 개발 가능)
   upkeepRate: 0.002,      // 할당 월 유지비 계수(Σ (할당-1)×시장규모×rate)
+  // 반응형 과점(tit-for-tat) 손잡이
+  grudgeEncroach: 1.0,    // 타 firm 텃밭(시장 1위) 침투 시 원한 가산 = 이 값 × 리더의 그 시장 점유율 × delta
+  grudgeStake: 3,         // 적대적 지분 매입 시 원한 가산(큼)
+  grudgeRetal: 0.6,       // 이 이상 원한이면 보복 모드(그 상대 텃밭 반격)
+  grudgeDecay: 0.85,      // 매월 원한 감쇠(용서) 배수
+  coexistRespect: 0.45,   // 비적대 firm이 이 점유율↑로 쥔 시장은 회피(공존)
 };
 
 export const ALLOC_MAX = 8;    // 시장당 자원 할당 절대 상한
@@ -71,9 +77,14 @@ export function allocUpkeepAt(s: GameState, name: string, level: number) { const
 export function allocUpkeep(s: GameState, fi: number) { const f = s.firms[fi]; let t = 0; for (const n in f.alloc) t += allocUpkeepAt(s, n, f.alloc[n]); return t; }
 // 자원 할당 조절: 시장 m에 delta(+/-). 단계 제한(0..MAX). 비용은 월 유지비로 부과. 0이면 철수.
 export function setAlloc(s: GameState, fi: number, name: string, delta: number) {
-  const f = s.firms[fi]; if (!s.markets[name]) return;
+  const f = s.firms[fi]; const m = s.markets[name]; if (!m) return;
   const next = Math.max(0, Math.min(maxAllocFor(s, fi, name), (f.alloc[name] || 0) + delta));
   if (next === 0) delete f.alloc[name]; else f.alloc[name] = next;
+  // 과점 반응(tit-for-tat): 남의 텃밭(타 firm이 1위인 시장)에 자원을 늘리면 그 리더가 원한을 품음.
+  if (delta > 0 && m.leader && m.leader !== f.key) {
+    const lead = firmByKey(s, m.leader); const li = s.firms.findIndex(x => x.key === m.leader);
+    if (lead && li >= 0) { const sh = realizedShareOf(s, m, m.leader); if (sh > 0.15) lead.grudge[f.key] = (lead.grudge[f.key] || 0) + BALANCE.grudgeEncroach * sh * delta; }
+  }
 }
 export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps) * utilizationOf(s, f.key); if (v > bv) { bv = v; best = f; } } return best; }
 export function recomputeLeaders(s: GameState) { for (const n of s.marketOrder) s.markets[n].leader = leaderOf(s, s.markets[n]).key; }
@@ -322,6 +333,7 @@ export function buyStake(s: GameState, fi: number, rivalKey: string, frac: numbe
   you.cash -= cost; r.float -= buy;
   const mine = r.blocs.find(b => b.owner === you.key);
   if (mine) mine.stake += buy; else r.blocs.push({ name: you.name, stake: buy, owner: you.key });
+  r.grudge[you.key] = (r.grudge[you.key] || 0) + BALANCE.grudgeStake;   // 적대적 지분 매입 → 큰 원한
   recomputeLeaders(s);
   pushLog(s, "📈 " + you.name + " " + r.name + " 지분 " + Math.round(buy * 100) + "% 매입 (보유 " + Math.round(myStakeIn(s, fi, rivalKey) * 100) + "%)" + (!hasControl(s, s.firms.indexOf(r)) ? " ⚠️ " + r.name + " 경영권 흔들림" : ""));
 }
@@ -636,11 +648,12 @@ export function tick(s: GameState) {
     f.cash -= div; f.wealth = (f.wealth || 0) + div * f.ownership;
     for (const b of f.blocs) if (b.owner) { const o = firmByKey(s, b.owner); if (o) o.cash += div * b.stake; }
   }
-  // ── 월 경계: 전환사채 전환 체크 + 채무 위험 카운터(개월 단위 유지) ──
+  // ── 월 경계: 전환사채 전환 체크 + 원한 감쇠(용서) + 채무 위험 카운터(개월 단위 유지) ──
   if (monthEnd) {
     convertCBs(s);
     for (let fi = 0; fi < s.firms.length; fi++) {
       const f = s.firms[fi];
+      if (f.grudge) for (const k in f.grudge) { f.grudge[k] *= BALANCE.grudgeDecay; if (f.grudge[k] < 0.05) delete f.grudge[k]; }   // 시간이 지나면 용서
       if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
       else f.distress = 0;
     }
@@ -722,10 +735,13 @@ function aiPolicy(s: GameState, fi: number) {
     for (const n in f.alloc) { if (f.alloc[n] <= 1) continue; const fit = matchScore(f, s.markets[n]); if (fit < wf) { wf = fit; worst = n; } }
     if (worst) setAlloc(s, fi, worst, -1);
   } else if (f.cash > 30 && Math.random() < BALANCE.aiCampaignChance) {
-    // 여유 현금이면 가장 적합한 시장에 자원 집중(유지비 감당 범위)
-    let best = "", bf = -1;
-    for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
-    if (best) setAlloc(s, fi, best, 1);
+    // 반응형 과점: ①최대 원한 상대가 임계 넘으면 그 텃밭에 보복 ②여유 있으면 비적대 강자 텃밭 피해 공존 ③뒤처진 도전자/폴백은 최적합서 싸움.
+    const foe = topFoe(f);
+    let target = "";
+    if (foe && (f.grudge[foe] || 0) >= BALANCE.grudgeRetal) target = bestMarketLedBy(s, fi, foe);   // 보복
+    if (!target && gap < 0.12) target = bestNeutralMarket(s, fi);   // 공존은 '여유 있는' firm만(뒤처지면 가만 안 있고 싸움)
+    if (!target) target = bestFitMarket(s, fi);                     // 도전자/폴백: 최적합 시장서 정면 경쟁
+    if (target) setAlloc(s, fi, target, 1);
   }
   // 개척: 가끔 프론티어 진출 — 경쟁사도 신규 국가를 뚫음(진입장벽 목돈 필요)
   if (f.cash > 40 && Math.random() < BALANCE.aiCampaignChance * 0.25) {
@@ -738,6 +754,31 @@ function aiPolicy(s: GameState, fi: number) {
     const px = capacityCapex(s, amt);
     if (px > 0 && f.cash + borrowRoom(s, fi) >= px) { if (f.cash < px) raiseDebt(s, fi, px - f.cash); f.cash -= px; buildCapacity(s, fi, amt); }
   }
+}
+// 반응형 과점 헬퍼 ----
+function topFoe(f: Firm): string { let foe = "", g = 0; for (const k in (f.grudge || {})) { if (f.grudge[k] > g) { g = f.grudge[k]; foe = k; } } return foe; }
+// 보복: foe가 1위인 시장 중 내가 가장 잘 칠 수 있는(적합도 높은) 곳.
+function bestMarketLedBy(s: GameState, fi: number, foeKey: string): string {
+  const f = s.firms[fi]; let best = "", bf = -1;
+  for (const n of s.marketOrder) { if (s.markets[n].leader !== foeKey) continue; if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
+  return best;
+}
+// 공존: 비적대 firm이 확고히(coexistRespect↑) 쥔 시장은 피하고, 중립/내가 리드/약체 시장 중 최적합.
+function bestNeutralMarket(s: GameState, fi: number): string {
+  const f = s.firms[fi]; let best = "", bf = -1;
+  for (const n of s.marketOrder) {
+    if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue;
+    const m = s.markets[n], ld = m.leader;
+    if (ld && ld !== f.key && (f.grudge[ld] || 0) < BALANCE.grudgeRetal && realizedShareOf(s, m, ld) > BALANCE.coexistRespect) continue;   // 비적대 강자 텃밭 회피
+    const fit = matchScore(f, m); if (fit > bf) { bf = fit; best = n; }
+  }
+  return best;
+}
+// 폴백: 그냥 최적합(기존 동작).
+function bestFitMarket(s: GameState, fi: number): string {
+  const f = s.firms[fi]; let best = "", bf = -1;
+  for (const n of s.marketOrder) { if ((f.alloc[n] || 0) >= maxAllocFor(s, fi, n)) continue; const fit = matchScore(f, s.markets[n]); if (fit > bf) { bf = fit; best = n; } }
+  return best;
 }
 // 한 firm이 지금 점유율을 가장 키울 수 있는 역량(시장을 읽음).
 function bestRivalCap(s: GameState, f: Firm): Cap | null {

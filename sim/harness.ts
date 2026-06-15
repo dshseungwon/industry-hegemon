@@ -35,7 +35,30 @@ export const policies: Record<string, Policy> = {
   aggressiveCore: aggressivePolicy(6),    // 상위 6개 시장 집중
   // 최신판(숙련 플레이어) — 주가 타이밍 증자 윈드폴 + 전환사채(CB) + 적대적 인수(지분 매집→흡수) + 운영.
   smart: smartPolicy(),
+  // 니치(비치헤드) — 거인 텃밭 자극 회피, 비경합 시장 2~3개에 집중 석권. 반응형 AI에서 공존 활용.
+  niche: nichePolicy(),
 };
+
+// 반응형 과점(공존)을 활용: 남이 확고히 쥔 시장은 피하고, 내가 1위거나 비경합인 시장 소수에 집중 → 자극 없이 비치헤드.
+function nichePolicy(): Policy {
+  return (s, fi) => {
+    const f = s.firms[fi]; if (!f) return;
+    if (E.insolvent(s, fi)) { E.emergencyAusterity(s, fi); if (E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi); E.emergencyLoan(s, fi); return; }
+    if (f.cash < 60 && E.canRaiseFI(s, fi)) { const m = E.equityMaxRaise(s, fi, false); if (m >= 5) E.equityRaiseBy(s, fi, Math.min(m, 80), false); }
+    if (f.cash < 100 && E.canIssueCB(s, fi)) { const m = E.cbMaxIssue(s, fi); if (m >= 5) E.issueCB(s, fi, Math.min(m, 100)); }
+    // 비치헤드 후보: 내가 1위거나 리더가 없거나(약체장) — 거인 텃밭(타 firm 점유율 큰 곳)은 회피.
+    const targets = s.marketOrder.filter(n => { const m = s.markets[n]; return m.leader === f.key || m.leader === "" || E.realizedShareOf(s, m, m.leader) < 0.4; });
+    const ranked = (targets.length ? targets : [...s.marketOrder]).sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
+    const focus = ranked.slice(0, 3);   // 소수 집중
+    for (const nm of focus) if ((f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm) && f.cash > 30) E.setAlloc(s, fi, nm, 1);
+    for (const nm of s.marketOrder) if (!focus.includes(nm) && (f.alloc[nm] || 0) > 1) E.setAlloc(s, fi, nm, -1);   // 그 외는 철수(집중)
+    // 역량: 집중 시장에 맞춘 약한 캡 개발 + 가속 + 증설
+    const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]);
+    for (const cap of weak) { if (f.ventures.length >= 3) break; if (!f.ventures.some(v => v.cap === cap)) { const p = E.strategyProjects(s, fi).find(x => x.cap === cap); if (p && f.cash >= p.capex) { f.cash -= p.capex; f.ventures.push({ name: "개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); } } }
+    for (const v of f.ventures) if (f.cash >= 12 && E.canOperate(s, fi, v.cap, "accel")) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); E.setCooldown(s, fi, v.cap, "accel", 2); }
+    buildIfConstrained(s, fi, 1.0, true);
+  };
+}
 
 // 현 버전의 모든 플레이어 도구를 쓰는 정책: 고평가 시 최대 증자, CB 저금리 조달, 약체 라이벌 매집→흡수, R&D/할당/증설.
 function smartPolicy(): Policy {

@@ -436,7 +436,10 @@ function panelBody(s: GameState, panel: string): string {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
       const fi = s.firms.indexOf(f);
       const netI = operatingIncome(s, fi) - monthlyInterest(s, fi);
-      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '% · 월순이익 ' + (netI >= 0 ? '+' : '') + netI.toFixed(1) + 'B</span></div>'
+      const g = (f.grudge && f.grudge[you.key]) || 0;   // 이 라이벌의 나에 대한 원한(태도)
+      const stance = g >= 0.6 ? '<span class="red">⚔️ 적대(보복)</span>' : g >= 0.2 ? '<span class="gold">⚠️ 긴장</span>' : '<span class="mute">🤝 중립</span>';
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b>' + stance + '</div>'
+        + '<div class="kv small"><span class="mute">점유율 ' + fsh.toFixed(0) + '% · 월순이익 ' + (netI >= 0 ? '+' : '') + netI.toFixed(1) + 'B</span></div>'
         + capTableBar(f)
         + '<div class="kv small"><span class="mute">창업자 ' + (f.ownership * 100).toFixed(0) + '% · FI ' + (f.float * 100).toFixed(0) + '% · SI ' + (controllingThreat(s, fi) * 100).toFixed(0) + '%</span><span class="' + (hasControl(s, fi) ? 'mute' : 'red') + '">' + (hasControl(s, fi) ? '경영권 ✓' : '경영권 ⚠️') + '</span></div>'
         + capBars(k => f.caps[k]) + '</div>';
