@@ -200,11 +200,12 @@ function ensureShares(s: GameState, fi: number) {
   const f = s.firms[fi];
   if (!f.shares || f.shares <= 0) {
     const iv = Math.max(1, intrinsicValue(s, fi));
-    f.price = 100; f.shares = Math.max(0.01, iv / 100);   // 시총($B)=주가×shares. shares=7 → 70억 주
-    // 시작 전(시간 미진행)에도 차트가 보이도록 과거 ~40일 일봉을 가볍게 시드(마지막 종가=현재가 100).
-    const cs: Candle[] = []; let prev = 100;
+    const p0 = Math.round(30 + Math.random() * Math.random() * 570);   // 기업별 초기 주가 차등(~$30~600, 저가 치우침)
+    f.price = p0; f.shares = Math.max(0.001, iv / p0);    // 시총($B)=주가×shares (=내재가치, 경제 영향 0). 주당 가격만 차등.
+    // 시작 전(시간 미진행)에도 차트가 보이도록 과거 ~40일 일봉을 가볍게 시드(마지막 종가=현재가 p0).
+    const cs: Candle[] = []; let prev = p0;
     for (let d = 0; d < 40; d++) {
-      const c = d === 39 ? 100 : Math.max(1, prev * (1 + (Math.random() - 0.5) * 0.02));
+      const c = d === 39 ? p0 : Math.max(1, prev * (1 + (Math.random() - 0.5) * 0.02));
       const h = Math.max(prev, c) * (1 + Math.random() * 0.006), l = Math.min(prev, c) * (1 - Math.random() * 0.006);
       cs.push({ o: r2(prev), h: r2(h), l: r2(l), c: r2(c) }); prev = c;
     }

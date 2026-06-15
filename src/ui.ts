@@ -324,16 +324,21 @@ function pieChart(slices: { label: string; value: number; color: string }[]): st
   return '<div class="pie"><svg viewBox="0 0 68 68" class="piesvg">' + segs + '</svg><div class="plgs">' + legend + '</div></div>';
 }
 
+// 드로어 .dbody 스크롤 위치를 패널별로 기억(매 틱 innerHTML 재생성으로 리셋되는 것 방지)
+const scrollMem: Record<string, number> = {};
+let lastLeftP = "", lastRightP = "";
 function renderPanel(s: GameState, A: Actions) {
   // 기업 내부 = 왼쪽 드로어, 투자/전략/용어집 = 오른쪽 드로어 (독립적으로 동시에 열림)
   const DW = "min(360px,86%)";   // 드로어 폭 — 국가 시트가 겹치지 않게 인셋
   document.documentElement.style.setProperty("--lw", s.ui.leftPanel !== "none" ? DW : "0px");
   document.documentElement.style.setProperty("--rw", s.ui.panel !== "none" ? DW : "0px");
   const left = document.getElementById("overlayL")!;
-  if (s.ui.leftPanel === "none") { left.className = "hide"; left.innerHTML = ""; }
+  if (s.ui.leftPanel === "none") { left.className = "hide"; left.innerHTML = ""; lastLeftP = ""; }
   else {
+    const oldLB = left.querySelector(".dbody") as HTMLElement | null; if (oldLB && lastLeftP) scrollMem["l:" + lastLeftP] = oldLB.scrollTop;
     left.className = "drawer left";
     left.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.leftPanel) + '</b><button class="x" id="closeL">✕</button></div><div class="dbody">' + panelBody(s, s.ui.leftPanel) + '</div>';
+    lastLeftP = s.ui.leftPanel;
     document.getElementById("closeL")!.onclick = () => A.togglePanel(s.ui.leftPanel);
     const bcL = document.getElementById("buildCap") as HTMLButtonElement | null;   // 회사 패널(왼쪽 드로어)의 증설 버튼 바인딩
     if (bcL && !bcL.disabled) bcL.onclick = () => A.buildCapacity();
@@ -341,11 +346,14 @@ function renderPanel(s: GameState, A: Actions) {
     if (fiL && !fiL.disabled) fiL.onclick = () => A.raiseFI();
     const siL = document.getElementById("raiseSI") as HTMLButtonElement | null;
     if (siL && !siL.disabled) siL.onclick = () => A.raiseSI();
+    const nlb = left.querySelector(".dbody") as HTMLElement | null; if (nlb) nlb.scrollTop = scrollMem["l:" + s.ui.leftPanel] || 0;
   }
   const o = document.getElementById("overlay")!;
-  if (s.ui.panel === "none") { o.className = "hide"; o.innerHTML = ""; return; }
+  if (s.ui.panel === "none") { o.className = "hide"; o.innerHTML = ""; lastRightP = ""; return; }
+  const oldRB = o.querySelector(".dbody") as HTMLElement | null; if (oldRB && lastRightP) scrollMem["r:" + lastRightP] = oldRB.scrollTop;
   o.className = "drawer";
   o.innerHTML = '<div class="dhead"><b>' + panelTitle(s.ui.panel) + '</b><button class="x" id="closePanel">✕</button></div><div class="dbody">' + panelBody(s, s.ui.panel) + '</div>';
+  lastRightP = s.ui.panel;
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
   o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech):not(.enter)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
@@ -362,6 +370,7 @@ function renderPanel(s: GameState, A: Actions) {
   const reT = document.getElementById("mToTitle"); if (reT) reT.onclick = () => A.toTitle();
   o.querySelectorAll<HTMLElement>(".rlink[data-gics]").forEach(b => b.addEventListener("click", () => A.studyIntel(b.dataset.gics!)));
   const rt = document.getElementById("replayTut"); if (rt) rt.onclick = () => A.replayTutorial();
+  const nrb = o.querySelector(".dbody") as HTMLElement | null; if (nrb) nrb.scrollTop = scrollMem["r:" + s.ui.panel] || 0;   // 스크롤 위치 복원
 }
 
 function panelBody(s: GameState, panel: string): string {
