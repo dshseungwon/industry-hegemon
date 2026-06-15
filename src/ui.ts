@@ -524,13 +524,16 @@ function panelBody(s: GameState, panel: string): string {
     const chg = pv > 0 ? (you.price / pv - 1) * 100 : 0;
     const gap = iv > 0 ? (mc / iv - 1) * 100 : 0;
     const gapLab = gap >= 15 ? '고평가 — 증자 유리' : gap <= -15 ? '저평가' : '적정';
+    const fair = you.shares > 0 ? iv / you.shares : 0;           // 적정주가(주당 내재가치) = 내재가치 ÷ 발행주식수
+    const sharesKo = (b: number) => (b * 10).toFixed(b < 1 ? 1 : 0) + '억 주';
     h += '<div class="card">'
       + '<div class="kv"><span>내 주가</span><b class="gold">$' + (you.price || 100).toFixed(1) + ' <span class="small ' + (chg >= 0 ? 'gold' : 'red') + '">' + (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(1) + '%</span></b></div>'
       + candleChart(you.candles, s.date)
-      + '<div class="kv"><span class="mute small">주가 × 발행주식수 = 시가총액</span></div>'
-      + '<div class="kv"><span>$' + (you.price || 100).toFixed(1) + ' × ' + fmt(you.shares) + '주</span><b class="gold">$' + fmt(mc) + 'B</b></div>'
-      + '<div class="kv"><span>펀더멘털(내재가치)</span><b>$' + fmt(iv) + 'B</b></div>'
+      + '<div class="kv"><span>적정주가 <span class="mute small">(주당 내재가치)</span></span><b class="' + (you.price >= fair ? 'mute' : 'gold') + '">$' + fair.toFixed(1) + '</b></div>'
       + '<div class="kv"><span>밸류에이션</span><b class="' + (gap >= 15 ? 'gold' : gap <= -15 ? 'red' : 'mute') + '">' + (gap >= 0 ? '+' : '') + gap.toFixed(0) + '% ' + gapLab + '</b></div>'
+      + '<div class="kv small"><span class="mute">발행주식수</span><span class="mute">' + sharesKo(you.shares) + '</span></div>'
+      + '<div class="kv small"><span class="mute">시가총액 (주가×주식수)</span><span>$' + fmt(mc) + 'B</span></div>'
+      + '<div class="kv small"><span class="mute">펀더멘털 시총</span><span>$' + fmt(iv) + 'B</span></div>'
       + '</div>';
     h += '<div class="sect">📊 시세판</div>';
     s.firms.forEach(f => {

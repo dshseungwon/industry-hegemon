@@ -195,13 +195,20 @@ export function intrinsicValue(s: GameState, fi: number = s.youIdx) {
   const ev = Math.max(annualEbitda(s, fi) * mult, capturedSize(s, f.key) * 0.2);
   return Math.round(ev + f.cash - f.debt);                     // 지분가치 = EV − (부채−현금)
 }
-// 주식시장: 주가가 1차 상태변수, 시총 = 주가 × 발행주식수. 첫 사용 시 lazy-init(price=100 기준, shares=내재가치/100).
+// 주식시장: 주가가 1차 상태변수, 시총 = 주가 × 발행주식수(shares 단위=10억 주). 첫 사용 시 lazy-init(price=100 기준).
 function ensureShares(s: GameState, fi: number) {
   const f = s.firms[fi];
   if (!f.shares || f.shares <= 0) {
     const iv = Math.max(1, intrinsicValue(s, fi));
-    f.price = 100; f.shares = Math.max(1, Math.round(iv / 100)); f.priceHist = [100];
-    f.candles = [{ o: 100, h: 100, l: 100, c: 100 }];
+    f.price = 100; f.shares = Math.max(0.01, iv / 100);   // 시총($B)=주가×shares. shares=7 → 70억 주
+    // 시작 전(시간 미진행)에도 차트가 보이도록 과거 ~40일 일봉을 가볍게 시드(마지막 종가=현재가 100).
+    const cs: Candle[] = []; let prev = 100;
+    for (let d = 0; d < 40; d++) {
+      const c = d === 39 ? 100 : Math.max(1, prev * (1 + (Math.random() - 0.5) * 0.02));
+      const h = Math.max(prev, c) * (1 + Math.random() * 0.006), l = Math.min(prev, c) * (1 - Math.random() * 0.006);
+      cs.push({ o: r2(prev), h: r2(h), l: r2(l), c: r2(c) }); prev = c;
+    }
+    f.candles = cs; f.priceHist = cs.map(c => Math.round(c.c * 10) / 10);
   }
 }
 // 시가총액(지분가치) = 주가 × 발행주식수. 모든 거래가격(증자 조달액·지분매입·M&A)이 주가에 반응.
