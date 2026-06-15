@@ -228,9 +228,12 @@ export function raiseDebt(s: GameState, fi: number, amount: number) { const f = 
 
 // ===== 비상 경영(현금<0): 유동성 위기 회생 수단 =====
 const BANKRUPT_MONTHS = 12;        // 현금 음수가 이만큼 지속되면 파산
-const EQUITY_CD = 18;              // 유상증자 쿨다운(개월) — 남발 방지
-const EQUITY_DECAY = 0.65;         // 증자 1회당 기준액 ×0.65 체감(투자자 경계)
-const EQUITY_CREDIT_DRAG = 25;     // 증자 1회당 유령부채(신용 부담) — 등급↓·이자/WACC↑·차입여력↓
+const EQUITY_CD = 6;               // FI 증자 쿨다운(개월)
+const SI_CD = 18;                  // SI 유치 쿨다운(드묾)
+const EQUITY_CREDIT_DRAG = 0;      // 증자 비용은 '지분 희석'이 담당(신용 드래그 제거)
+const FOUNDER_FLOOR = 0.20;        // 창업자 최저 경영권선(분산주주도 못 버티는 하한)
+const FI_PHI = 0.15;               // FI 증자 1회: 증자후 회사의 이 비율을 분산 FI에 매각(희석 ×(1-φ))
+const SI_PHI = 0.25;               // SI 유치 1회: 이 비율을 집중 전략투자자(블록)에 매각 — 큰 자금이나 경영권 위협
 const AUSTERITY_KEEP = 4;          // 비상 긴축 시 유지할 강세 시장 수
 const RESCUE_BUFFER = 12;          // 비상 회생(증자·긴급대출)은 '적자 메우기 + 이 소액 버퍼'까지만 — windfall 방지
 export function insolvent(s: GameState, fi: number = s.youIdx) { return s.firms[fi].cash < 0; }
@@ -238,19 +241,58 @@ export function bankruptcyIn(s: GameState, fi: number = s.youIdx) { return Math.
 // 회생에 필요한 현금(적자 + 소액 버퍼). 증자·긴급대출은 이만큼만 — 일부러 적자 내 큰 현금 빼먹는 악용 차단.
 export function rescueNeed(s: GameState, fi: number = s.youIdx) { return Math.max(0, Math.ceil(-s.firms[fi].cash) + RESCUE_BUFFER); }
 
-// 유상증자: 규모비례 한도 안에서 '적자 메우기'까지만(windfall 없음). 부채 아님, 쿨다운+체감+신용드래그가 비용.
-export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) {
-  const base = clamp(Math.round(capturedSize(s, s.firms[fi].key) * 0.3 * Math.pow(EQUITY_DECAY, s.firms[fi].equityRaises)), 15, 200);
-  return Math.max(0, Math.min(base, rescueNeed(s, fi)));   // 적자+버퍼 한도로 캡
+// ===== 지분구조·지배구조 =====
+export const FOUNDER_MIN = FOUNDER_FLOOR;
+// 최악의 공동행동(acting in concert) = 집중 SI 블록 합. 분산 FI(float)는 제외(수동).
+export function controllingThreat(s: GameState, fi: number = s.youIdx) { return s.firms[fi].blocs.reduce((a, b) => a + b.stake, 0); }
+// 경영권: 창업자 지분 ≥ 최대 적대 블록(ΣSI) AND ≥ 분산주주 하한(FOUNDER_FLOOR).
+export function hasControl(s: GameState, fi: number = s.youIdx) {
+  const f = s.firms[fi]; return f.ownership >= controllingThreat(s, fi) - 1e-9 && f.ownership >= FOUNDER_FLOOR - 1e-9;
 }
-export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity"); }
+const preOf = (s: GameState, fi: number) => Math.max(1, marketCap(s, fi));
+// FI 증자 비율 φ: 흑자=경영권 유지 한도 내 FI_PHI / 적자=회생액 충당(경영권 깨도 허용).
+function fiPhi(s: GameState, fi: number): number {
+  const f = s.firms[fi];
+  if (insolvent(s, fi)) { const pre = preOf(s, fi), need = rescueNeed(s, fi); return Math.min(0.9, need / (pre + need)); }
+  const floorT = Math.max(FOUNDER_FLOOR, controllingThreat(s, fi));
+  return Math.min(FI_PHI, Math.max(0, 1 - floorT / f.ownership));   // ownership×(1-φ) ≥ floorT
+}
+// SI 유치 비율 φ: 경영권을 깨지 않을 때만(자발적). 깨지면 0(차단).
+function siPhi(s: GameState, fi: number): number {
+  const f = s.firms[fi]; if (insolvent(s, fi)) return 0;
+  const φ = SI_PHI, own2 = f.ownership * (1 - φ), si2 = controllingThreat(s, fi) * (1 - φ) + φ;
+  return own2 >= Math.max(FOUNDER_FLOOR, si2) - 1e-9 ? φ : 0;
+}
+const phiToAmt = (pre: number, φ: number) => (φ > 1e-3 ? Math.round(pre * φ / (1 - φ)) : 0);
+// 증자 적용: φ만큼 신주 발행(증자후 회사의 φ). 기존 지분 ×(1-φ), FI→float / SI→새 블록. cash 조달.
+function applyRaise(s: GameState, fi: number, φ: number, asSI: boolean): number {
+  const f = s.firms[fi]; const amt = phiToAmt(preOf(s, fi), φ); if (amt <= 0) return 0;
+  const keep = 1 - φ; f.ownership *= keep; f.float *= keep; for (const b of f.blocs) b.stake *= keep;
+  if (asSI) f.blocs.push({ name: "전략투자자 " + (f.blocs.length + 1), stake: φ }); else f.float += φ;
+  f.cash += amt; f.equityRaises++; return amt;
+}
+export function fiRaiseAmount(s: GameState, fi: number = s.youIdx) { return phiToAmt(preOf(s, fi), fiPhi(s, fi)); }
+export function siRaiseAmount(s: GameState, fi: number = s.youIdx) { return phiToAmt(preOf(s, fi), siPhi(s, fi)); }
+export function fiOwnershipAfter(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ownership * (1 - fiPhi(s, fi)); }
+export function siOwnershipAfter(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ownership * (1 - siPhi(s, fi)); }
+export function canRaiseFI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity") && fiRaiseAmount(s, fi) > 0; }
+export function canRaiseSI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "si") && siRaiseAmount(s, fi) > 0; }
+export function raiseFI(s: GameState, fi: number = s.youIdx) {
+  if (!canAct(s, fi, "equity")) return; const amt = applyRaise(s, fi, fiPhi(s, fi), false); if (amt <= 0) return;
+  setActCooldown(s, fi, "equity", EQUITY_CD);
+  pushLog(s, "🏦 " + s.firms[fi].name + " FI 증자 +$" + amt + "B · 내 지분 " + (s.firms[fi].ownership * 100).toFixed(0) + "%" + (!hasControl(s, fi) ? " ⚠️경영권 상실" : ""));
+}
+export function raiseSI(s: GameState, fi: number = s.youIdx) {
+  if (!canAct(s, fi, "si")) return; const amt = applyRaise(s, fi, siPhi(s, fi), true); if (amt <= 0) return;
+  setActCooldown(s, fi, "si", SI_CD);
+  pushLog(s, "🤝 " + s.firms[fi].name + " SI 유치 +$" + amt + "B · 내 지분 " + (s.firms[fi].ownership * 100).toFixed(0) + "% · 전략투자자 블록↑");
+}
+// 하위호환(비상 회생 등): raiseEquity = FI 증자.
+export function raiseEquity(s: GameState, fi: number = s.youIdx) { raiseFI(s, fi); }
+export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return canRaiseFI(s, fi); }
+export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return fiRaiseAmount(s, fi); }
+export function equityDilutionPreview(s: GameState, fi: number = s.youIdx) { return fiOwnershipAfter(s, fi); }
 export function equityCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["equity"] || 0) - s.date); }
-export function raiseEquity(s: GameState, fi: number = s.youIdx) {
-  if (!canRaiseEquity(s, fi)) return;
-  const f = s.firms[fi]; const amt = equityRaiseAmount(s, fi); if (amt <= 0) return;
-  f.cash += amt; f.equityRaises++; setActCooldown(s, fi, "equity", EQUITY_CD);
-  pushLog(s, "🏦 " + f.name + " 유상증자 +$" + amt + "B (지분 희석·신용 부담↑, " + f.equityRaises + "회차)");
-}
 // 긴급 대출: 차입여력 내에서 '적자 메우기'까지만 조달(부채·이자). 풀로 빼서 투자 밑천 삼는 악용 차단.
 export function emergencyLoanAmount(s: GameState, fi: number = s.youIdx) { return Math.min(Math.floor(borrowRoom(s, fi)), rescueNeed(s, fi)); }
 export function emergencyLoan(s: GameState, fi: number = s.youIdx) { const a = emergencyLoanAmount(s, fi); if (a > 0) raiseDebt(s, fi, a); }
@@ -428,16 +470,22 @@ export function tick(s: GameState) {
   recomputeLeaders(s);
   if (playerBankrupt) { s.ui.over = { won: false, msg: "💸 파산 — 채무 불이행으로 경영권 상실" }; s.speed = 0; s.fx.push("lose"); return; }
 
-  // 승리: 완전 장악(한 firm이 전 시장 1위) / 마감 시 1위
+  // 승리: 완전 장악(전 시장 1위 + 결정적 점유율) / 마감 시 1위 — 단, 경영권(과반 지분) 보유가 필수.
   const firstLeader = s.markets[s.marketOrder[0]].leader;
   const leadAll = s.marketOrder.every(n => s.markets[n].leader === firstLeader);
   const domIdx = leadAll ? s.firms.findIndex(x => x.key === firstLeader) : -1;
-  if (leadAll && myShare(s, domIdx) >= DOM_SHARE) {   // 전 시장 1위 + 결정적 점유율
+  if (leadAll && myShare(s, domIdx) >= DOM_SHARE && hasControl(s, domIdx)) {   // 전 시장 1위 + 결정적 점유율 + 경영권
     const w = s.firms[domIdx];
     s.ui.over = { winnerKey: firstLeader, won: firstLeader === youKey, msg: w.name + " — 시장 완전 장악!" }; s.speed = 0; s.fx.push(firstLeader === youKey ? "win" : "lose");
   } else if (s.date >= END_MONTHS) {
-    const top = rankByCaptured(s)[0].firm; const sh = (myShare(s, s.firms.findIndex(x => x.key === top.key)) * 100).toFixed(0);
-    s.ui.over = { winnerKey: top.key, won: top.key === youKey, msg: "마감 — 최종 1위 " + top.name + " (" + sh + "%)" }; s.speed = 0; s.fx.push(top.key === youKey ? "win" : "lose");
+    const ranked = rankByCaptured(s);
+    const wEntry = ranked.find(r => hasControl(s, s.firms.findIndex(x => x.key === r.firm.key))) || ranked[0];
+    const top = wEntry.firm; const ti = s.firms.findIndex(x => x.key === top.key);
+    const sh = (myShare(s, ti) * 100).toFixed(0);
+    const youTopNoControl = ranked[0].firm.key === youKey && !hasControl(s, s.youIdx);
+    const won = top.key === youKey;
+    const msg = youTopNoControl ? "마감 — 경영권 상실로 패배 (점유 1위였으나 과반 지분 상실)" : "마감 — 최종 1위 " + top.name + " (" + sh + "%)";
+    s.ui.over = { winnerKey: top.key, won, msg }; s.speed = 0; s.fx.push(won ? "win" : "lose");
   }
 }
 // 한 firm의 벤처들 진행 + 완성 처리(동시 여러 개)

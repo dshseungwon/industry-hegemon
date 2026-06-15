@@ -13,6 +13,7 @@ export const policies: Record<string, Policy> = {
   // 적극(집중) — 약한 역량부터 개발·가속, 테크로 상한↑, 적합도 높은 시장에 집중·약한 시장 철수
   focused: (s, fi) => {
     const f = s.firms[fi]; if (!f) return;
+    if (f.cash < 40 && E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi);   // 성장 자금: 경영권 한도 내 증자
     const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]).slice(0, 2);
     for (const cap of weak) {
       if (f.cash >= 48 && !f.ventures.some(v => v.cap === cap)) {
@@ -50,6 +51,8 @@ function aggressivePolicy(topN: number): Policy {
     // [흑자 모드] 차입은 $40 단위 버튼 반복(쿨다운 없음)으로 현금 버퍼 확보(차입여력 내).
     let guard = 0;
     while (f.cash < 80 && E.borrowRoom(s, fi) >= 5 && guard++ < 40) E.raiseDebt(s, fi, 40);
+    if (f.cash < 50 && E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi);   // 성장 자금: 차입여력 소진 시 경영권 한도 내 증자
+
     // 테크(비용 차감) — 선행조건·현금 충족분
     for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost) { f.cash -= n.cost; E.doResearch(s, fi, n.key); }
     // 벤처 3개 상시 — 약한 캡부터

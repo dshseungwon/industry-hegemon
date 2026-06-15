@@ -15,6 +15,10 @@ export interface Firm {
   effort: Record<string, number>;   // 시장명 -> 현재 배치된 영향력. 매월 alloc 쪽으로 램프(전개 지연).
   capacity: number;          // 본국(home) 생산능력($B-output). 실현 점유율을 게이트(생산 못 하면 점유 못 함) + 고정비 driver.
   capacityTarget: number;    // 증설 주문분. 매월 capacity가 target으로 램프(증설 지연).
+  // 지분구조(cap table): 합=1. ownership(창업자) + float(분산 FI/공모, 수동) + Σblocs(집중 SI). 경영권=ownership≥ΣSI & ≥FOUNDER_FLOOR.
+  ownership: number;         // 창업자(나) 지분(0~1, 시작 1.0).
+  float: number;             // 분산 재무적투자자(FI)·공모 지분 — 수동(공동행동 안 함). 시작 0.
+  blocs: { name: string; stake: number }[];  // 집중 전략적투자자(SI) 블록들. 시작 [].
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
@@ -128,7 +132,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: 1, float: 0, blocs: [], auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).
