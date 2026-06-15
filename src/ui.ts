@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { tutorialActive, tutorialSteps, tutorialAllDone } from "./tutorial";
@@ -355,6 +355,7 @@ function panelBody(s: GameState, panel: string): string {
       + (intr > 0 ? '<div class="kv"><span>− 이자비용</span><b class="red">-' + intr.toFixed(1) + 'B</b></div>' : '')
       + '<div class="kv tot"><span>= 월 순이익(현금증감)</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + sgn(net) + '</b></div>'
       + '</div>'
+      + '<div class="kv"><span>시가총액(기업가치)</span><b class="gold">$' + fmt(marketCap(s)) + 'B</b></div>'
       + '<div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' + (you.equityRaises > 0 ? '<div class="kv"><span>유상증자</span><b class="red">' + you.equityRaises + '회 · 신용 부담↑</b></div>' : '') + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
