@@ -6,9 +6,10 @@ function ri(a: number, b: number) { return a + Math.floor(Math.random() * (b - a
 
 // ---- balance constants (튜닝 손잡이) ----
 export const SHARE_BETA = 6;   // 점유율 민감도: 적합도^β. 높을수록 승자독식, 낮을수록 균등.
-export const END_MONTHS = 120; // 게임 horizon(10년, 개월). 점유율 1위면 승리.
-export const DAYS_PER_MONTH = 30;          // 일 단위 시뮬: 한 달 = 30일(달력). 월간 튜닝값은 그대로 두고 흐름만 일 단위로 환산.
-export const END_DAYS = END_MONTHS * DAYS_PER_MONTH;   // 게임 horizon(일). s.date는 이제 '일' 단위.
+export const END_MONTHS = 120; // (구) 개월 horizon — 종료엔 더 이상 안 씀(잔존 상수).
+export const DAYS_PER_MONTH = 30;          // 경제 cadence: 30일 주기로 환경/AI/운영 정산(월간 튜닝값 보존). 표시 날짜는 실제 달력(dateLabel).
+const START_MS = Date.UTC(2026, 0, 1);     // 게임 시작일 2026-01-01 (s.date=0일)
+export const END_DAYS = Math.round((Date.UTC(2040, 2, 31) - START_MS) / 86400000);   // 종료 2040-03-31 (실제 경과일 ≈ 5203)
 const DOM_SHARE = 0.58;        // 완전 장악: 전 시장 1위 + 가중 점유율 이 값 이상(결정적 우위). 대부분 게임은 마감까지 감.
 const MARGIN = 0.012;          // 점령 규모 1단위당 월 현금($B)
 // 산업(섹터) 자본집약도 — 생산능력(공장) 1단위당 고정비·증설비 배수. 자본집약(반도체·유틸·에너지·소재) 高 / 자산경량(금융·SW·서비스) 低.
@@ -698,10 +699,10 @@ function bestRivalCap(s: GameState, f: Firm): Cap | null {
   return best;
 }
 export function pushLog(s: GameState, m: string) { s.log.unshift("[" + dateLabel(s.date) + "] " + m); if (s.log.length > 40) s.log.pop(); }
-// s.date는 '일' 단위. 달력으로 연.월.일 표기(한 달 30일, 한 해 360일).
+// s.date는 '일' 단위. 2026-01-01 기준 실제 달력으로 연.월.일 표기.
 export function dateLabel(days: number) {
-  const D = DAYS_PER_MONTH; const y = 2026 + Math.floor(days / (D * 12)); const mo = Math.floor(days / D) % 12 + 1; const dy = days % D + 1;
-  const p = (n: number) => (n < 10 ? "0" + n : "" + n); return y + "." + p(mo) + "." + p(dy);
+  const d = new Date(START_MS + days * 86400000); const p = (n: number) => (n < 10 ? "0" + n : "" + n);
+  return d.getUTCFullYear() + "." + p(d.getUTCMonth() + 1) + "." + p(d.getUTCDate());
 }
 
 // operate gating helpers (firm별 벤처 쿨다운)

@@ -279,7 +279,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="brand">더 체어맨</div>' +
     '<div class="myfirm" title="내 기업" style="border-color:' + me.col + '"><span class="fdot" style="background:' + me.col + '"></span><b style="color:' + me.col + '">' + me.name + '</b></div>' +
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_DAYS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
-    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>주가 <b>$' + (me.price || 100).toFixed(0) + '</b>' + (Math.abs(pchg) >= 0.1 ? ' <span class="small ' + (pchg >= 0 ? 'gold' : 'red') + '">' + (pchg >= 0 ? '▲' : '▼') + Math.abs(pchg).toFixed(0) + '%</span>' : '') + '</span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
+    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>주가 <b class="pxv">$' + (me.price || 100).toFixed(0) + '</b> <span class="chg small ' + (pchg >= 0 ? 'gold' : 'red') + '">' + (pchg >= 0 ? '▲' : '▼') + Math.abs(pchg).toFixed(1) + '%</span></span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
@@ -289,9 +289,11 @@ function renderTop(s: GameState, A: Actions) {
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
   t.querySelectorAll<HTMLElement>(".mbtn[data-p]").forEach(b => b.onclick = () => A.togglePanel(b.dataset.p!));
   document.getElementById("muteBtn")!.onclick = () => { const m = toggleMute(); if (!m) sfx("select"); renderTop(s, A); };
-  // 드로어가 상단바(트렌드 줄) 아래에서 시작하도록 실제 높이를 반영(겹침 방지)
-  document.documentElement.style.setProperty("--topbar-h", (t.offsetHeight + 2) + "px");
+  // 드로어가 상단바(트렌드 줄) 아래에서 시작하도록 실제 높이를 반영(겹침 방지). 값이 바뀔 때만 set(불필요한 레이아웃 흔들림 방지).
+  const th = (t.offsetHeight + 2) + "px";
+  if (th !== lastTopbarH) { lastTopbarH = th; document.documentElement.style.setProperty("--topbar-h", th); }
 }
+let lastTopbarH = "";
 const mbtn = (p: string, ic: string, s: GameState, minor = false) => {
   const on = p === "company" ? s.ui.leftPanel === p : s.ui.panel === p;
   return '<button class="mbtn' + (on ? " on" : "") + (minor ? " minor" : "") + '" data-p="' + p + '">' + ic + '</button>';

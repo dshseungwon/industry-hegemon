@@ -42,8 +42,11 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .clock .date{font-weight:800;font-size:13px;margin-right:4px;}
 .spbtn{background:#1c3e63;border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:11px;color:var(--mute);}
 .spbtn.on{background:var(--gold);color:var(--navy);}
-.hstats{display:flex;gap:8px;font-size:12px;}
+.hstats{display:flex;gap:8px;font-size:12px;font-variant-numeric:tabular-nums;}
 .hstats b{color:var(--gold);}
+.hstats span{white-space:nowrap;}
+.hstats .pxv{display:inline-block;min-width:34px;text-align:right;}
+.hstats .chg{display:inline-block;min-width:46px;text-align:left;}
 .menu{margin-left:auto;display:flex;gap:5px;}
 .mbtn{background:#16314f;border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:15px;}
 .mbtn.on{background:var(--gold);}

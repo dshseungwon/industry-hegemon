@@ -18,8 +18,8 @@ import {
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(fileURLToPath(new URL(".", import.meta.url)), "..", "dist");
-// 일 단위 진행(1 tick = 1일). 클라이언트 stepMs와 동일 페이스.
-const STEP_MS = (sp: number) => sp === 1 ? 250 : sp === 2 ? 125 : sp === 3 ? 60 : 0;
+// 일 단위 진행(1 tick = 1일). 1배속=1초/일. 클라이언트 stepMs와 동일 페이스.
+const STEP_MS = (sp: number) => sp === 1 ? 1000 : sp === 2 ? 500 : sp === 3 ? 200 : 0;
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 type Action =
