@@ -408,7 +408,8 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
       const fi = s.firms.indexOf(f);
-      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>'
+      const netI = operatingIncome(s, fi) - monthlyInterest(s, fi);
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '% · 월순이익 ' + (netI >= 0 ? '+' : '') + netI.toFixed(1) + 'B</span></div>'
         + capTableBar(f)
         + '<div class="kv small"><span class="mute">창업자 ' + (f.ownership * 100).toFixed(0) + '% · FI ' + (f.float * 100).toFixed(0) + '% · SI ' + (controllingThreat(s, fi) * 100).toFixed(0) + '%</span><span class="' + (hasControl(s, fi) ? 'mute' : 'red') + '">' + (hasControl(s, fi) ? '경영권 ✓' : '경영권 ⚠️') + '</span></div>'
         + capBars(k => f.caps[k]) + '</div>';
@@ -421,8 +422,12 @@ function panelBody(s: GameState, panel: string): string {
     else tgts.forEach(t => {
       const f = s.firms.find(x => x.key === t.key)!;
       const can = you.cash >= t.price;
+      const ti = s.firms.indexOf(f);
+      const netI = operatingIncome(s, ti) - monthlyInterest(s, ti);
+      const myDiv = Math.max(0, netI) * f.divRate * t.myStake;
       h += '<div class="card">'
         + '<div class="kv"><b style="color:' + t.col + '">' + t.name + '</b><span class="mute small">점유율 ' + (t.share * 100).toFixed(0) + '% · 내 보유 ' + (t.myStake * 100).toFixed(0) + '%</span></div>'
+        + '<div class="kv small"><span class="mute">월순이익 ' + (netI >= 0 ? '+' : '') + netI.toFixed(1) + 'B · 배당성향 ' + Math.round(f.divRate * 100) + '%</span>' + (t.myStake > 0 ? '<span class="gold">내 배당 +' + myDiv.toFixed(myDiv < 1 ? 2 : 1) + 'B/월</span>' : '') + '</div>'
         + capTableBar(f)
         + '<div class="kv small"><span class="mute">창업자 ' + (t.founder * 100).toFixed(0) + '% · 공모주 ' + (f.float * 100).toFixed(0) + '%</span><span class="' + (t.controlled ? 'mute' : 'red') + '">' + (t.controlled ? '경영권 ✓' : '경영권 흔들림 ⚠️') + '</span></div>'
         + '<button class="actbtn buystake" data-key="' + t.key + '"' + (f.float < 0.005 || you.cash < stakeBuyCost(s, s.youIdx, t.key, 0.05) ? ' disabled' : '') + '>📈 지분 매입 (공모주 ' + Math.round(f.float * 100) + '%까지)</button>'
