@@ -375,7 +375,7 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv"><span>− 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div>'
       + '<div class="kv tot"><span>= 영업이익(EBITDA)</span><b class="' + (ebitda >= 0 ? 'gold' : 'red') + '">' + sgn(ebitda) + '</b></div>'
       + (intr > 0 ? '<div class="kv"><span>− 이자비용</span><b class="red">-' + intr.toFixed(1) + 'B</b></div>' : '')
-      + (divIn > 0.05 ? '<div class="kv"><span>+ 지분 배당 수익</span><b class="gold">+' + divIn.toFixed(1) + 'B</b></div>' : '')
+      + (divIn > 0.005 ? '<div class="kv"><span>+ 지분 배당 수익</span><b class="gold">+' + divIn.toFixed(divIn < 1 ? 2 : 1) + 'B</b></div>' : '')
       + '<div class="kv tot"><span>= 월 순이익(현금증감)</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + sgn(net) + '</b></div>'
       + '</div>'
       + '<div class="kv"><span>시가총액(기업가치)</span><b class="gold">$' + fmt(marketCap(s)) + 'B</b></div>'
