@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, fiRaiseAmount, siRaiseAmount, fiOwnershipAfter, siOwnershipAfter } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -32,6 +32,8 @@ export interface Actions {
   acquire(rivalKey: string): void;
   raiseDebt(): void;
   buildCapacity(): void;
+  raiseFI(): void;
+  raiseSI(): void;
   lobby(marketName: string): void;
   research(key: string): void;
   raiseEquity(): void;
@@ -300,6 +302,12 @@ function capBars(val: (k: Cap) => number): string {
     return '<div class="cbar"><span class="cbl">' + CAPKO[k] + '</span><div class="cbt"><div class="cbf" style="width:' + v + '%;background:' + CAPCOL[k] + '"></div></div><span class="cbv">' + v + '</span></div>';
   }).join("") + '</div>';
 }
+// 지분구조 누적 막대: 창업자(금)·FI float(청회)·SI blocs(적). 합=100%.
+function capTableBar(f: { ownership: number; float: number; blocs: { name: string; stake: number }[] }): string {
+  const segs: [string, number, string][] = [["창업자", f.ownership, "#ffb81c"], ["FI", f.float, "#5a7088"]];
+  f.blocs.forEach((b, i) => segs.push([b.name, b.stake, i % 2 ? "#c44456" : "#e8556b"]));
+  return '<div class="ctbar">' + segs.map(([lb, v, c]) => v > 0.001 ? '<div class="ctseg" style="width:' + (v * 100).toFixed(1) + '%;background:' + c + '" title="' + lb + ' ' + (v * 100).toFixed(0) + '%"></div>' : '').join("") + '</div>';
+}
 // 도넛 파이 차트 — 점유율 슬라이스(기업 색).
 function pieChart(slices: { label: string; value: number; color: string }[]): string {
   const tot = slices.reduce((a, x) => a + x.value, 0) || 1; const C = 2 * Math.PI * 26; let off = 0;
@@ -321,6 +329,10 @@ function renderPanel(s: GameState, A: Actions) {
     document.getElementById("closeL")!.onclick = () => A.togglePanel(s.ui.leftPanel);
     const bcL = document.getElementById("buildCap") as HTMLButtonElement | null;   // 회사 패널(왼쪽 드로어)의 증설 버튼 바인딩
     if (bcL && !bcL.disabled) bcL.onclick = () => A.buildCapacity();
+    const fiL = document.getElementById("raiseFI") as HTMLButtonElement | null;
+    if (fiL && !fiL.disabled) fiL.onclick = () => A.raiseFI();
+    const siL = document.getElementById("raiseSI") as HTMLButtonElement | null;
+    if (siL && !siL.disabled) siL.onclick = () => A.raiseSI();
   }
   const o = document.getElementById("overlay")!;
   if (s.ui.panel === "none") { o.className = "hide"; o.innerHTML = ""; return; }
@@ -375,11 +387,28 @@ function panelBody(s: GameState, panel: string): string {
       + '<button class="actbtn" id="buildCap"' + (you.cash < capex ? ' disabled' : '') + '>🏭 증설 +' + chunk + ' (CAPEX $' + capex + 'B)' + (you.cash < capex ? ' · 자금부족' : '') + '</button>'
       + '<div class="mute small" style="margin-top:4px">증설은 가동까지 수개월(지연), 가동 후 월 고정비↑. 생산능력이 점유율 상한을 정합니다.</div>'
       + '</div>';
+    // 지분구조·지배구조: 경영권(나 ≥ 최대 적대블록 ΣSI & ≥20%) + FI/SI 증자.
+    const ctrl = hasControl(s), ownP = you.ownership * 100, threatP = controllingThreat(s) * 100;
+    const fiAmt = fiRaiseAmount(s), fiAfter = fiOwnershipAfter(s) * 100;
+    const siAmt = siRaiseAmount(s), siAfter = siOwnershipAfter(s) * 100;
+    h += '<div class="sect">🪪 지분구조 · 지배구조</div><div class="card">'
+      + '<div class="kv"><span>경영권</span><b class="' + (ctrl ? 'gold' : 'red') + '">' + (ctrl ? '✓ 확보' : '⚠️ 상실') + '</b></div>'
+      + '<div class="kv"><span class="mute small">내 지분 ' + ownP.toFixed(0) + '% vs 최대 적대블록 ' + threatP.toFixed(0) + '%</span></div>'
+      + capTableBar(you)
+      + '<div class="kv small"><span>창업자(나) <b class="gold">' + ownP.toFixed(0) + '%</b></span><span class="mute">FI ' + (you.float * 100).toFixed(0) + '% · SI ' + threatP.toFixed(0) + '%</span></div>'
+      + '<button class="actbtn" id="raiseFI"' + (fiAmt > 0 ? '' : ' disabled') + '>🏦 FI 증자' + (fiAmt > 0 ? ' +$' + fiAmt + 'B · 지분 ' + ownP.toFixed(0) + '→' + fiAfter.toFixed(0) + '%' : ' · 한도(경영권 20%/쿨다운)') + '</button>'
+      + '<button class="actbtn" id="raiseSI"' + (siAmt > 0 ? '' : ' disabled') + '>🤝 SI 유치' + (siAmt > 0 ? ' +$' + siAmt + 'B · 지분 ' + ownP.toFixed(0) + '→' + siAfter.toFixed(0) + '%' : ' · 불가(경영권/쿨다운)') + '</button>'
+      + '<div class="mute small" style="margin-top:4px">FI=분산 재무투자자(경영권 안전, 20%까지). SI=전략투자자(큰 자금이나 경영권 위협). 경영권 잃으면 승리 불가.</div>'
+      + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
     h += '<div class="sect">경쟁사</div>' + s.firms.filter(f => f.key !== you.key).map(f => {
       const fsh = total > 0 ? capturedSize(s, f.key) / total * 100 : 0;
-      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>' + capBars(k => f.caps[k]) + '</div>';
+      const fi = s.firms.indexOf(f);
+      return '<div class="card"><div class="kv"><b style="color:' + f.col + '">' + f.name + '</b><span class="mute small">점유율 ' + fsh.toFixed(0) + '%</span></div>'
+        + capTableBar(f)
+        + '<div class="kv small"><span class="mute">창업자 ' + (f.ownership * 100).toFixed(0) + '% · FI ' + (f.float * 100).toFixed(0) + '% · SI ' + (controllingThreat(s, fi) * 100).toFixed(0) + '%</span><span class="' + (hasControl(s, fi) ? 'mute' : 'red') + '">' + (hasControl(s, fi) ? '경영권 ✓' : '경영권 ⚠️') + '</span></div>'
+        + capBars(k => f.caps[k]) + '</div>';
     }).join("");
   } else if (panel === "strategy") {
     // M&A(경쟁사 인수)

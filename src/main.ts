@@ -1,6 +1,6 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_MONTHS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, raiseFI as engineRaiseFI, raiseSI as engineRaiseSI, fiRaiseAmount, siRaiseAmount, fiOwnershipAfter, siOwnershipAfter } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
@@ -256,6 +256,28 @@ const A: Actions = {
         engineBuildCapacity(s, s.youIdx, Math.max(10, Math.round(m.capacityTarget * 0.2)));
         s.ui.confirm = null; sfx("invest"); render(s, A);
       },
+    };
+    render(s, A);
+  },
+  raiseFI() {
+    if (!s) return; const amt = fiRaiseAmount(s, s.youIdx); if (amt <= 0) { flash("FI 증자 한도 — 경영권 20% 하한/쿨다운"); return; }
+    const after = (fiOwnershipAfter(s, s.youIdx) * 100).toFixed(0), now = (s.firms[s.youIdx].ownership * 100).toFixed(0);
+    s.ui.confirm = {
+      title: "🏦 FI 증자 (재무적투자자)",
+      lines: ["조달: <b>+$" + amt + "B</b> (분산 재무투자자 대상)", "내 지분 <b>" + now + "% → " + after + "%</b> (분산 매각이라 경영권 안전, 20%까지)", "성장 자금입니다. 진행할까요?"],
+      okLabel: "FI 증자",
+      onOk: () => { if (!s) return; if (online) { net?.send({ kind: "raiseFI" }); s.ui.confirm = null; sfx("invest"); render(s, A); return; } engineRaiseFI(s, s.youIdx); s.ui.confirm = null; sfx("invest"); render(s, A); },
+    };
+    render(s, A);
+  },
+  raiseSI() {
+    if (!s) return; const amt = siRaiseAmount(s, s.youIdx); if (amt <= 0) { flash("SI 유치 불가 — 경영권 위협/쿨다운"); return; }
+    const after = (siOwnershipAfter(s, s.youIdx) * 100).toFixed(0), now = (s.firms[s.youIdx].ownership * 100).toFixed(0);
+    s.ui.confirm = {
+      title: "🤝 SI 유치 (전략적투자자)",
+      lines: ["조달: <b>+$" + amt + "B</b> (집중 전략투자자 — 큰 자금)", "내 지분 <b>" + now + "% → " + after + "%</b> · 전략투자자 블록 형성", "⚠️ 전략투자자는 경영권을 위협할 수 있습니다. 진행할까요?"],
+      okLabel: "SI 유치",
+      onOk: () => { if (!s) return; if (online) { net?.send({ kind: "raiseSI" }); s.ui.confirm = null; sfx("invest"); render(s, A); return; } engineRaiseSI(s, s.youIdx); s.ui.confirm = null; sfx("invest"); render(s, A); },
     };
     render(s, A);
   },
