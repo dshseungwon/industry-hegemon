@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, fiRaiseAmount, siRaiseAmount, fiOwnershipAfter, siOwnershipAfter } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -34,6 +34,7 @@ export interface Actions {
   buildCapacity(): void;
   raiseFI(): void;
   raiseSI(): void;
+  raiseExec(asSI: boolean, amt: number): void;
   lobby(marketName: string): void;
   research(key: string): void;
   raiseEquity(): void;
@@ -387,18 +388,18 @@ function panelBody(s: GameState, panel: string): string {
       + '<button class="actbtn" id="buildCap"' + (you.cash < capex ? ' disabled' : '') + '>🏭 증설 +' + chunk + ' (CAPEX $' + capex + 'B)' + (you.cash < capex ? ' · 자금부족' : '') + '</button>'
       + '<div class="mute small" style="margin-top:4px">증설은 가동까지 수개월(지연), 가동 후 월 고정비↑. 생산능력이 점유율 상한을 정합니다.</div>'
       + '</div>';
-    // 지분구조·지배구조: 경영권(나 ≥ 최대 적대블록 ΣSI & ≥20%) + FI/SI 증자.
+    // 지분구조·지배구조: 경영권(나 ≥ 최대 적대블록 & ≥20%) + 유상증자(슬라이더로 금액 직접 조절).
     const ctrl = hasControl(s), ownP = you.ownership * 100, threatP = controllingThreat(s) * 100;
-    const fiAmt = fiRaiseAmount(s), fiAfter = fiOwnershipAfter(s) * 100;
-    const siAmt = siRaiseAmount(s), siAfter = siOwnershipAfter(s) * 100;
+    const fiMax = equityMaxRaise(s, s.youIdx, false), siMax = equityMaxRaise(s, s.youIdx, true);
+    const fiCd = equityCooldownLeft(s), siCd = siCooldownLeft(s);
     h += '<div class="sect">🪪 지분구조 · 지배구조</div><div class="card">'
       + '<div class="kv"><span>경영권</span><b class="' + (ctrl ? 'gold' : 'red') + '">' + (ctrl ? '✓ 확보' : '⚠️ 상실') + '</b></div>'
-      + '<div class="kv"><span class="mute small">내 지분 ' + ownP.toFixed(0) + '% vs 최대 적대블록 ' + threatP.toFixed(0) + '%</span></div>'
+      + '<div class="kv"><span class="mute small">내 지분 ' + ownP.toFixed(0) + '% vs 최대 적대 지분 ' + threatP.toFixed(0) + '% (이보다 많아야 경영권 유지)</span></div>'
       + capTableBar(you)
-      + '<div class="kv small"><span>창업자(나) <b class="gold">' + ownP.toFixed(0) + '%</b></span><span class="mute">FI ' + (you.float * 100).toFixed(0) + '% · SI ' + threatP.toFixed(0) + '%</span></div>'
-      + '<button class="actbtn" id="raiseFI"' + (fiAmt > 0 ? '' : ' disabled') + '>🏦 FI 증자' + (fiAmt > 0 ? ' +$' + fiAmt + 'B · 지분 ' + ownP.toFixed(0) + '→' + fiAfter.toFixed(0) + '%' : ' · 한도(경영권 20%/쿨다운)') + '</button>'
-      + '<button class="actbtn" id="raiseSI"' + (siAmt > 0 ? '' : ' disabled') + '>🤝 SI 유치' + (siAmt > 0 ? ' +$' + siAmt + 'B · 지분 ' + ownP.toFixed(0) + '→' + siAfter.toFixed(0) + '%' : ' · 불가(경영권/쿨다운)') + '</button>'
-      + '<div class="mute small" style="margin-top:4px">FI=분산 재무투자자(경영권 안전, 20%까지). SI=전략투자자(큰 자금이나 경영권 위협). 경영권 잃으면 승리 불가.</div>'
+      + '<div class="kv small"><span>창업자(나) <b class="gold">' + ownP.toFixed(0) + '%</b></span><span class="mute">재무적투자자 ' + (you.float * 100).toFixed(0) + '% · 전략적투자자 ' + threatP.toFixed(0) + '%</span></div>'
+      + '<button class="actbtn" id="raiseFI"' + (fiCd > 0 || fiMax <= 0 ? ' disabled' : '') + '>🏦 유상증자 — 재무적 투자자' + (fiCd > 0 ? ' · 재충전 ' + fiCd + '개월' : fiMax <= 0 ? ' · 지분 한도(20%)' : ' (최대 $' + fiMax + 'B)') + '</button>'
+      + '<button class="actbtn" id="raiseSI"' + (siCd > 0 || siMax <= 0 ? ' disabled' : '') + '>🤝 유상증자 — 전략적 투자자' + (siCd > 0 ? ' · 재충전 ' + siCd + '개월' : siMax <= 0 ? ' · 경영권 위협(불가)' : ' (최대 $' + siMax + 'B)') + '</button>'
+      + '<div class="mute small" style="margin-top:4px">재무적 투자자=여러 곳에 분산 매각(경영권 안전, 지분 20%까지). 전략적 투자자=한 곳에 큰 지분 매각(자금 크나 경영권 위협). 경영권 잃으면 승리 불가.</div>'
       + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
@@ -428,7 +429,7 @@ function panelBody(s: GameState, panel: string): string {
       '<div class="kv"><span>차입여력</span><b>$' + fmt(room) + 'B</b></div>' +
       '<div class="kv"><span>이자율 · WACC</span><b>' + (debtRate(s) * 100).toFixed(1) + '% · ' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
       '<button class="actbtn" id="raiseDebt"' + (canB ? '' : ' disabled') + '>' + (canB ? '부채로 +$' + tranche + 'B 조달' : '차입여력 소진 — 점유율(벌이)을 키우세요') + '</button>' +
-      '<div class="mute small" style="margin-top:6px">대출 한도 = 4 × 연 EBITDA. 레버리지가 오르면 신용등급↓·이자↑. 현금 음수가 12개월 지속되면 파산합니다.</div></div>';
+      '<div class="mute small" style="margin-top:6px"><b>차입여력 = 4×연EBITDA − 현재 부채.</b> EBITDA가 양수여도 부채가 한도에 차면 추가 대출이 막힙니다. 레버리지↑→신용↓·이자↑, 현금 음수 12개월 지속 시 파산.</div></div>';
     // 4) 해외진출(프론티어 시장 진출 — 자원 할당 시작)
     h += '<div class="sect">해외진출 — 신규 시장 (지도에서 클릭해 진출)</div>';
     const fr = frontierMarkets(s);
@@ -639,6 +640,40 @@ function renderConfirm(s: GameState, A: Actions) {
     '<div class="mbtns"><button class="btn ghost" id="cCancel">' + (c.cancelLabel || "취소") + '</button><button class="btn" id="cOk">' + c.okLabel + '</button></div></div>';
   document.getElementById("cOk")!.onclick = () => A.confirmOk();
   document.getElementById("cCancel")!.onclick = () => A.confirmCancel();
+}
+// 유상증자 슬라이더 팝업 — 조달 금액을 직접 드래그(희석·경영권 실시간 미리보기).
+export function openRaiseModal(s: GameState, A: Actions, asSI: boolean) {
+  const fi = s.youIdx, f = s.firms[fi];
+  const pre = Math.max(1, marketCap(s, fi)), si = controllingThreat(s, fi), max = equityMaxRaise(s, fi, asSI);
+  document.getElementById("raisewrap")?.remove();
+  const wrap = document.createElement("div"); wrap.id = "raisewrap"; wrap.className = "modalwrap";
+  const desc = asSI
+    ? "한 곳(전략적 투자자)에 큰 지분을 넘겨 큰 자금을 조달합니다. 그 지분이 내 지분을 넘으면 경영권을 잃습니다."
+    : "여러 재무적 투자자에게 지분을 분산 매각해 자금을 조달합니다. 분산돼 경영권이 상대적으로 안전(내 지분 20%까지).";
+  wrap.innerHTML = '<div class="modal"><h3>' + (asSI ? "🤝 유상증자 — 전략적 투자자" : "🏦 유상증자 — 재무적 투자자") + '</h3>'
+    + '<div class="rtabs"><button class="rtab' + (!asSI ? ' on' : '') + '" data-si="0">재무적 투자자</button><button class="rtab' + (asSI ? ' on' : '') + '" data-si="1">전략적 투자자</button></div>'
+    + '<div class="mrow mute small">' + desc + '</div>'
+    + '<div class="rrow"><span>조달 금액</span><b id="rAmt" class="gold"></b></div>'
+    + '<input type="range" id="rSlider" min="0" max="' + Math.max(0, max) + '" value="' + Math.round(max / 2) + '" step="1">'
+    + '<div class="rrow"><span>내 지분</span><b id="rOwn"></b></div>'
+    + '<div class="rrow"><span>경영권</span><b id="rCtl"></b></div>'
+    + (max <= 0 ? '<div class="mrow red small">⚠️ 지금은 더 조달하면 경영권을 잃어 한도가 0입니다.</div>' : '')
+    + '<div class="mbtns"><button class="btn ghost" id="rCancel">취소</button><button class="btn" id="rOk">유상증자 실행</button></div></div>';
+  document.body.appendChild(wrap);
+  const slider = document.getElementById("rSlider") as HTMLInputElement;
+  const upd = () => {
+    const amt = +slider.value, φ = amt / (pre + amt);
+    const own = f.ownership * (1 - φ), siA = asSI ? si * (1 - φ) + φ : si * (1 - φ);
+    const ok = own >= Math.max(0.2, siA) - 1e-9;
+    document.getElementById("rAmt")!.textContent = "+$" + amt + "B";
+    document.getElementById("rOwn")!.innerHTML = (f.ownership * 100).toFixed(0) + "% → <b class='" + (ok ? "gold" : "red") + "'>" + (own * 100).toFixed(0) + "%</b>";
+    document.getElementById("rCtl")!.innerHTML = ok ? "<span class='gold'>✓ 유지</span>" : "<span class='red'>⚠️ 상실</span>";
+    (document.getElementById("rOk") as HTMLButtonElement).disabled = amt <= 0;
+  };
+  slider.oninput = upd; upd();
+  document.getElementById("rOk")!.onclick = () => { const amt = +slider.value; wrap.remove(); if (amt > 0) A.raiseExec(asSI, amt); };
+  document.getElementById("rCancel")!.onclick = () => wrap.remove();
+  wrap.querySelectorAll<HTMLElement>(".rtab").forEach(b => b.onclick = () => { wrap.remove(); openRaiseModal(s, A, b.dataset.si === "1"); });
 }
 // 전체화면 승리/패배 플래시 — 1회. (한 게임 오버당 한 번)
 let flashedOver = false;

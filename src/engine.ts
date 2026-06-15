@@ -208,7 +208,7 @@ export function acquireTargets(s: GameState, fi: number = s.youIdx): MnaTarget[]
   let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size;
   return s.firms.filter(f => f.key !== you.key).map(f => ({
     key: f.key, name: f.name, col: f.col,
-    price: Math.max(20, Math.round(capturedSize(s, f.key) * 0.2)),
+    price: Math.max(30, Math.round(marketCap(s, s.firms.indexOf(f)) * 1.3)),   // 인수가 = 상대 기업가치 × 경영권 프리미엄(싸게 사서 즉시 승리 방지)
     share: tot > 0 ? capturedSize(s, f.key) / tot : 0,
   }));
 }
@@ -219,16 +219,17 @@ export function doAcquire(s: GameState, fi: number, rivalKey: string) {
   const idx = s.firms.findIndex(f => f.key === rivalKey);
   if (idx < 0 || s.firms[idx].key === you.key) return;
   const rival = s.firms[idx];
+  you.capacity += rival.capacity; you.capacityTarget += rival.capacityTarget;   // 합병: 생산능력(공장) 흡수
   s.firms.splice(idx, 1);                 // 경쟁자 제거 — 호출측이 각자 youIdx를 키로 재해결해야 함
   recomputeLeaders(s);
-  pushLog(s, "🤝 " + rival.name + " 인수 완료 — 경쟁자 제거(점유율 흡수, 역량은 합쳐지지 않음)");
+  pushLog(s, "🤝 " + rival.name + " 인수 완료 — 생산능력 흡수·점유율 재분배(역량은 통합 리스크로 미흡수)");
 }
 // 부채 조달: 차입여력(4×EBITDA) 내에서만. 즉시 현금, 부채 증가(이자·WACC 상승).
 export function raiseDebt(s: GameState, fi: number, amount: number) { const f = s.firms[fi]; const a = Math.min(amount, borrowRoom(s, fi)); if (a <= 0) return; f.cash += a; f.debt += a; pushLog(s, "💵 " + f.name + " 부채 조달 +$" + Math.round(a) + "B"); }
 
 // ===== 비상 경영(현금<0): 유동성 위기 회생 수단 =====
 const BANKRUPT_MONTHS = 12;        // 현금 음수가 이만큼 지속되면 파산
-const EQUITY_CD = 6;               // FI 증자 쿨다운(개월)
+const EQUITY_CD = 3;               // FI 증자 쿨다운(개월) — 짧게(경영권 하한이 진짜 한도)
 const SI_CD = 18;                  // SI 유치 쿨다운(드묾)
 const EQUITY_CREDIT_DRAG = 0;      // 증자 비용은 '지분 희석'이 담당(신용 드래그 제거)
 const FOUNDER_FLOOR = 0.20;        // 창업자 최저 경영권선(분산주주도 못 버티는 하한)
@@ -275,8 +276,25 @@ export function fiRaiseAmount(s: GameState, fi: number = s.youIdx) { return phiT
 export function siRaiseAmount(s: GameState, fi: number = s.youIdx) { return phiToAmt(preOf(s, fi), siPhi(s, fi)); }
 export function fiOwnershipAfter(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ownership * (1 - fiPhi(s, fi)); }
 export function siOwnershipAfter(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ownership * (1 - siPhi(s, fi)); }
-export function canRaiseFI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity") && fiRaiseAmount(s, fi) > 0; }
-export function canRaiseSI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "si") && siRaiseAmount(s, fi) > 0; }
+// 슬라이더 최대 조달액: 경영권(과 20% 하한) 유지 한도. FI=분산(ΣSI 불변) / SI=집중 블록(ΣSI↑).
+export function equityMaxRaise(s: GameState, fi: number = s.youIdx, asSI = false): number {
+  const f = s.firms[fi], pre = preOf(s, fi), si = controllingThreat(s, fi);
+  if (!asSI) { const T = Math.max(FOUNDER_FLOOR, si); if (f.ownership <= T) return 0; return Math.floor(pre * (f.ownership / T - 1)); }
+  if (f.ownership - si <= 1e-6) return 0;
+  const kMin = Math.max(1 / (1 + f.ownership - si), FOUNDER_FLOOR / f.ownership);
+  const phiMax = Math.max(0, 1 - kMin); if (phiMax <= 1e-3) return 0;
+  return Math.floor(pre * phiMax / (1 - phiMax));
+}
+// 플레이어가 슬라이더로 고른 금액만큼 증자(경영권 한도로 클램프).
+export function equityRaiseBy(s: GameState, fi: number, amount: number, asSI: boolean) {
+  if (!canAct(s, fi, asSI ? "si" : "equity")) return;
+  const pre = preOf(s, fi); const amt = Math.min(Math.max(0, Math.round(amount)), equityMaxRaise(s, fi, asSI)); if (amt <= 0) return;
+  const got = applyRaise(s, fi, amt / (pre + amt), asSI);
+  setActCooldown(s, fi, asSI ? "si" : "equity", asSI ? SI_CD : EQUITY_CD);
+  pushLog(s, (asSI ? "🤝 " : "🏦 ") + s.firms[fi].name + (asSI ? " 전략적 투자자 유상증자 +$" : " 재무적 투자자 유상증자 +$") + got + "B · 내 지분 " + (s.firms[fi].ownership * 100).toFixed(0) + "%" + (!hasControl(s, fi) ? " ⚠️경영권 상실" : ""));
+}
+export function canRaiseFI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "equity") && equityMaxRaise(s, fi, false) > 0; }
+export function canRaiseSI(s: GameState, fi: number = s.youIdx) { return canAct(s, fi, "si") && equityMaxRaise(s, fi, true) > 0; }
 export function raiseFI(s: GameState, fi: number = s.youIdx) {
   if (!canAct(s, fi, "equity")) return; const amt = applyRaise(s, fi, fiPhi(s, fi), false); if (amt <= 0) return;
   setActCooldown(s, fi, "equity", EQUITY_CD);
@@ -293,6 +311,7 @@ export function canRaiseEquity(s: GameState, fi: number = s.youIdx) { return can
 export function equityRaiseAmount(s: GameState, fi: number = s.youIdx) { return fiRaiseAmount(s, fi); }
 export function equityDilutionPreview(s: GameState, fi: number = s.youIdx) { return fiOwnershipAfter(s, fi); }
 export function equityCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["equity"] || 0) - s.date); }
+export function siCooldownLeft(s: GameState, fi: number = s.youIdx) { return Math.max(0, (s.firms[fi].cooldowns["si"] || 0) - s.date); }
 // 긴급 대출: 차입여력 내에서 '적자 메우기'까지만 조달(부채·이자). 풀로 빼서 투자 밑천 삼는 악용 차단.
 export function emergencyLoanAmount(s: GameState, fi: number = s.youIdx) { return Math.min(Math.floor(borrowRoom(s, fi)), rescueNeed(s, fi)); }
 export function emergencyLoan(s: GameState, fi: number = s.youIdx) { const a = emergencyLoanAmount(s, fi); if (a > 0) raiseDebt(s, fi, a); }
