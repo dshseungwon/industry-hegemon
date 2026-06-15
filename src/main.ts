@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_DAYS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake } from "./engine";
-import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, openStakeModal, Actions } from "./ui";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_DAYS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake, issueCB as engineIssueCB } from "./engine";
+import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, openStakeModal, openCBModal, Actions } from "./ui";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
@@ -272,6 +272,12 @@ const A: Actions = {
     if (!s || amt <= 0) return;
     if (online) { net?.send({ kind: asSI ? "raiseSI" : "raiseFI", amt }); sfx("invest"); return; }
     equityRaiseBy(s, s.youIdx, amt, asSI); sfx("invest"); render(s, A);
+  },
+  raiseCB() { if (s) openCBModal(s, A); },   // 전환사채 발행(슬라이더 팝업)
+  raiseCBExec(amt) {
+    if (!s || amt < 1) return;
+    if (online) { net?.send({ kind: "issueCB", amt }); sfx("invest"); return; }
+    engineIssueCB(s, s.youIdx, amt); sfx("invest"); render(s, A);
   },
   // ===== 비상 경영 조치(현금<0) — 즉시 실행(위기엔 속도가 중요, 확인모달 없음) =====
   raiseEquity() { if (!s) return; if (online) { net?.send({ kind: "raiseEquity" }); sfx("invest"); return; } engineRaiseEquity(s, s.youIdx); sfx("invest"); render(s, A); },

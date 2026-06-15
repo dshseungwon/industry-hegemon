@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -37,6 +37,8 @@ export interface Actions {
   raiseFI(): void;
   raiseSI(): void;
   raiseExec(asSI: boolean, amt: number): void;
+  raiseCB(): void;
+  raiseCBExec(amt: number): void;
   lobby(marketName: string): void;
   research(key: string): void;
   raiseEquity(): void;
@@ -363,6 +365,8 @@ function renderPanel(s: GameState, A: Actions) {
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.cap as Cap, b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
+  const cbBtn = document.getElementById("issueCB") as HTMLButtonElement | null;
+  if (cbBtn && !cbBtn.disabled) cbBtn.onclick = () => A.raiseCB();
   const bc = document.getElementById("buildCap") as HTMLButtonElement | null;
   if (bc && !bc.disabled) bc.onclick = () => A.buildCapacity();
   const reC = document.getElementById("mReCompany"); if (reC) reC.onclick = () => A.toCompany();
@@ -457,7 +461,16 @@ function panelBody(s: GameState, panel: string): string {
       '<div class="kv"><span>차입여력</span><b>$' + fmt(room) + 'B</b></div>' +
       '<div class="kv"><span>이자율 · WACC</span><b>' + (debtRate(s) * 100).toFixed(1) + '% · ' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
       '<button class="actbtn" id="raiseDebt"' + (canB ? '' : ' disabled') + '>' + (canB ? '부채로 +$' + tranche + 'B 조달' : '차입여력 소진 — 점유율(벌이)을 키우세요') + '</button>' +
-      '<div class="mute small" style="margin-top:6px">차입여력 = 4×연EBITDA − 부채</div></div>';
+      '<div class="mute small" style="margin-top:6px">차입여력 = 4×연EBITDA − 부채·전환사채</div></div>';
+    // 3-b) 하이브리드 금융 — 전환사채(CB): 저금리 조달, 주가가 전환가 넘으면 자동 전환(부채 소멸+희석)
+    const cbP = cbPrincipal(s), cbMax = cbMaxIssue(s), cbCd = cbCooldownLeft(s);
+    h += '<div class="sect">하이브리드 금융 — 전환사채(CB)</div>';
+    h += '<div class="card">'
+      + (cbP > 0 ? '<div class="kv"><span>전환사채 잔액</span><b>$' + fmt(cbP) + 'B</b></div>'
+        + you.cbs.map(cb => '<div class="kv small"><span class="mute">$' + Math.round(cb.principal) + 'B</span><span class="' + (you.price >= cb.convPrice ? 'gold' : 'mute') + '">전환가 $' + cb.convPrice.toFixed(0) + ' · 현재가 $' + you.price.toFixed(0) + (you.price >= cb.convPrice ? ' · 전환 임박 ⚡' : '') + '</span></div>').join('')
+        : '<div class="kv small"><span class="mute">저금리(' + (2) + '%) 조달 · 주가가 전환가↑면 부채→자본 전환(희석)</span></div>')
+      + '<button class="actbtn" id="issueCB"' + (cbCd > 0 || cbMax < 1 ? ' disabled' : '') + '>🧬 전환사채 발행' + (cbCd > 0 ? ' · 재충전 ' + Math.ceil(cbCd / DAYS_PER_MONTH) + '개월' : cbMax < 1 ? ' · 차입여력 없음' : ' (최대 $' + fmt(cbMax) + 'B)') + '</button>'
+      + '</div>';
     // 4) 해외진출(프론티어 시장 진출 — 자원 할당 시작)
     h += '<div class="sect">해외진출 — 신규 시장 (지도에서 클릭해 진출)</div>';
     const fr = frontierMarkets(s);
@@ -802,6 +815,35 @@ export function openStakeModal(s: GameState, A: Actions, rivalKey: string) {
   slider.oninput = upd; upd();
   document.getElementById("sOk")!.onclick = () => { const frac = (+slider.value) / 100; wrap.remove(); if (frac > 0) A.buyStake(rivalKey, frac); };
   document.getElementById("sCancel")!.onclick = () => wrap.remove();
+}
+// 전환사채 발행 모달 — 금액만 슬라이더. 전환가·금리 고정. 전환 시 희석·경영권 미리보기.
+export function openCBModal(s: GameState, A: Actions) {
+  const f = s.firms[s.youIdx]; marketCap(s);   // 주가 init 보장
+  const max = cbMaxIssue(s), convPrice = Math.round(f.price * 1.3 * 10) / 10, threat = controllingThreat(s);
+  document.getElementById("raisewrap")?.remove();
+  const wrap = document.createElement("div"); wrap.id = "raisewrap"; wrap.className = "modalwrap";
+  wrap.innerHTML = '<div class="modal"><h3>🧬 전환사채(CB) 발행</h3>'
+    + '<div class="mrow mute small">저금리(2%)로 현금 조달. 주가가 <b>전환가 $' + convPrice.toFixed(0) + '</b>(현재가 $' + f.price.toFixed(0) + '×1.3)를 넘으면 자동 전환 — 부채가 사라지는 대신 지분이 희석됩니다.</div>'
+    + '<div class="rrow"><span>발행 금액</span><b id="cAmt" class="gold"></b></div>'
+    + '<input type="range" id="cSlider" min="0" max="' + Math.max(0, max) + '" value="' + Math.round(max / 2) + '" step="1">'
+    + '<div class="rrow"><span>전환가 · 금리</span><b>$' + convPrice.toFixed(0) + ' · 2%</b></div>'
+    + '<div class="rrow"><span>전환 시 내 지분</span><b id="cOwn"></b></div>'
+    + '<div class="rrow"><span>전환 시 경영권</span><b id="cCtl"></b></div>'
+    + (max < 1 ? '<div class="mrow red small">차입여력이 없습니다(EBITDA×4 한도 소진 — 점유율을 키우세요).</div>' : '')
+    + '<div class="mbtns"><button class="btn ghost" id="cCancel">취소</button><button class="btn" id="cOk">전환사채 발행</button></div></div>';
+  document.body.appendChild(wrap);
+  const slider = document.getElementById("cSlider") as HTMLInputElement;
+  const upd = () => {
+    const amt = +slider.value, newShares = amt / convPrice, total = f.shares + newShares, phi = total > 0 ? newShares / total : 0;
+    const ownAfter = f.ownership * (1 - phi), threatAfter = threat * (1 - phi), ctlOk = ownAfter >= Math.max(0.2, threatAfter) - 1e-9;
+    document.getElementById("cAmt")!.textContent = "+$" + amt + "B";
+    document.getElementById("cOwn")!.innerHTML = (f.ownership * 100).toFixed(0) + "% → <b class='" + (ctlOk ? "gold" : "red") + "'>" + (ownAfter * 100).toFixed(0) + "%</b>";
+    document.getElementById("cCtl")!.innerHTML = ctlOk ? "<span class='gold'>유지</span>" : "<span class='red'>⚠️ 상실 위험</span>";
+    (document.getElementById("cOk") as HTMLButtonElement).disabled = amt < 1;
+  };
+  slider.oninput = upd; upd();
+  document.getElementById("cOk")!.onclick = () => { const amt = +slider.value; wrap.remove(); if (amt >= 1) A.raiseCBExec(amt); };
+  document.getElementById("cCancel")!.onclick = () => wrap.remove();
 }
 // 전체화면 승리/패배 플래시 — 1회. (한 게임 오버당 한 번)
 let flashedOver = false;
