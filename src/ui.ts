@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -365,7 +365,7 @@ function panelBody(s: GameState, panel: string): string {
   if (panel === "company") {
     // 월간 손익계산서(회계 구조): 공헌이익 − 고정비 − 유지비 = 영업이익(EBITDA) − 이자 = 순이익
     const gross = grossMargin(s), fixc = fixedCost(s), upk = allocUpkeep(s, s.youIdx);
-    const ebitda = operatingIncome(s), intr = monthlyInterest(s), net = ebitda - intr;
+    const ebitda = operatingIncome(s), intr = monthlyInterest(s), divIn = dividendIncome(s), net = ebitda - intr + divIn;
     const sgn = (x: number) => (x >= 0 ? '+' : '') + x.toFixed(1) + 'B';
     h += '<div class="card">'
       + '<div class="kv"><span>현금</span><b class="' + (you.cash < 0 ? 'red' : '') + '">$' + fmt(you.cash) + 'B</b></div>'
@@ -375,6 +375,7 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv"><span>− 할당 유지비</span><b class="red">-' + upk.toFixed(1) + 'B</b></div>'
       + '<div class="kv tot"><span>= 영업이익(EBITDA)</span><b class="' + (ebitda >= 0 ? 'gold' : 'red') + '">' + sgn(ebitda) + '</b></div>'
       + (intr > 0 ? '<div class="kv"><span>− 이자비용</span><b class="red">-' + intr.toFixed(1) + 'B</b></div>' : '')
+      + (divIn > 0.05 ? '<div class="kv"><span>+ 지분 배당 수익</span><b class="gold">+' + divIn.toFixed(1) + 'B</b></div>' : '')
       + '<div class="kv tot"><span>= 월 순이익(현금증감)</span><b class="' + (net >= 0 ? 'gold' : 'red') + '">' + sgn(net) + '</b></div>'
       + '</div>'
       + '<div class="kv"><span>시가총액(기업가치)</span><b class="gold">$' + fmt(marketCap(s)) + 'B</b></div>'
@@ -389,7 +390,6 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv"><span>수요(잠재 점령)</span><b' + (constrained ? ' class="gold"' : '') + '>' + nat + '</b></div>'
       + '<div class="kv"><span>가동률</span><b class="' + (constrained ? 'gold' : useRate < 0.55 ? 'red' : '') + '">' + (useRate * 100).toFixed(0) + '%' + (constrained ? ' · 수요초과(증설 권장)' : useRate < 0.55 ? ' · 유휴설비(과잉)' : ' · 여유') + '</b></div>'
       + '<button class="actbtn" id="buildCap"' + (you.cash < capex ? ' disabled' : '') + '>🏭 증설 +' + chunk + ' (CAPEX $' + capex + 'B)' + (you.cash < capex ? ' · 자금부족' : '') + '</button>'
-      + '<div class="mute small" style="margin-top:4px">증설은 가동까지 수개월(지연), 가동 후 월 고정비↑. 생산능력이 점유율 상한을 정합니다.</div>'
       + '</div>';
     // 지분구조·지배구조: 경영권(나 ≥ 최대 적대블록 & ≥20%) + 유상증자(슬라이더로 금액 직접 조절).
     const ctrl = hasControl(s), ownP = you.ownership * 100, threatP = controllingThreat(s) * 100;
@@ -402,7 +402,6 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv small"><span>창업자(나) <b class="gold">' + ownP.toFixed(0) + '%</b></span><span class="mute">재무적투자자 ' + (you.float * 100).toFixed(0) + '% · 전략적투자자 ' + threatP.toFixed(0) + '%</span></div>'
       + '<button class="actbtn" id="raiseFI"' + (fiCd > 0 || fiMax <= 0 ? ' disabled' : '') + '>🏦 유상증자 — 재무적 투자자' + (fiCd > 0 ? ' · 재충전 ' + fiCd + '개월' : fiMax <= 0 ? ' · 지분 한도(20%)' : ' (최대 $' + fiMax + 'B)') + '</button>'
       + '<button class="actbtn" id="raiseSI"' + (siCd > 0 || siMax <= 0 ? ' disabled' : '') + '>🤝 유상증자 — 전략적 투자자' + (siCd > 0 ? ' · 재충전 ' + siCd + '개월' : siMax <= 0 ? ' · 경영권 위협(불가)' : ' (최대 $' + siMax + 'B)') + '</button>'
-      + '<div class="mute small" style="margin-top:4px">재무적 투자자=여러 곳에 분산 매각(경영권 안전, 지분 20%까지). 전략적 투자자=한 곳에 큰 지분 매각(자금 크나 경영권 위협). 경영권 잃으면 승리 불가.</div>'
       + '</div>';
     h += '<div class="sect">역량</div><div class="card">' + capBars(k => you.caps[k]) + '</div>';
     const total = s.marketOrder.reduce((a, n) => a + s.markets[n].size, 0);
@@ -439,7 +438,7 @@ function panelBody(s: GameState, panel: string): string {
       '<div class="kv"><span>차입여력</span><b>$' + fmt(room) + 'B</b></div>' +
       '<div class="kv"><span>이자율 · WACC</span><b>' + (debtRate(s) * 100).toFixed(1) + '% · ' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' +
       '<button class="actbtn" id="raiseDebt"' + (canB ? '' : ' disabled') + '>' + (canB ? '부채로 +$' + tranche + 'B 조달' : '차입여력 소진 — 점유율(벌이)을 키우세요') + '</button>' +
-      '<div class="mute small" style="margin-top:6px"><b>차입여력 = 4×연EBITDA − 현재 부채.</b> EBITDA가 양수여도 부채가 한도에 차면 추가 대출이 막힙니다. 레버리지↑→신용↓·이자↑, 현금 음수 12개월 지속 시 파산.</div></div>';
+      '<div class="mute small" style="margin-top:6px">차입여력 = 4×연EBITDA − 부채</div></div>';
     // 4) 해외진출(프론티어 시장 진출 — 자원 할당 시작)
     h += '<div class="sect">해외진출 — 신규 시장 (지도에서 클릭해 진출)</div>';
     const fr = frontierMarkets(s);
@@ -485,7 +484,7 @@ function panelBody(s: GameState, panel: string): string {
     h += '<div class="sect">🏆 승리 조건 (둘 중 하나)</div><div class="card">' +
       '<div class="kv"><span>① 완전 장악</span><b class="gold">모든 시장 1위</b></div>' +
       '<div class="kv"><span>② 마감 시 1위</span><b class="gold">~' + dateLabel(END_MONTHS) + '</b></div>' +
-      '<div class="mute small" style="margin-top:4px">지도 전체가 내 색이 되면 즉시 승리. 아니면 마감(' + dateLabel(END_MONTHS) + ') 시점에 점유율 1위인 기업이 승리합니다.</div></div>';
+      '<div class="mute small" style="margin-top:4px">전 시장 1위(완전장악) 또는 마감(' + dateLabel(END_MONTHS) + ') 시 1위면 승리.</div></div>';
     h += '<div class="sect">플레이 방법</div><div class="card mute small" style="line-height:1.7">' +
       '① <b>국가를 클릭</b> → 그 시장이 원하는 역량(KSF)·기업별 점유율 확인<br>' +
       '② 🎯<b>공략(자원 투입)</b> — 그 시장에 직접 자원을 부어 <b>점유율을 능동적으로</b> 끌어올립니다. 적합도(KSF)가 높을수록 효과적, 안 유지하면 약해집니다<br>' +
@@ -631,7 +630,7 @@ function allocSect(s: GameState): string {
     (lvl >= mx && mx < 8 ? '<div class="mute small">상한 도달 — 🔬연구개발의 테크트리로 ' + regionOf(n) + ' 할당 상한을 올리세요.</div>' : '') +
     '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
     infBars(s, n) +
-    '<div class="mute small" style="margin-top:4px"><b>영향력 = 할당 × 역량 × KSF 적합도</b>. 할당이 많을수록 월 유지비↑ — <b>수입 관리</b> 필수. 0으로 내리면 철수해 점유율이 줄어듭니다.</div></div>';
+    '<div class="mute small" style="margin-top:4px">할당↑ → 영향력·유지비↑ · 0=철수</div></div>';
 }
 // 로비 버튼 — 이 시장의 KSF를 우리 강점 쪽으로(쿨다운·비용)
 function lobbyBtn(s: GameState): string {

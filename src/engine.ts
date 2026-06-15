@@ -152,6 +152,16 @@ export function monthlyCashflow(s: GameState, fi: number = s.youIdx) { return gr
 export function operatingIncome(s: GameState, fi: number = s.youIdx) { return monthlyCashflow(s, fi) - allocUpkeep(s, fi); }
 // 월 이자비용(영업외/금융원가): 부채 × 월이자율.
 export function monthlyInterest(s: GameState, fi: number = s.youIdx) { const f = s.firms[fi]; return f.debt > 0 ? f.debt * (debtRate(s, fi) / 12) : 0; }
+// 보유 지분 배당 수익(상호출자): 내가 보유한 다른 회사 블록에서 들어오는 월 현금흐름.
+export function dividendIncome(s: GameState, fi: number = s.youIdx): number {
+  const my = s.firms[fi].key; let inc = 0;
+  for (let i = 0; i < s.firms.length; i++) {
+    const f = s.firms[i]; if (i === fi) continue;
+    const div = (f.divRate || 0) * Math.max(0, operatingIncome(s, i) - monthlyInterest(s, i)); if (div <= 0) continue;
+    for (const b of f.blocs) if (b.owner === my) inc += div * b.stake;
+  }
+  return inc;
+}
 // 시간 종료 판정: 점령 규모 기준 전 기업 순위(내림차순). [0]이 1위.
 export function rankByCaptured(s: GameState) { return s.firms.map(f => ({ firm: f, size: capturedSize(s, f.key) })).sort((a, b) => b.size - a.size); }
 
@@ -497,6 +507,13 @@ export function tick(s: GameState) {
     f.cash -= monthlyInterest(s, fi);             // 이자비용(영업외)
     if (f.cash < 0) { f.distress++; if (f.distress === 6 && f.key === youKey) pushLog(s, "⚠️ 채무 위험 — 현금 고갈. 할당 축소·점유율 회복 필요"); }
     else f.distress = 0;
+  }
+  // 배당: 흑자 firm이 순이익×divRate를 지분 비례 지급. 다른 회사가 보유한 블록 몫 → 그 회사 현금(상호출자 수익).
+  for (let i = 0; i < s.firms.length; i++) {
+    const f = s.firms[i]; const net = operatingIncome(s, i) - monthlyInterest(s, i);
+    const div = (f.divRate || 0) * Math.max(0, net); if (div <= 0) continue;
+    f.cash -= div; f.wealth = (f.wealth || 0) + div * f.ownership;   // 창업자 몫 누적(백그라운드), float 몫 소멸
+    for (const b of f.blocs) if (b.owner) { const o = firmByKey(s, b.owner); if (o) o.cash += div * b.stake; }
   }
   recomputeLeaders(s);
 
