@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, utilizationOf, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
 import { tutorialActive, tutorialSteps, tutorialAllDone } from "./tutorial";
@@ -364,12 +364,13 @@ function panelBody(s: GameState, panel: string): string {
       + '<div class="kv"><span>부채</span><b>$' + fmt(you.debt) + 'B</b></div><div class="kv"><span>신용등급</span><b class="' + (leverage(s) <= 4 ? 'gold' : 'red') + '">' + creditRating(s) + '</b></div><div class="kv"><span>전 세계 점유율</span><b class="gold">' + (myShare(s) * 100).toFixed(1) + '%</b></div><div class="kv"><span>WACC(할인율)</span><b>' + (waccOf(s) * 100).toFixed(1) + '%</b></div>' + (you.equityRaises > 0 ? '<div class="kv"><span>유상증자</span><b class="red">' + you.equityRaises + '회 · 신용 부담↑</b></div>' : '') + '</div>';
     // 생산능력(공장) — 홈 전용. 점령 상한 + 고정비 driver. 수요(자연점령)>생산능력이면 증설 권장.
     const cap = Math.round(you.capacity), tgt = Math.round(you.capacityTarget), nat = Math.round(naturalCaptured(s, you.key));
-    const util = utilizationOf(s, you.key), chunk = Math.max(10, Math.round(you.capacityTarget * 0.2)), capex = capacityCapex(s, chunk);
+    const chunk = Math.max(10, Math.round(you.capacityTarget * 0.2)), capex = capacityCapex(s, chunk);
+    const useRate = Math.min(1, nat / Math.max(1, you.capacity));   // 가동률 = 수요 ÷ 생산능력(쓰는 비율)
     const constrained = nat > you.capacity + 1, homeKo = s.markets[you.home]?.ko || you.home;
     h += '<div class="sect">🏭 생산능력 (본국 ' + esc(homeKo) + ')</div><div class="card">'
       + '<div class="kv"><span>생산능력</span><b>' + cap + (tgt > cap ? ' <span class="mute small">→ ' + tgt + ' 증설중</span>' : '') + '</b></div>'
-      + '<div class="kv"><span>수요(잠재 점령)</span><b>' + nat + '</b></div>'
-      + '<div class="kv"><span>가동률</span><b class="' + (util >= 0.999 ? 'gold' : util < 0.85 ? 'red' : '') + '">' + (util * 100).toFixed(0) + '%' + (constrained ? ' · 수요초과(증설 권장)' : util < 0.85 ? ' · 유휴설비' : '') + '</b></div>'
+      + '<div class="kv"><span>수요(잠재 점령)</span><b' + (constrained ? ' class="gold"' : '') + '>' + nat + '</b></div>'
+      + '<div class="kv"><span>가동률</span><b class="' + (constrained ? 'gold' : useRate < 0.55 ? 'red' : '') + '">' + (useRate * 100).toFixed(0) + '%' + (constrained ? ' · 수요초과(증설 권장)' : useRate < 0.55 ? ' · 유휴설비(과잉)' : ' · 여유') + '</b></div>'
       + '<button class="actbtn" id="buildCap"' + (you.cash < capex ? ' disabled' : '') + '>🏭 증설 +' + chunk + ' (CAPEX $' + capex + 'B)' + (you.cash < capex ? ' · 자금부족' : '') + '</button>'
       + '<div class="mute small" style="margin-top:4px">증설은 가동까지 수개월(지연), 가동 후 월 고정비↑. 생산능력이 점유율 상한을 정합니다.</div>'
       + '</div>';

@@ -163,7 +163,9 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방. 산업 규모 factor 동일 적용.
   const sf = scenario.sizeFactor ?? 1;
   for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: Math.round(f.size * sf), leader: youKey }; }
-  // 시작 생산능력 = 시작 자연점령규모(가동률≈1). engine.capturedSize와 동일식을 로컬 계산(순환 import 방지).
+  // 시작 생산능력 = 시작 자연점령규모 × 여유(현실 가동률 ~77%). 초반 투자 점프를 흡수해 강제 증설 압박 완화.
+  // engine.capturedSize와 동일식을 로컬 계산(순환 import 방지).
+  const CAP_HEADROOM = 1.3;
   for (const fi of firms) {
     let cap = 0;
     for (const n of order) {
@@ -171,7 +173,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
       for (const o of firms) { const w = Math.pow(_fit(o.caps, pr), BETA) * (o.effort[n] || 0); tot += w; if (o === fi) mine = w; }
       if (tot > 0) cap += markets[n].size * (mine / tot);
     }
-    fi.capacity = fi.capacityTarget = Math.round(cap);
+    fi.capacity = fi.capacityTarget = Math.round(cap * CAP_HEADROOM);
   }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
