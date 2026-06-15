@@ -537,13 +537,16 @@ export function tick(s: GameState) {
     const w = s.firms[domIdx];
     s.ui.over = { winnerKey: firstLeader, won: firstLeader === youKey, msg: w.name + " — 시장 완전 장악!" }; s.speed = 0; s.fx.push(firstLeader === youKey ? "win" : "lose");
   } else if (s.date >= END_MONTHS) {
+    // 마감 승자 = 실현 점령규모 1위(연결은 '흡수(인수)'로만 — passive 지분 보유는 배당만, 자동승리 아님).
     const ranked = rankByCaptured(s);
-    const wEntry = ranked.find(r => hasControl(s, s.firms.findIndex(x => x.key === r.firm.key))) || ranked[0];
-    const top = wEntry.firm; const ti = s.firms.findIndex(x => x.key === top.key);
+    const top = ranked[0].firm; const ti = s.firms.findIndex(x => x.key === top.key);
     const sh = (myShare(s, ti) * 100).toFixed(0);
-    const youTopNoControl = ranked[0].firm.key === youKey && !hasControl(s, s.youIdx);
-    const won = top.key === youKey;
-    const msg = youTopNoControl ? "마감 — 경영권 상실로 패배 (점유 1위였으나 과반 지분 상실)" : "마감 — 최종 1위 " + top.name + " (" + sh + "%)";
+    const youAreTop = top.key === youKey;
+    const youKeepControl = hasControl(s, s.youIdx);   // 내 회사 경영권(과반 지분) 사수 여부
+    const won = youAreTop && youKeepControl;
+    const msg = (youAreTop && !youKeepControl)
+      ? "마감 — 경영권 상실로 패배 (점유 1위였으나 과반 지분 상실)"
+      : "마감 — 최종 1위 " + top.name + " (" + sh + "%)";
     s.ui.over = { winnerKey: top.key, won, msg }; s.speed = 0; s.fx.push(won ? "win" : "lose");
   }
 }
