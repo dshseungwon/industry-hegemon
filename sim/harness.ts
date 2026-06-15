@@ -33,7 +33,44 @@ export const policies: Record<string, Policy> = {
   // 공격적(부채·증자 풀활용) — 차입으로 밑천을 끌어 역량·테크·할당을 최대치로 밀어붙이고, 적자는 증자/긴급대출로 버팀.
   aggressive: aggressivePolicy(99),       // 전 시장 광역 확장
   aggressiveCore: aggressivePolicy(6),    // 상위 6개 시장 집중
+  // 최신판(숙련 플레이어) — 주가 타이밍 증자 윈드폴 + 전환사채(CB) + 적대적 인수(지분 매집→흡수) + 운영.
+  smart: smartPolicy(),
 };
+
+// 현 버전의 모든 플레이어 도구를 쓰는 정책: 고평가 시 최대 증자, CB 저금리 조달, 약체 라이벌 매집→흡수, R&D/할당/증설.
+function smartPolicy(): Policy {
+  return (s, fi) => {
+    const f = s.firms[fi]; if (!f) return;
+    if (E.insolvent(s, fi)) { E.emergencyAusterity(s, fi); if (E.canRaiseEquity(s, fi)) E.raiseEquity(s, fi); E.emergencyLoan(s, fi); return; }
+
+    // ── 자금조달: 주가 타이밍 ──
+    const mc = E.marketCap(s, fi), iv = E.intrinsicValue(s, fi);
+    const overvalued = mc > iv * 1.2;                                   // 호재로 고평가 → 저희석 대규모 증자(윈드폴)
+    if (overvalued && E.canRaiseFI(s, fi)) { const m = E.equityMaxRaise(s, fi, false); if (m >= 5) E.equityRaiseBy(s, fi, m, false); }
+    else if (f.cash < 60 && E.canRaiseFI(s, fi)) { const m = E.equityMaxRaise(s, fi, false); if (m >= 5) E.equityRaiseBy(s, fi, Math.min(m, 80), false); }
+    if (f.cash < 120 && E.canIssueCB(s, fi)) { const m = E.cbMaxIssue(s, fi); if (m >= 5) E.issueCB(s, fi, Math.min(m, 120)); }   // CB 저금리 실탄
+    let g = 0; while (f.cash < 60 && E.borrowRoom(s, fi) >= 5 && g++ < 20) E.raiseDebt(s, fi, 40);
+
+    // ── 적대적 인수: 가장 약한 라이벌을 매집 → 흡수(생산능력 흡수) ──
+    const rivals = s.firms.filter(x => x.key !== f.key);
+    if (rivals.length) {
+      const tgt = rivals.slice().sort((a, b) => E.capturedSize(s, a.key) - E.capturedSize(s, b.key))[0];
+      const ti = s.firms.indexOf(tgt), my = E.myStakeIn(s, fi, tgt.key);
+      const acq = E.acquireTargets(s, fi).find(t => t.key === tgt.key);
+      if (acq && f.cash >= acq.price && (my > 0 || tgt.float < 0.02)) { f.cash -= acq.price; E.doAcquire(s, fi, tgt.key); }   // 매집했거나 비상장이면 흡수(가격 차감)
+      else if (tgt.float > 0.02) { const buy = Math.min(tgt.float, 0.15); const cost = E.stakeBuyCost(s, fi, tgt.key, buy); if (cost > 0 && f.cash >= cost + 40) E.buyStake(s, fi, tgt.key, buy); }   // float 매집(buyStake가 내부 차감)
+    }
+    fi = s.firms.findIndex(x => x.key === f.key); if (fi < 0) return; s.youIdx = fi;   // 흡수로 firm 배열이 바뀌면 내 인덱스 재해결(s.youIdx도)
+
+    // ── 운영(focused 베이스) ──
+    const weak = [...CAPS].sort((a, b) => f.caps[a] - f.caps[b]);
+    for (const cap of weak) { if (f.ventures.length >= 3) break; if (!f.ventures.some(v => v.cap === cap)) { const p = E.strategyProjects(s, fi).find(x => x.cap === cap); if (p && f.cash >= p.capex) { f.cash -= p.capex; f.ventures.push({ name: "개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} }); } } }
+    for (const v of f.ventures) if (f.cash >= 12 && E.canOperate(s, fi, v.cap, "accel")) { f.cash -= 10; v.progress = Math.min(100, v.progress + 14); E.setCooldown(s, fi, v.cap, "accel", 2); }
+    for (const n of E.TECH_NODES) if (!f.tech.includes(n.key) && n.req.every(r => f.tech.includes(r)) && f.cash >= n.cost + 25) { f.cash -= n.cost; E.doResearch(s, fi, n.key); break; }
+    if (f.cash > 30) { const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a])); ranked.forEach((nm, i) => { if (i < 8 && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1); else if (i >= 10 && (f.alloc[nm] || 0) > 1) E.setAlloc(s, fi, nm, -1); }); }
+    buildIfConstrained(s, fi, 1.0, true);
+  };
+}
 
 // topN = 적합도 상위 몇 개 시장까지 할당을 max로 밀지(광역 vs 집중 변형).
 // ⚠️ 실게임(main.ts) UI 규칙을 충실히 준수: ①적자(cash<0)면 할당 못 올림(main.ts:290) →
