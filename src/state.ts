@@ -13,6 +13,8 @@ export interface Firm {
   home: string;                     // 본진(HQ) 시장명 — 자원 전송의 출발지
   alloc: Record<string, number>;    // 시장명 -> 자원 할당 목표(0~ALLOC_MAX). 0이면 철수(영향력 0으로 감소).
   effort: Record<string, number>;   // 시장명 -> 현재 배치된 영향력. 매월 alloc 쪽으로 램프(전개 지연).
+  capacity: number;          // 본국(home) 생산능력($B-output). 실현 점유율을 게이트(생산 못 하면 점유 못 함) + 고정비 driver.
+  capacityTarget: number;    // 증설 주문분. 매월 capacity가 target으로 램프(증설 지연).
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
@@ -126,7 +128,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).
@@ -161,6 +163,16 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   // 프론티어 시장: s.markets에는 넣되 marketOrder엔 넣지 않음(닫힘) — 해외진출 시 개방. 산업 규모 factor 동일 적용.
   const sf = scenario.sizeFactor ?? 1;
   for (const f of FRONTIER_GEO) { if (!markets[f.name]) markets[f.name] = { name: f.name, ko: f.ko, pref: full({ tech: .25, brand: .25, scale: .25, global: .25 }), size: Math.round(f.size * sf), leader: youKey }; }
+  // 시작 생산능력 = 시작 자연점령규모(가동률≈1). engine.capturedSize와 동일식을 로컬 계산(순환 import 방지).
+  for (const fi of firms) {
+    let cap = 0;
+    for (const n of order) {
+      const pr = mpref[n]; let tot = 0, mine = 0;
+      for (const o of firms) { const w = Math.pow(_fit(o.caps, pr), BETA) * (o.effort[n] || 0); tot += w; if (o === fi) mine = w; }
+      if (tot > 0) cap += markets[n].size * (mine / tot);
+    }
+    fi.capacity = fi.capacityTarget = Math.round(cap);
+  }
   return {
     date: 0, speed: 0,    // 일시정지 상태로 시작 — 시장을 살핀 뒤 ▶로 시작
     scenario: { key: scenario.key, name: scenario.name, ko: scenario.ko, sector: scenario.sector, headline: scenario.headline, reportUrl: scenario.reportUrl, preset: scenario.preset, real: scenario.real, growth: scenario.growth },

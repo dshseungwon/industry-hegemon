@@ -108,23 +108,40 @@ function capsFor(preset: Record<Cap, number>, base: number, lean: number, gics: 
   return c;
 }
 
+// 실제 글로벌 점유율 → 3사 모델 점유율: 나머지(비모델 기업+Others) 합을 3등분해 각 사에 더함.
+// → 3사가 100%를 나눠 갖되 상대 순서·격차는 실데이터 유지. 플레이어(한국1위)도 신빙성 있는 점유율 확보.
+const nrm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+function threeShares(gd: ReturnType<typeof gameData>, youName: string) {
+  const gf = (gd?.global_firms || []) as { name: string; share: number }[];
+  const leader = gf[0];
+  const youReal = gf.find(f => f !== leader && (nrm(youName).includes(nrm(f.name)) || (nrm(f.name).length > 3 && nrm(youName).includes(nrm(f.name).slice(0, 5)))))?.share ?? 0;
+  const chall = gf.find(f => f !== leader && f.share !== youReal) || gf[1];
+  const yR = youReal, lR = leader?.share ?? 34, cR = chall?.share ?? 0;
+  const add = Math.max(0, 100 - (yR + lR + cR)) / 3;
+  return { you: yR + add, leader: lR + add, chall: cR + add,
+           leaderName: leader?.name || meta_global(gd), challName: chall?.name || "글로벌 경쟁사" };
+}
+const meta_global = (gd: ReturnType<typeof gameData>) => gd?.global_company || "글로벌 1위";
+// 점유율(%) → 시작 역량 base. 점유율이 클수록 강함(시작 점유율이 실 순서·격차 반영).
+const baseFromShare = (sharePct: number) => clamp(Math.round(50 + sharePct * 0.7), 45, 90);
+
 export function buildScenario(meta: BriefMeta): IndustryScenario {
   const g = meta.gics;
   const gd = gameData(g);   // The Industry Brief 실데이터(런타임 갱신분 우선, 없으면 내장 스냅샷)
   // KSF: 실데이터 가중치 우선, 없으면 섹터 프리셋(임시 브리지)
   const preset = gd ? normalize(full(gd.ksf_weights)) : normalize(full(SECTOR_PRESET[meta.sector] || DEFAULT_PRESET));
-  // 경쟁사 이름: 실데이터의 글로벌 pie(리더/도전자) + 한국 1위(플레이어)
-  const leaderName = gd?.global_firms?.[0]?.name || meta.global_company;
-  const challengerName = gd?.global_firms?.[1]?.name || gd?.global_firms?.[2]?.name || "글로벌 경쟁사";
-  // 3사 구도: 한국 1위(플레이어, KSF 갭) / 글로벌 1위(리더, KSF 강함) / 도전자(가성비).
-  // 기업 색: CI 알려진 곳은 CI, 아니면 역할별 구분 팔레트(캡 색과 비충돌).
+  // 실제 점유율 기반 3사 점유율(재분배) → caps base가 점유율을 반영. 리더/도전자 이름도 실데이터.
+  const sh = threeShares(gd, meta.korea_company);
+  const leaderName = gd ? sh.leaderName : meta.global_company;
+  const challengerName = gd ? sh.challName : "글로벌 경쟁사";
+  // 3사 구도: base는 재분배 점유율에서, lean은 KSF 텍스처(리더 강함/플레이어 약점) 유지.
   const firms: FirmDef[] = [
     { key: "you", name: meta.korea_company, col: ciColor(meta.korea_company, "#2d8cff"), ai: "balanced",
-      caps: capsFor(preset, 70, -55, g, 10) },
+      caps: capsFor(preset, baseFromShare(sh.you), -10, g, 10) },
     { key: "global", name: leaderName, col: ciColor(leaderName, "#ff5a5f"), ai: "leader",
-      caps: capsFor(preset, 80, 65, g, 40) },
+      caps: capsFor(preset, baseFromShare(sh.leader), 12, g, 40) },
     { key: "challenger", name: challengerName, col: ciColor(challengerName, "#ff8a3d"), ai: "balanced",
-      caps: capsFor(preset, 64, 25, g, 70) },   // 산업 KSF 기반의 신빙성 있는 글로벌 경쟁사
+      caps: capsFor(preset, baseFromShare(sh.chall), 6, g, 70) },
   ];
   ensureDistinct(firms);
   // 실제 시장규모 → 파이 스케일, 실제 CAGR → 성장률(없으면 섹터 근사 폴백)

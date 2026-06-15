@@ -27,6 +27,7 @@ export const policies: Record<string, Policy> = {
       if (i < 8 && f.cash > 30 && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1);
       else if (i >= 10 && (f.alloc[nm] || 0) > 1) E.setAlloc(s, fi, nm, -1);
     });
+    buildIfConstrained(s, fi, 1.0, false);   // 수요>생산능력이면 증설(현금 범위)
   },
   // 공격적(부채·증자 풀활용) — 차입으로 밑천을 끌어 역량·테크·할당을 최대치로 밀어붙이고, 적자는 증자/긴급대출로 버팀.
   aggressive: aggressivePolicy(99),       // 전 시장 광역 확장
@@ -67,7 +68,19 @@ function aggressivePolicy(topN: number): Policy {
       const ranked = [...s.marketOrder].sort((a, b) => E.matchScore(f, s.markets[b]) - E.matchScore(f, s.markets[a]));
       ranked.forEach((nm, i) => { if (i < topN && (f.alloc[nm] || 0) < E.maxAllocFor(s, fi, nm)) E.setAlloc(s, fi, nm, 1); });
     }
+    buildIfConstrained(s, fi, 0.9, true);   // 수요>생산능력이면 차입으로 증설(공장 고정비가 무한확장 제동)
   };
+}
+
+// 수요(자연점령)가 생산능력을 넘으면 증설(공장 시스템). useBorrow면 차입여력으로 충당.
+function buildIfConstrained(s: any, fi: number, frac: number, useBorrow: boolean) {
+  const f = s.firms[fi]; if (!f) return;
+  const nat = E.naturalCaptured(s, f.key);
+  if (nat <= (f.capacityTarget || 0) * 1.03) return;
+  const amt = (nat - (f.capacityTarget || 0)) * frac;
+  const px = E.capacityCapex(s, amt); if (px <= 0) return;
+  if (useBorrow && f.cash < px) { const room = E.borrowRoom(s, fi); if (room >= 5) E.raiseDebt(s, fi, Math.min(room, px - f.cash)); }
+  if (f.cash >= px) { f.cash -= px; E.buildCapacity(s, fi, amt); }
 }
 
 export interface RunOpts {
