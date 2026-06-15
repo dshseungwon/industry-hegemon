@@ -2,6 +2,8 @@ import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
 import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_DAYS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake, issueCB as engineIssueCB } from "./engine";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, openStakeModal, openCBModal, Actions } from "./ui";
+import { saveGame, loadGameRaw, clearSave } from "./save";
+import { checkAchievements } from "./achievements";
 import { BriefMeta } from "./reports.data";
 import { buildScenario, BUILTIN_META } from "./scenario";
 import { unlockIntel, industryIntel, scenarioGics } from "./intel";
@@ -50,10 +52,16 @@ function insolvencyCheck() {
     if (!online && s.speed !== 0) s.speed = 0;   // 오프라인은 일시정지(판단). 온라인은 공유 월드라 유지.
   } else if (!ins && wasInsolvent) { wasInsolvent = false; }
 }
+function achCheck() { if (!s || online) return; for (const a of checkAchievements(s)) { flash("🏆 업적 — " + a.name); showEventBanner("🏆", "업적 달성: " + a.name, a.desc); sfx("invest"); } }
+function autosave() { if (s && !online && !s.ui.over) saveGame(s); }
 function schedule() {
   if (timer) clearTimeout(timer);
   if (online || phase !== "game" || !s || s.speed === 0 || s.ui.over) return;   // 온라인은 서버가 진행
-  timer = window.setTimeout(() => { tick(s!); crisisCheck(); insolvencyCheck(); render(s!, A); drainFx(); checkEvent(); schedule(); }, stepMs(s.speed));
+  timer = window.setTimeout(() => {
+    tick(s!); crisisCheck(); insolvencyCheck(); achCheck();
+    if (s!.ui.over) clearSave(); else if (s!.date % 30 === 0) autosave();   // 월 경계 자동저장, 게임 끝나면 세이브 삭제
+    render(s!, A); drainFx(); checkEvent(); schedule();
+  }, stepMs(s.speed));
 }
 
 // ----- 온라인 모드 (로비 → 방 생성/참가) -----
@@ -166,7 +174,7 @@ const A: Actions = {
   spectate() { if (claimWorld) { youIdxNet = -1; phase = "game"; applyWorld(claimWorld); roomBadge(); flash("관전 모드"); } },
 
   // ----- 인게임 -----
-  setSpeed(n) { if (!s) return; if (online) { net?.send({ kind: "speed", n }); sfx("click"); return; } s.speed = n; sfx("click"); render(s, A); schedule(); },
+  setSpeed(n) { if (!s) return; if (online) { net?.send({ kind: "speed", n }); sfx("click"); return; } s.speed = n; sfx("click"); if (n === 0) autosave(); render(s, A); schedule(); },
   togglePanel(p) {
     if (!s) return;
     if (p === "company") s.ui.leftPanel = s.ui.leftPanel === p ? "none" : p;   // 기업 내부는 왼쪽 드로어(독립)
@@ -279,6 +287,16 @@ const A: Actions = {
     if (online) { net?.send({ kind: "issueCB", amt }); sfx("invest"); return; }
     engineIssueCB(s, s.youIdx, amt); sfx("invest"); render(s, A);
   },
+  // ----- 저장/불러오기/업적 (오프라인 전용) -----
+  saveGame() { if (!s || online) return; s.speed = 0; flash(saveGame(s) ? "💾 게임 저장됨" : "❌ 저장 실패"); render(s, A); schedule(); },
+  loadGame() {
+    const raw = loadGameRaw();
+    if (!raw) { flash("불러올 저장본이 없습니다"); return; }
+    if (timer) clearTimeout(timer); if (net) { net.close(); net = null; } online = false; setRoomBadge(null);
+    s = raw; pickedScenario = null; phase = "game"; wasCrisis = false; wasInsolvent = false; lastEventId = 0;
+    mountGame(app, A); render(s, A); flash("📂 이어하기"); sfx("select"); schedule();
+  },
+  openAchievements() { if (s) A.togglePanel("achievements"); },
   // ===== 비상 경영 조치(현금<0) — 즉시 실행(위기엔 속도가 중요, 확인모달 없음) =====
   raiseEquity() { if (!s) return; if (online) { net?.send({ kind: "raiseEquity" }); sfx("invest"); return; } engineRaiseEquity(s, s.youIdx); sfx("invest"); render(s, A); },
   emergencyLoan() { if (!s) return; if (online) { net?.send({ kind: "emergencyLoan" }); sfx("select"); return; } engineEmergencyLoan(s, s.youIdx); sfx("select"); render(s, A); },

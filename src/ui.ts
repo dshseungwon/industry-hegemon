@@ -1,4 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
+import { hasSave, savedLabel } from "./save";
+import { allAchievements, unlockedIds } from "./achievements";
 import { MAPDATA } from "./mapdata";
 import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
@@ -39,6 +41,9 @@ export interface Actions {
   raiseExec(asSI: boolean, amt: number): void;
   raiseCB(): void;
   raiseCBExec(amt: number): void;
+  saveGame(): void;
+  loadGame(): void;
+  openAchievements(): void;
   lobby(marketName: string): void;
   research(key: string): void;
   raiseEquity(): void;
@@ -369,6 +374,9 @@ function renderPanel(s: GameState, A: Actions) {
   if (cbBtn && !cbBtn.disabled) cbBtn.onclick = () => A.raiseCB();
   const bc = document.getElementById("buildCap") as HTMLButtonElement | null;
   if (bc && !bc.disabled) bc.onclick = () => A.buildCapacity();
+  const sv = document.getElementById("mSaveGame"); if (sv) sv.onclick = () => A.saveGame();
+  const ld = document.getElementById("mLoadGame"); if (ld) ld.onclick = () => A.loadGame();
+  const ac = document.getElementById("mAchievements"); if (ac) ac.onclick = () => A.openAchievements();
   const reC = document.getElementById("mReCompany"); if (reC) reC.onclick = () => A.toCompany();
   const reI = document.getElementById("mReIndustry"); if (reI) reI.onclick = () => A.toIndustry();
   const reT = document.getElementById("mToTitle"); if (reT) reT.onclick = () => A.toTitle();
@@ -576,12 +584,23 @@ function panelBody(s: GameState, panel: string): string {
       ? '<div class="logfeed">' + s.log.map(l => '<div class="logitem">' + esc(l) + '</div>').join("") + '</div>'
       : '<div class="card mute small">아직 기록된 활동이 없습니다. ▶로 시간을 진행하세요.</div>';
   } else if (panel === "menu") {
-    h += '<div class="card mute small">진행 중인 게임을 떠나 다시 선택합니다. (현재 게임은 저장되지 않습니다)</div>';
+    h += '<div class="card mute small">매월 자동 저장됩니다. 타이틀의 "이어하기"로 복원할 수 있어요.</div>';
     h += '<div class="menucol">' +
-      '<button class="btn" id="mReCompany">🏢 기업 다시 선택 <span class="mute">· 같은 산업</span></button>' +
+      '<button class="btn" id="mSaveGame">💾 지금 저장</button>' +
+      '<button class="btn ghost" id="mLoadGame">📂 마지막 저장 불러오기</button>' +
+      '<button class="btn ghost" id="mAchievements">🏆 업적 보기</button>' +
+      '<div class="mute small" style="margin:6px 2px">— 게임 떠나기 —</div>' +
+      '<button class="btn ghost" id="mReCompany">🏢 기업 다시 선택 <span class="mute">· 같은 산업</span></button>' +
       '<button class="btn ghost" id="mReIndustry">🏭 산업 다시 선택</button>' +
       '<button class="btn ghost" id="mToTitle">🏠 타이틀로 나가기</button>' +
       '</div>';
+  } else if (panel === "achievements") {
+    const all = allAchievements(), got = unlockedIds();
+    h += '<div class="sect">🏆 업적 ' + got.size + ' / ' + all.length + '</div>';
+    h += '<div class="achgrid">' + all.map(a => {
+      const on = got.has(a.id);
+      return '<div class="achcard' + (on ? '' : ' locked') + '"><div class="achico">' + (on ? a.icon : '🔒') + '</div><div class="achtxt"><b>' + (on ? esc(a.name) : '???') + '</b><span class="mute small">' + esc(a.desc) + '</span></div></div>';
+    }).join("") + '</div>';
   }
   return h;
 }
@@ -591,7 +610,7 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + Math.ceil(cd / DAYS_PER_MONTH) + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴", achievements: "🏆 업적" } as Record<string, string>)[p] || "";
 // 일봉 캔들차트(인라인 SVG, 의존성 없음). 가격축 라벨·격자·현재가선·날짜. 상승=초록/하락=빨강.
 function candleChart(candles: Candle[], curDate: number): string {
   if (!candles || candles.length < 2) return '';
@@ -901,7 +920,8 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '<div class="kotitle">더 체어맨</div>' +
     '<div style="opacity:.45;font-size:12px;letter-spacing:1px;margin-top:4px">v' + VERSION + '</div>' +
     '<p class="lede">당신은 회장이다.<br>한 기업을 운영해 변화하는 세계 시장을 공략하고, <b>점유율 1위</b>로 산업을 지배하라.</p>' +
-    '<button class="btn big" id="toIndustry">집무 시작 →</button>' +
+    (hasSave() ? '<button class="btn big" id="loadGame">▶ 이어하기 <span class="mute" style="font-size:12px">· ' + savedLabel() + '</span></button>' : '') +
+    '<button class="btn big' + (hasSave() ? ' ghost' : '') + '" id="toIndustry">새 게임 — 집무 시작 →</button>' +
     (staticBuild
       ? '<p class="src mute">온라인 플레이는 게임 서버 실행 시 가능합니다 (npm run server).</p>'
       : '<button class="btn big ghost" id="toOnline">온라인 플레이 (베타)</button>') +
@@ -909,6 +929,7 @@ export function renderTitle(app: HTMLElement, A: Actions) {
     '</div></div>';
   document.getElementById("toIndustry")!.onclick = () => A.toIndustry();
   const ob = document.getElementById("toOnline"); if (ob) ob.onclick = () => A.goOnline();
+  const lb = document.getElementById("loadGame"); if (lb) lb.onclick = () => A.loadGame();
 }
 
 export function renderLobby(app: HTMLElement, A: Actions) {
