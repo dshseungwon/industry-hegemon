@@ -1,6 +1,6 @@
 import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX } from "./state";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_MONTHS, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -272,15 +272,18 @@ function renderTop(s: GameState, A: Actions) {
   const t = document.getElementById("topbar")!;
   const me = s.firms[s.youIdx];
   const sp = (n: number, lab: string) => '<button class="spbtn' + (s.speed === n ? " on" : "") + '" data-sp="' + n + '">' + lab + '</button>';
+  marketCap(s);   // 주가/발행주식수 lazy-init 보장
+  const pv = me.priceHist.length > 1 ? me.priceHist[me.priceHist.length - 2] : me.price;
+  const pchg = pv > 0 ? (me.price / pv - 1) * 100 : 0;
   t.innerHTML =
     '<div class="brand">더 체어맨</div>' +
     '<div class="myfirm" title="내 기업" style="border-color:' + me.col + '"><span class="fdot" style="background:' + me.col + '"></span><b style="color:' + me.col + '">' + me.name + '</b></div>' +
     '<div class="clock"><span class="date">' + dateLabel(s.date) + '</span><span class="mute small">~' + dateLabel(END_MONTHS) + '</span>' + sp(0, "⏸") + sp(1, "▶") + sp(2, "▶▶") + sp(3, "▶▶▶") + '</div>' +
-    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
+    '<div class="hstats"><span>점유율 <b>' + (myShare(s) * 100).toFixed(0) + '%</b></span><span>주가 <b>$' + (me.price || 100).toFixed(0) + '</b>' + (Math.abs(pchg) >= 0.1 ? ' <span class="small ' + (pchg >= 0 ? 'gold' : 'red') + '">' + (pchg >= 0 ? '▲' : '▼') + Math.abs(pchg).toFixed(0) + '%</span>' : '') + '</span><span>현금 <b class="' + (me.cash < 0 ? 'red' : '') + '">$' + fmt(me.cash) + 'B</b></span>' + (me.debt > 0 ? '<span>부채 <b>$' + fmt(me.debt) + 'B</b></span>' : '') + '</div>' +
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
-      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("tech", "🔬", s) + mbtn("intel", "📊", s) +
+      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("market", "💹", s) + mbtn("tech", "🔬", s) + mbtn("intel", "📊", s) +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
@@ -513,6 +516,33 @@ function panelBody(s: GameState, panel: string): string {
     else h += '<div class="card mute small">📊 산업 인텔을 열거나 브리프 리포트를 읽으면 여기에 수집됩니다.</div>';
     h += '<div class="sect">용어</div>';
     h += CODEX.map(c => '<div class="codex"><div class="t">' + c.t + (c.en ? ' <span class="en">' + c.en + '</span>' : '') + '</div><div class="d">' + c.d + '</div></div>').join("");
+  } else if (panel === "market") {
+    const mc = marketCap(s), iv = intrinsicValue(s);
+    const pv = you.priceHist.length > 1 ? you.priceHist[you.priceHist.length - 2] : you.price;
+    const chg = pv > 0 ? (you.price / pv - 1) * 100 : 0;
+    const gap = iv > 0 ? (mc / iv - 1) * 100 : 0;
+    const gapLab = gap >= 15 ? '고평가 — 증자 유리' : gap <= -15 ? '저평가' : '적정';
+    h += '<div class="card">'
+      + '<div class="kv"><span>내 주가</span><b class="gold">$' + (you.price || 100).toFixed(1) + ' <span class="small ' + (chg >= 0 ? 'gold' : 'red') + '">' + (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(1) + '%</span></b></div>'
+      + sparkline(you.priceHist)
+      + '<div class="kv"><span class="mute small">주가 × 발행주식수 = 시가총액</span></div>'
+      + '<div class="kv"><span>$' + (you.price || 100).toFixed(1) + ' × ' + fmt(you.shares) + '주</span><b class="gold">$' + fmt(mc) + 'B</b></div>'
+      + '<div class="kv"><span>펀더멘털(내재가치)</span><b>$' + fmt(iv) + 'B</b></div>'
+      + '<div class="kv"><span>밸류에이션</span><b class="' + (gap >= 15 ? 'gold' : gap <= -15 ? 'red' : 'mute') + '">' + (gap >= 0 ? '+' : '') + gap.toFixed(0) + '% ' + gapLab + '</b></div>'
+      + '</div>';
+    h += '<div class="sect">📊 시세판</div>';
+    s.firms.forEach(f => {
+      const fi = s.firms.indexOf(f), fmc = marketCap(s, fi), fiv = intrinsicValue(s, fi);
+      const fpv = f.priceHist.length > 1 ? f.priceHist[f.priceHist.length - 2] : f.price;
+      const fchg = fpv > 0 ? (f.price / fpv - 1) * 100 : 0, fgap = fiv > 0 ? (fmc / fiv - 1) * 100 : 0;
+      const mine = f.key === you.key;
+      const hint = !mine && fgap <= -15 ? '저평가 — 인수 유리' : mine && fgap >= 15 ? '고평가 — 증자 유리' : (fgap >= 0 ? '+' : '') + fgap.toFixed(0) + '%';
+      h += '<div class="card' + (mine ? ' mine' : '') + '">'
+        + '<div class="kv"><b style="color:' + f.col + '">' + f.name + (mine ? ' (나)' : '') + '</b><span class="small ' + (fchg >= 0 ? 'gold' : 'red') + '">$' + (f.price || 100).toFixed(1) + ' ' + (fchg >= 0 ? '▲' : '▼') + Math.abs(fchg).toFixed(1) + '%</span></div>'
+        + '<div class="kv small"><span class="mute">시총 $' + fmt(fmc) + 'B</span><span class="' + ((!mine && fgap <= -15) || (mine && fgap >= 15) ? 'gold' : 'mute') + '">' + hint + '</span></div>'
+        + '</div>';
+    });
+    h += '<div class="card mute small">주가는 트렌드·규제 등 환경 이벤트로 급등·급락합니다. 주가가 높을 때 유상증자하면 같은 지분 희석으로 더 큰 자금을 조달합니다.</div>';
   } else if (panel === "log") {
     h += '<div class="card mute small">시장에서 일어난 일들 — 트렌드·규제, 개발 완성, 경쟁사 인수·파산, 진출 등(최근 40건).</div>';
     h += s.log.length
@@ -534,7 +564,15 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + cd + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴" } as Record<string, string>)[p] || "";
+// 주가 추이 스파크라인(인라인 SVG, 의존성 없음). 상승=금/하락=적.
+function sparkline(hist: number[]): string {
+  if (!hist || hist.length < 2) return '';
+  const w = 300, hgt = 38, n = hist.length, mn = Math.min(...hist), mx = Math.max(...hist), rng = mx - mn || 1;
+  const pts = hist.map((v, i) => (i / (n - 1) * w).toFixed(1) + ',' + (hgt - (v - mn) / rng * hgt).toFixed(1)).join(' ');
+  const up = hist[n - 1] >= hist[0];
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + hgt + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + (up ? '#ffb81c' : '#e8556b') + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+}
 function ring(pct: number) { const C = 2 * Math.PI * 16, off = C * (1 - pct / 100); return '<svg class="ring" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="16" fill="none" stroke="#3a2c55" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#cbb3ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 21 21)"/><text x="21" y="25" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + Math.round(pct) + '%</text></svg>'; }
 
 // 적합도 진단 — 이 시장에서 나 vs 현재 1위(내가 1위면 최강 라이벌)를 KSF별 기여로 분해해 "왜 이기/지는지" 보여줌.

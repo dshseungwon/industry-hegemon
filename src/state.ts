@@ -21,6 +21,10 @@ export interface Firm {
   blocs: { name: string; stake: number; owner?: string }[];  // 집중 SI 블록. owner=보유 firm key(없으면 익명 공모). 시작 [].
   divRate: number;           // 배당성향(0~0.4). 매월 순이익×divRate를 지분 비례 배당. AI~0.15, 플레이어 0.
   wealth: number;            // 창업자가 배당으로 받은 누적 개인자산(백그라운드 스탯, 향후 업적용).
+  // 주식시장: 주가가 1차 상태변수, 시총 = price × shares. 엔진이 첫 사용 시 lazy-init(price=100 기준).
+  shares: number;            // 발행주식수. 시작 0(센티넬) → 엔진이 intrinsicValue0/100로 초기화. 유상증자 희석 시 증가.
+  price: number;             // 주가($/주). 시작 0(센티넬) → 100. 매월 펀더멘털 회귀 + 이벤트 충격(급등/급락).
+  priceHist: number[];       // 최근 주가 이력(스파크라인용, 최대 ~24).
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Market { name: string; ko: string; pref: Record<Cap, number>; size: number; leader: string; }
@@ -134,7 +138,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, shares: 0, price: 0, priceHist: [], auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).

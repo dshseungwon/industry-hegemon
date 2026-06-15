@@ -183,14 +183,68 @@ export function borrowRoom(s: GameState, fi: number = s.youIdx) { return Math.ma
 export function creditRating(s: GameState, fi: number = s.youIdx) { const l = leverage(s, fi); return l <= 1 ? "AAA" : l <= 2 ? "AA" : l <= 3 ? "A" : l <= 4 ? "BBB" : l <= 5 ? "BB" : l <= 6 ? "B" : l <= 8 ? "CCC" : "D"; }
 export function debtRate(s: GameState, fi: number = s.youIdx) { return 0.04 + Math.min(0.16, leverage(s, fi) * 0.025); }   // 레버리지↑ → 이자↑
 export function waccOf(s: GameState, fi: number = s.youIdx) { return 0.08 + Math.min(0.08, leverage(s, fi) * 0.012); }
-// 시가총액(지분가치) = EV − 순부채. EV = 연EBITDA × 배수(성장 산업일수록↑), 적자기업은 자산바닥(점령규모×0.2, M&A가격과 정합)으로 폴백.
+// 펀더멘털(내재가치) = EV − 순부채. EV = 연EBITDA × 배수(성장 산업일수록↑), 적자기업은 자산바닥(점령규모×0.2, M&A가격과 정합)으로 폴백.
 const VAL_BASE_MULT = 8;
-export function marketCap(s: GameState, fi: number = s.youIdx) {
+export function intrinsicValue(s: GameState, fi: number = s.youIdx) {
   const f = s.firms[fi];
   const annualG = (s.scenario.growth || 0) * 12;                // 섹터 성장률(연환산) — 성장 프리미엄
   const mult = VAL_BASE_MULT * (1 + annualG * 4);
   const ev = Math.max(annualEbitda(s, fi) * mult, capturedSize(s, f.key) * 0.2);
   return Math.round(ev + f.cash - f.debt);                     // 지분가치 = EV − (부채−현금)
+}
+// 주식시장: 주가가 1차 상태변수, 시총 = 주가 × 발행주식수. 첫 사용 시 lazy-init(price=100 기준, shares=내재가치/100).
+function ensureShares(s: GameState, fi: number) {
+  const f = s.firms[fi];
+  if (!f.shares || f.shares <= 0) {
+    const iv = Math.max(1, intrinsicValue(s, fi));
+    f.price = 100; f.shares = Math.max(1, Math.round(iv / 100)); f.priceHist = [100];
+  }
+}
+// 시가총액(지분가치) = 주가 × 발행주식수. 모든 거래가격(증자 조달액·지분매입·M&A)이 주가에 반응.
+export function marketCap(s: GameState, fi: number = s.youIdx) {
+  ensureShares(s, fi); const f = s.firms[fi];
+  return Math.max(1, Math.round(f.price * f.shares));
+}
+// ---- 주식시장: 평상시(약한 평균회귀 + 소음) + 이벤트 충격(급등/급락). 핵심: 호재 급등 타이밍에 고가 증자 ----
+const PRICE_MEAN_REV = 0.12;            // 매월 펀더멘털(내재가)로 되돌리는 강도
+const PRICE_VOL = 0.04;                 // 평상시 소음 폭
+const PRICE_SHOCK = 0.8;                // 이벤트 충격 계수(정합도 ±1일 때 ±80% 급등/급락)
+const PRICE_LO = 0.3, PRICE_HI = 5;     // 내재가 대비 주가 허용 밴드(급등 허용 + 0/무한 방지)
+function intrinsicPrice(s: GameState, fi: number) { return Math.max(0.01, intrinsicValue(s, fi) / Math.max(1, s.firms[fi].shares)); }
+function bandClamp(s: GameState, fi: number, price: number) { const ip = intrinsicPrice(s, fi); return clamp(price, ip * PRICE_LO, ip * PRICE_HI); }
+// 평상시 주가 갱신(매 tick): 약한 평균회귀 + 소음. 이력 푸시(스파크라인용).
+export function updatePrices(s: GameState) {
+  for (let fi = 0; fi < s.firms.length; fi++) {
+    ensureShares(s, fi); const f = s.firms[fi];
+    const rev = PRICE_MEAN_REV * Math.log(intrinsicPrice(s, fi) / f.price);
+    const noise = (Math.random() - 0.5) * PRICE_VOL;
+    f.price = bandClamp(s, fi, f.price * (1 + rev + noise));
+    f.priceHist.push(Math.round(f.price * 10) / 10);
+    if (f.priceHist.length > 24) f.priceHist.shift();
+  }
+}
+// 이벤트 충격: 정합도(−1~1)에 비례해 주가에 큰 배수 충격. bias=트렌드 방향 / market=규제·개방 시장. 반환=내 주가 변동률(시그널용).
+export function shockPrices(s: GameState, opt: { bias?: Cap | null; market?: string }): number {
+  // 시장 이벤트는 동종업계 상대 적합도로 정합도 산정(matchScore는 절대 스케일이라 평균 대비로 정규화).
+  let mean = 0;
+  if (opt.market && s.markets[opt.market]) { for (const g of s.firms) mean += matchScore(g, s.markets[opt.market]); mean = mean / Math.max(1, s.firms.length) || 1; }
+  let youDelta = 0;
+  for (let fi = 0; fi < s.firms.length; fi++) {
+    ensureShares(s, fi); const f = s.firms[fi];
+    let align = 0;
+    if (opt.bias) align = (f.caps[opt.bias] - 50) / 50;
+    else if (opt.market && s.markets[opt.market]) { const m = s.markets[opt.market]; align = m.leader === f.key ? 1 : (matchScore(f, m) - mean) / mean; }
+    align = clamp(align, -1, 1);
+    if (Math.abs(align) < 0.05) continue;
+    const before = f.price;
+    f.price = bandClamp(s, fi, f.price * (1 + PRICE_SHOCK * align));
+    if (fi === s.youIdx) youDelta = (f.price - before) / Math.max(0.01, before);
+  }
+  return youDelta;
+}
+// 내 주가가 이벤트로 크게 급등하면 한 줄 시그널(타이밍 인지용 — 버튼 없음).
+function surgeSignal(s: GameState, youDelta: number, cause: string) {
+  if (youDelta > 0.2) { pushLog(s, "📈 " + cause + " — 우리 주가 급등 +" + Math.round(youDelta * 100) + "% · 유상증자 적기"); s.fx.push("surge"); }
 }
 
 export interface Project { cap: Cap; h: string; e: string; capex: number; P: number; npv: number; irr: number | null; gain: number; dShare: number; }
@@ -300,9 +354,10 @@ function siPhi(s: GameState, fi: number): number {
 const phiToAmt = (pre: number, φ: number) => (φ > 1e-3 ? Math.round(pre * φ / (1 - φ)) : 0);
 // 증자 적용: φ만큼 신주 발행(증자후 회사의 φ). 기존 지분 ×(1-φ), FI→float / SI→새 블록. cash 조달.
 function applyRaise(s: GameState, fi: number, φ: number, asSI: boolean): number {
-  const f = s.firms[fi]; const amt = phiToAmt(preOf(s, fi), φ); if (amt <= 0) return 0;
+  const f = s.firms[fi]; ensureShares(s, fi); const amt = phiToAmt(preOf(s, fi), φ); if (amt <= 0) return 0;
   const keep = 1 - φ; f.ownership *= keep; f.float *= keep; for (const b of f.blocs) b.stake *= keep;
   if (asSI) f.blocs.push({ name: "전략투자자 " + (f.blocs.length + 1), stake: φ }); else f.float += φ;
+  f.shares /= keep;                          // 신주 발행(주가 연속 유지, 시총 = post-money = pre + amt)
   f.cash += amt; f.equityRaises++; return amt;
 }
 export function fiRaiseAmount(s: GameState, fi: number = s.youIdx) { return phiToAmt(preOf(s, fi), fiPhi(s, fi)); }
@@ -476,6 +531,7 @@ export function tick(s: GameState) {
     const t = pickTrend(s); const head = "「" + s.scenario.ko + "」 " + t.headline;
     s.trend = { bias: t.bias, until: s.date + ri(6, 11), headline: head, note: t.note }; pushLog(s, "📰 " + head);
     s.event = { title: head, note: t.note, id: s.event.id + 1, icon: "📰" }; s.fx.push("trend");
+    surgeSignal(s, shockPrices(s, { bias: t.bias }), head);   // 트렌드 정합도에 비례한 주가 급등/급락
   }
   // 정책/규제 이벤트 — 한 시장의 환경(규모·KSF)을 바꿈(법률·정치 흐름). 진단해서 대응해야 함.
   if (s.date > 1 && Math.random() < 0.11) {
@@ -483,6 +539,12 @@ export function tick(s: GameState) {
     if (Math.random() < 0.5) { m.size = Math.max(20, m.size * 0.88); m.pref.global += 0.15; renorm(m); pushLog(s, "⚖️ " + m.ko + " · " + ind + " 규제 강화"); s.event = { title: m.ko + " " + ind + " 규제 강화", note: "현지 시장 위축 · 현지대응/컴플라이언스가 중요해집니다.", id: s.event.id + 1, icon: "⚖️" }; }
     else { m.size = m.size * 1.12; const k: Cap = Math.random() < 0.5 ? "tech" : "scale"; m.pref[k] += 0.12; renorm(m); pushLog(s, "🟢 " + m.ko + " · " + ind + " 시장 개방/부양"); s.event = { title: m.ko + " " + ind + " 시장 개방·부양", note: "시장 규모 확대 · " + CAPKO[k] + " 수요가 늘어납니다.", id: s.event.id + 1, icon: "🟢" }; }
     s.fx.push("trend");
+    surgeSignal(s, shockPrices(s, { market: m.name }), m.ko + " 환경 변화");   // 그 시장 적합도에 비례한 주가 충격
+  }
+  // 투기 테마 — 가끔 무작위 역량 테마가 떠 관련주가 출렁(추가 변동성). 내 강점 테마면 급등 → 증자 기회.
+  if (s.date > 1 && Math.random() < 0.04) {
+    const k = CAPS[ri(0, 3)]; const d = shockPrices(s, { bias: k });
+    pushLog(s, "💸 시장에 「" + CAPKO[k] + "」 테마 부각 — 관련주 출렁"); surgeSignal(s, d, CAPKO[k] + " 테마");
   }
   // consumers drift toward the current trend bias — 자주·작게 움직여 매끄럽고 읽히는 변화(트렌드가 주 신호)
   for (const n of s.marketOrder) {
@@ -516,6 +578,7 @@ export function tick(s: GameState) {
     for (const b of f.blocs) if (b.owner) { const o = firmByKey(s, b.owner); if (o) o.cash += div * b.stake; }
   }
   recomputeLeaders(s);
+  updatePrices(s);            // 평상시 주가 갱신(평균회귀+소음) — 당월 밸류를 승리체크 전 반영
 
   // 파산: 채무 불이행 12개월 지속 → 퇴출(AI) / 패배(플레이어)
   const playerBankrupt = (s.firms[s.youIdx]?.distress || 0) >= BANKRUPT_MONTHS;
