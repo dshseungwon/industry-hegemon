@@ -2,7 +2,7 @@ import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
 import { hasSave, savedLabel } from "./save";
 import { allAchievements, unlockedIds } from "./achievements";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft, industryInitiatives } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -42,6 +42,7 @@ export interface Actions {
   raiseExec(asSI: boolean, amt: number): void;
   raiseCB(): void;
   raiseCBExec(amt: number): void;
+  startInitiative(id: string): void;
   saveGame(): void;
   loadGame(): void;
   openAchievements(): void;
@@ -364,6 +365,7 @@ function renderPanel(s: GameState, A: Actions) {
   lastRightP = s.ui.panel;
   document.getElementById("closePanel")!.onclick = () => A.togglePanel(s.ui.panel);
   o.querySelectorAll<HTMLElement>(".proj:not(.mna):not(.tech):not(.enter)").forEach(b => b.onclick = () => A.startStrategy(b.dataset.cap as Cap));
+  o.querySelectorAll<HTMLElement>(".initbtn").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.startInitiative(b.dataset.id!); });
   o.querySelectorAll<HTMLElement>(".mna").forEach(b => b.onclick = () => A.acquire(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".buystake").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.buyStakeOpen(b.dataset.key!); });
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
@@ -445,6 +447,23 @@ function panelBody(s: GameState, panel: string): string {
         + capBars(k => f.caps[k]) + '</div>';
     }).join("");
   } else if (panel === "strategy") {
+    // 산업 특화 전략 이니셔티브 — 그 산업의 실제 전략 메뉴(안정/도박/증설)
+    h += '<div class="sect">🎯 산업 특화 전략</div>';
+    const actInit = you.ventures.find(v => v.init);
+    if (actInit) h += '<div class="card"><div class="kv"><b>진행 중 — ' + esc(actInit.name) + '</b><span class="gold">' + Math.round(actInit.progress) + '%</span></div><div class="mute small">완성 시 효과 적용 · 가속은 연구개발(🔬) 패널에서</div></div>';
+    const inits = industryInitiatives(s);
+    if (!inits.length && !actInit) h += '<div class="card mute small">이 산업의 특화 전략을 모두 수행했습니다.</div>';
+    inits.forEach(it => {
+      const badge = it.kind === "gamble" ? '<span class="bdg no">🎲 도박 ' + Math.round((it.successProb || 0) * 100) + '%</span>' : it.kind === "scale" ? '<span class="bdg">🏭 증설</span>' : '<span class="bdg go">안정</span>';
+      const eff = it.effect;
+      const parts: string[] = [];
+      if (eff.caps) for (const k in eff.caps) parts.push(CAPKO[k as Cap] + ' +' + eff.caps[k as Cap]);
+      if (eff.marginAdd) parts.push('마진↑'); if (eff.overheadCut) parts.push('고정비↓'); if (eff.capacityBonus) parts.push('생산능력 +' + eff.capacityBonus);
+      const dis = !!actInit || you.cash < it.capex;
+      h += '<button class="proj initbtn" data-id="' + it.id + '"' + (dis ? ' disabled' : '') + '><div class="h">' + esc(it.name) + badge + '</div>'
+        + '<div class="e">' + esc(it.desc) + '</div>'
+        + '<div class="fin"><span>Capex $' + it.capex + 'B · ~' + it.months + '개월</span><span class="gold">' + parts.join(' · ') + (it.kind === "gamble" ? ' (성공 시)' : '') + '</span></div></button>';
+    });
     // M&A(경쟁사 인수)
     h += '<div class="sect">M&A · 지분 — 경쟁사</div>';
     const tgts = acquireTargets(s);

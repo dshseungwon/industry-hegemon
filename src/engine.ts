@@ -1,4 +1,5 @@
 import { GameState, Cap, CAPS, CAPKO, Firm, Market, Candle, CB } from "./state";
+import { initiativesFor, initiativeById, Initiative } from "./initiatives";
 
 export function gcap(c: number) { return Math.pow(Math.max(0, Math.min(100, c)) / 100, 0.7) * 100; }
 export function clamp(x: number, a: number, b: number) { return x < a ? a : x > b ? b : x; }
@@ -562,6 +563,7 @@ export function techMods(s: GameState, fi: number = s.youIdx) {
   if (t.has("ai")) marginAdd += 0.002;
   if (t.has("globalscm")) marginAdd += 0.002;
   if (t.has("ecosystem")) marginAdd += 0.003;
+  for (const id of (s.firms[fi].initiatives || [])) { const init = initiativeById(id); if (init) { marginAdd += init.effect.marginAdd || 0; overheadCut += init.effect.overheadCut || 0; } }   // 완료 이니셔티브 영구 보너스
   return { marginAdd, overheadCut, ventureAdd };
 }
 
@@ -705,12 +707,42 @@ function progressVenture(s: GameState, fi: number) {
   for (let i = f.ventures.length - 1; i >= 0; i--) {
     const v = f.ventures[i];
     if (Math.random() < 0.09) v.risk++;
-    const rate = 7 + techMods(s, fi).ventureAdd - v.risk * 1.3; v.progress = Math.min(100, v.progress + Math.max(2, rate));
+    let rate = 7 + techMods(s, fi).ventureAdd - v.risk * 1.3; if (v.init) rate *= 0.7;   // 이니셔티브는 큰 베팅 — 느리게
+    v.progress = Math.min(100, v.progress + Math.max(2, rate));
     if (v.progress >= 100) {
-      f.caps[v.cap] = clamp(f.caps[v.cap] + v.payoff, 0, 100); f.ventures.splice(i, 1);
-      if (f.key === s.firms[s.youIdx].key) { pushLog(s, "🚀 " + CAPKO[v.cap] + " 개발 완성! 역량 강화"); s.fx.push("complete"); }
+      f.ventures.splice(i, 1);
+      if (v.init) applyInitiative(s, fi, v.init);                                          // 산업 특화 이니셔티브 효과
+      else { f.caps[v.cap] = clamp(f.caps[v.cap] + v.payoff, 0, 100); if (f.key === s.firms[s.youIdx].key) { pushLog(s, "🚀 " + CAPKO[v.cap] + " 개발 완성! 역량 강화"); s.fx.push("complete"); } }
     }
   }
+}
+// 산업 특화 이니셔티브 완성 처리. gamble은 성공확률 판정 → effect/failEffect. steady/scale은 항상 effect.
+function applyInitiative(s: GameState, fi: number, id: string) {
+  const f = s.firms[fi]; const init = initiativeById(id); if (!init) return;
+  const success = init.kind !== "gamble" || Math.random() < (init.successProb ?? 1);
+  const eff = success ? init.effect : (init.failEffect || {});
+  if (eff.caps) for (const k of CAPS) if (eff.caps[k]) f.caps[k] = clamp(f.caps[k] + (eff.caps[k] || 0), 0, 100);
+  if (eff.capacityBonus) { f.capacity += eff.capacityBonus; f.capacityTarget += eff.capacityBonus; }
+  if (success && !f.initiatives.includes(id)) f.initiatives.push(id);   // 영구 보너스(margin/overhead)·중복방지. 실패 도박은 미등록(재도전 가능).
+  recomputeLeaders(s);
+  if (f.key === s.firms[s.youIdx].key) {
+    pushLog(s, (success ? "🎯 " : "💥 ") + init.name + (init.kind === "gamble" ? (success ? " 성공! 대박" : " 실패 — 비용 매몰") : " 완료"));
+    s.fx.push(success ? "complete" : "lose");
+  }
+}
+// 현 시나리오에서 착수 가능한 이니셔티브(완료·진행중 제외).
+export function industryInitiatives(s: GameState, fi: number = s.youIdx): Initiative[] {
+  const f = s.firms[fi];
+  return initiativesFor(s.scenario).filter(it => !f.initiatives.includes(it.id) && !f.ventures.some(v => v.init === it.id));
+}
+export function hasActiveInitiative(s: GameState, fi: number = s.youIdx) { return s.firms[fi].ventures.some(v => !!v.init); }
+// 착수: capex 차감 + 벤처 슬롯 생성(동시 1개). 진행은 progressVenture가, 완성효과는 applyInitiative가.
+export function startInitiative(s: GameState, fi: number, id: string) {
+  const f = s.firms[fi]; const init = initiativeById(id); if (!init) return;
+  if (hasActiveInitiative(s, fi) || f.initiatives.includes(id) || f.cash < init.capex) return;
+  f.cash -= init.capex;
+  f.ventures.push({ name: init.name, cap: init.cap, payoff: 0, progress: 6, risk: 0, cooldown: {}, init: id });
+  pushLog(s, "🎯 " + f.name + " 「" + init.name + "」 착수 (−$" + init.capex + "B)");
 }
 // AI 정책: 최선 역량에 투자(동시 여러 개) + 자원 할당.
 function aiPolicy(s: GameState, fi: number) {

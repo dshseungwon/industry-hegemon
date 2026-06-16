@@ -28,6 +28,7 @@ export interface Firm {
   candles: Candle[];         // 일봉 OHLC(차트용). 매월 전월종가→당월종가를 ~21개 일봉으로 분해(브라운 브리지). 최대 ~84.
   cbs: CB[];                 // 전환사채(하이브리드 금융): 저금리 부채, 주가가 전환가 넘으면 자동 전환(부채 소멸+희석).
   grudge: Record<string, number>;   // 과점 관계(tit-for-tat): 다른 firm key→원한도. 공격받으면↑, 매월 감쇠(용서).
+  initiatives: string[];     // 완료한 산업 특화 이니셔티브 id(영구 효과·중복 방지).
   auto: boolean;             // true = AI가 운영, false = 사람(플레이어/원격)이 조종
 }
 export interface Candle { o: number; h: number; l: number; c: number; }   // 일봉 OHLC(시·고·저·종)
@@ -51,6 +52,7 @@ export interface IndustryScenario {
 export interface Venture {
   name: string; cap: Cap; payoff: number; progress: number; risk: number;
   cooldown: Record<string, number>; // action -> date it becomes available again
+  init?: string;                    // 산업 특화 이니셔티브 id(있으면 일반 역량벤처가 아님 — 완성 시 이니셔티브 효과)
 }
 export interface Trend { bias: Cap | null; until: number; headline: string; note: string; }
 export interface GameEvent { title: string; note: string; id: number; icon: string; }
@@ -143,7 +145,7 @@ export function newGame(scenario: IndustryScenario = BUILTIN_SCENARIO, youIdx = 
   for (const m of scenario.markets) mpref[m.name] = full(m.pref);
   const firms: Firm[] = scenario.firms.map((f, i) => {
     const home = scenario.markets.find(m => m.name === homePref[i])?.name || scenario.markets[i % scenario.markets.length].name;
-    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, shares: 0, price: 0, priceHist: [], candles: [], cbs: [], grudge: {}, auto: i !== youIdx };
+    return { ...f, caps: { ...f.caps }, cash: 60, debt: 0, distress: 0, equityRaises: 0, ventures: [], cooldowns: {}, tech: [], home, alloc: {}, effort: {}, capacity: 0, capacityTarget: 0, ownership: i === youIdx ? 1 : 0.4, float: i === youIdx ? 0 : 0.6, blocs: [], divRate: i === youIdx ? 0 : 0.15, wealth: 0, shares: 0, price: 0, priceHist: [], candles: [], cbs: [], grudge: {}, initiatives: [], auto: i !== youIdx };
   });
   // 기반 영향력: 시장마다 기업 적합도를 구해, 상대 우위(0~1)만큼 시작 할당/영향력을 1→1+INCUMBENCY로.
   // → 적합도가 높아 점유율이 높을 기업은 base 영향력도 더 큰 상태로 시작(약체는 1단계 유지·유지비 0).

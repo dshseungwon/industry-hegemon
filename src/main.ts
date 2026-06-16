@@ -1,6 +1,7 @@
 import "./style.css";
 import { GameState, newGame, Cap, CAPKO, IndustryScenario, BUILTIN_SCENARIO } from "./state";
-import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_DAYS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake, issueCB as engineIssueCB } from "./engine";
+import { tick, recomputeLeaders, strategyProjects, pushLog, canOperate, setCooldown, acquireTargets, doAcquire, raiseDebt as engineRaiseDebt, lobbyCost, doLobby, canAct, setActCooldown, TECH_NODES, doResearch, myShare, dateLabel, END_DAYS, borrowRoom, creditRating, debtRate, setAlloc, doEnter, entryCost, isOpen, insolvent, raiseEquity as engineRaiseEquity, emergencyLoan as engineEmergencyLoan, emergencyAusterity, liquidateVentures, capacityCapex, buildCapacity as engineBuildCapacity, naturalCaptured, equityRaiseBy, buyStake as engineBuyStake, issueCB as engineIssueCB, startInitiative as engineStartInitiative } from "./engine";
+import { initiativeById } from "./initiatives";
 import { mountGame, render, renderTitle, renderIndustry, renderCompany, renderClaim, renderLobby, lobbyError, setRoomBadge, showEventBanner, renderGlobalMute, openRaiseModal, openStakeModal, openCBModal, Actions } from "./ui";
 import { saveGame, loadGameRaw, clearSave } from "./save";
 import { checkAchievements } from "./achievements";
@@ -193,6 +194,28 @@ const A: Actions = {
     me.cash -= p.capex;
     me.ventures.push({ name: CAPKO[cap] + " 역량 개발", cap, payoff: p.gain, progress: 6, risk: 0, cooldown: {} });
     pushLog(s, "개발 착수: " + p.h); sfx("invest"); render(s, A);
+  },
+  startInitiative(id) {
+    if (!s) return;
+    const me = s.firms[s.youIdx]; const init = initiativeById(id); if (!init) return;
+    if (me.ventures.some(v => v.init)) { flash("이미 특화 전략 진행 중입니다"); return; }
+    if (me.cash < init.capex) { flash("현금이 부족합니다"); return; }
+    const eff = init.effect; const parts: string[] = [];
+    if (eff.caps) for (const k in eff.caps) parts.push(CAPKO[k as Cap] + " +" + (eff.caps as Record<string, number>)[k]);
+    if (eff.marginAdd) parts.push("마진↑"); if (eff.overheadCut) parts.push("고정비↓"); if (eff.capacityBonus) parts.push("생산능력 +" + eff.capacityBonus);
+    s.ui.confirm = {
+      title: "🎯 " + init.name,
+      lines: [init.desc, "Capex <b>$" + init.capex + "B</b> · 약 " + init.months + "개월",
+        init.kind === "gamble" ? "🎲 성공 확률 <b>" + Math.round((init.successProb || 0) * 100) + "%</b> — 성공 시 " + parts.join("·") + " · 실패 시 비용 매몰" : "효과: " + parts.join("·"),
+        "착수할까요?"],
+      okLabel: "착수",
+      onOk: () => {
+        if (!s) return;
+        if (online) { net?.send({ kind: "initiative", id }); s.ui.confirm = null; sfx("invest"); render(s, A); return; }
+        engineStartInitiative(s, s.youIdx, id); s.ui.confirm = null; sfx("invest"); render(s, A);
+      },
+    };
+    render(s, A);
   },
   operate(cap, action) {
     if (!s) return;
