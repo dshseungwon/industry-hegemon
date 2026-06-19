@@ -14,6 +14,7 @@ const FRONTIER = "#2f4a2a";
 
 let globe: any = null;
 let host: HTMLElement | null = null;
+let hoverName: string | null = null;            // 커서 아래 국가(탭 선택용)
 const colorMap: Record<string, string> = {};   // 국가명 → cap 색(렌더 시 채움)
 
 // 국가명 → [lng,lat] 중심(아크 시작/끝점용) — 최대 면적 링의 bbox 중심
@@ -59,8 +60,7 @@ export function ensureGlobe(
     .arcColor((d: any) => d.color)
     .arcAltitudeAutoScale(0.45)
     .arcDashLength(0.35).arcDashGap(0.12).arcDashAnimateTime(1600)
-    .onPolygonClick((f: any) => onPick(f?.properties?.name ?? null))
-    .onGlobeClick(() => onPick(null));
+    .onPolygonHover((f: any) => { hoverName = f ? f.properties.name : null; });   // 커서 아래 국가 추적(탭 선택용)
 
   // 바다(구체) 색 — 어두운 네이비-블랙
   const mat = globe.globeMaterial();
@@ -72,8 +72,13 @@ export function ensureGlobe(
     c.autoRotate = true; c.autoRotateSpeed = 0.15; c.enableDamping = true; c.dampingFactor = 0.12; c.minDistance = 180; c.maxDistance = 520;
     // 조작/클릭 중엔 자동회전 정지 → 회전 중 클릭이 빗나가는 문제 방지(유휴 후 재개)
     let resume: ReturnType<typeof setTimeout> | null = null;
-    container.addEventListener("pointerdown", () => { c.autoRotate = false; if (resume) clearTimeout(resume); });
-    container.addEventListener("pointerup", () => { if (resume) clearTimeout(resume); resume = setTimeout(() => { c.autoRotate = true; }, 4000); });
+    let dx0 = 0, dy0 = 0, t0 = 0;
+    container.addEventListener("pointerdown", (e) => { c.autoRotate = false; if (resume) clearTimeout(resume); dx0 = e.clientX; dy0 = e.clientY; t0 = e.timeStamp; });
+    container.addEventListener("pointerup", (e) => {
+      if (resume) clearTimeout(resume); resume = setTimeout(() => { c.autoRotate = true; }, 4000);
+      // 자체 탭 판정: 거의 안 움직이고 빠르게 뗐으면 선택(관성 회전 중에도 동작 — 라이브러리의 drag-중 클릭무시 우회)
+      if (Math.abs(e.clientX - dx0) + Math.abs(e.clientY - dy0) < 6 && e.timeStamp - t0 < 400) onPick(hoverName);
+    });
   }
   globe.pointOfView({ lat: 25, lng: 130, altitude: 2.2 }, 0);
 
