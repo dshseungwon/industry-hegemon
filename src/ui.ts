@@ -65,7 +65,8 @@ export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
-    '<div id="mapnav"><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
+    '<div id="globe" class="hide"></div>' +
+    '<div id="mapnav"><button id="globetoggle" title="2D / 3D 전환">🌐</button><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
     '<div id="topbar"></div>' +
     '<div id="overlayL" class="hide"></div>' +
     '<div id="overlay" class="hide"></div>' +
@@ -73,8 +74,43 @@ export function mountGame(app: HTMLElement, A: Actions) {
     '<div id="confirmwrap" class="hide"></div>' +
     '<div id="banner" class="hide"></div>';
   const svg = document.getElementById("map") as unknown as SVGSVGElement;
-  svg.innerHTML = MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("") + '<g id="transit"></g>';
+  svg.innerHTML = '<g class="landmass">' + MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("") + '</g><g id="transit"></g>';
   setupMapNav(svg, A);
+  curA = A;
+  const gt = document.getElementById("globetoggle"); if (gt) gt.onclick = () => toggleGlobe();
+}
+
+// ===== 3D 지구본 뷰(globe.gl, 동적 로딩) =====
+let globeMode = false;
+let globeMod: typeof import("./globe") | null = null;   // three.js 청크는 처음 3D 전환 때만 로드
+let curA: Actions | null = null;
+let curS: GameState | null = null;
+const GLOBE_FRONTIER = "#2f4a2a";
+// 국가명 → 표시 색: 우리 시장이면 리더색(개방)·프론티어색(미개방), 아니면 null(기본 inactive)
+function colorForCountry(s: GameState, name: string): string | null {
+  const m = s.markets[name];
+  if (!m) return null;
+  return s.marketOrder.includes(name) ? colByKey(s, m.leader) : GLOBE_FRONTIER;
+}
+async function toggleGlobe(): Promise<void> {
+  globeMode = !globeMode;
+  const mapEl = document.getElementById("map");
+  const g = document.getElementById("globe");
+  const gt = document.getElementById("globetoggle");
+  sfx("click");
+  if (globeMode && g) {
+    if (mapEl) mapEl.classList.add("hide");
+    g.classList.remove("hide");
+    if (gt) { gt.textContent = "⏳"; }
+    if (!globeMod) globeMod = await import("./globe");   // 최초 1회 three.js 로드
+    globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
+    if (curS) globeMod.paintGlobe((n) => colorForCountry(curS!, n));
+    if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
+  } else {
+    if (g) g.classList.add("hide");
+    if (mapEl) mapEl.classList.remove("hide");
+    if (gt) { gt.textContent = "🌐"; gt.title = "3D 지구본으로"; }
+  }
 }
 // 자원 이동(전송) 시각화 — 본진→대상으로 점이 흐름(CoC식)
 const centroidCache: Record<string, [number, number] | null> = {};
@@ -210,7 +246,8 @@ function recolor(s: GameState) {
     const n = p.getAttribute("data-n")!; const m = s.markets[n];
     const isOpen = !!m && open.has(n);
     const isFrontier = !!m && !open.has(n);
-    p.setAttribute("fill", isOpen ? colByKey(s, m!.leader) : isFrontier ? "#2f4a2a" : "#23415f");
+    const fill = isOpen ? colByKey(s, m!.leader) : isFrontier ? "#2f4a2a" : "#23415f";
+    if (p.getAttribute("fill") !== fill) p.setAttribute("fill", fill);   // 값 변화 시에만(필터 재래스터 방지)
     let cls = "country" + (isOpen ? " active" : isFrontier ? " frontier" : " inactive") + (s.ui.country === n ? " sel" : "");
     if (isOpen && !first && prevLeaders[n] !== undefined && prevLeaders[n] !== m!.leader) {
       const win = m!.leader === youKey;
@@ -220,16 +257,18 @@ function recolor(s: GameState) {
       window.setTimeout(() => { const el = p; el.setAttribute("class", el.getAttribute("class")!.replace(/ flash-(win|lose)/g, "")); }, 1200);
     }
     if (isOpen) prevLeaders[n] = m!.leader; else if (isFrontier) delete prevLeaders[n];
-    p.setAttribute("class", cls);
+    if (p.getAttribute("class") !== cls) p.setAttribute("class", cls);
   });
   if (gained > 0) sfx("conquer");
   else if (lost > 0) sfx("lost");
 }
 
 export function render(s: GameState, A: Actions) {
+  curS = s; curA = A;
   const sh = myShare(s);                       // 점유율 상황 → 배경음악 분위기
   setBgmMood(sh < 0.12 ? "crisis" : sh >= 0.55 ? "strong" : "calm");
   recolor(s);
+  if (globeMode && globeMod) globeMod.paintGlobe((n) => colorForCountry(s, n));   // 3D 뷰 활성 시 리더색 갱신
   renderTransit(s);
   renderTop(s, A);
   renderPanel(s, A);
