@@ -17,6 +17,12 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .hide{display:none !important;}
 /* map */
 #map{position:absolute;inset:0;width:100%;height:100%;background:transparent;touch-action:none;cursor:grab;will-change:transform;}
+/* 2D/3D 전환 버튼 — 눈에 띄게(상단바 아래 우측) */
+#viewtoggle{position:absolute;top:calc(var(--topbar-h,68px) + 10px);right:12px;z-index:22;
+  background:#0c0d0f;border:1px solid var(--gold);color:var(--gold);border-radius:8px;
+  padding:9px 13px;font-size:13px;font-weight:700;font-family:var(--mono);
+  box-shadow:0 2px 10px #000a;letter-spacing:.3px;}
+#viewtoggle:hover{background:var(--gold);color:#0c0d0f;}
 /* 3D 지구본 뷰 컨테이너(globe.gl canvas) */
 #globe{position:absolute;inset:0;z-index:5;cursor:grab;}
 #globe:active{cursor:grabbing;}

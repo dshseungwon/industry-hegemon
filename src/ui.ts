@@ -68,6 +68,7 @@ export function mountGame(app: HTMLElement, A: Actions) {
     '<div id="globe" class="hide"></div>' +
     '<div id="mapnav"><button id="globetoggle" title="2D / 3D 전환">🌐</button><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
     '<div id="topbar"></div>' +
+    '<button id="viewtoggle" title="2D 지도 / 3D 지구본 전환">🌐 3D 지구본</button>' +
     '<div id="overlayL" class="hide"></div>' +
     '<div id="overlay" class="hide"></div>' +
     '<div id="sheet" class="hide"></div>' +
@@ -78,6 +79,16 @@ export function mountGame(app: HTMLElement, A: Actions) {
   setupMapNav(svg, A);
   curA = A;
   const gt = document.getElementById("globetoggle"); if (gt) gt.onclick = () => toggleGlobe();
+  const vt = document.getElementById("viewtoggle"); if (vt) vt.onclick = () => toggleGlobe();
+}
+// 2D/3D 토글 버튼 라벨 동기화(좌하단 작은 🌐 + 큰 viewtoggle)
+function setViewBtns(state: "3d" | "2d" | "loading"): void {
+  const g = document.getElementById("globetoggle");
+  const v = document.getElementById("viewtoggle");
+  if (state === "loading") { if (g) g.textContent = "⏳"; if (v) v.textContent = "⏳ 로딩…"; return; }
+  const is3d = state === "3d";
+  if (g) { g.textContent = is3d ? "🗺️" : "🌐"; g.title = is3d ? "2D 지도로" : "3D 지구본으로"; }
+  if (v) { v.textContent = is3d ? "🗺️ 2D 지도" : "🌐 3D 지구본"; v.title = is3d ? "2D 지도로" : "3D 지구본으로"; }
 }
 
 // ===== 3D 지구본 뷰(globe.gl, 동적 로딩) =====
@@ -107,10 +118,9 @@ async function toggleGlobe(): Promise<void> {
   globeMode = !globeMode;
   const mapEl = document.getElementById("map");
   const g = document.getElementById("globe");
-  const gt = document.getElementById("globetoggle");
   sfx("click");
   if (globeMode && g) {
-    if (gt) { gt.textContent = "⏳"; }
+    setViewBtns("loading");
     try {
       if (!globeMod) globeMod = await import("./globe");   // 최초 1회 three.js 로드
       if (mapEl) mapEl.classList.add("hide");
@@ -118,21 +128,20 @@ async function toggleGlobe(): Promise<void> {
       globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
       if (!g.querySelector("canvas")) throw new Error("globe canvas 미생성 (WebGL?)");   // 가시성 자가진단
       if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
-      if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
+      setViewBtns("3d");
     } catch (err) {
       globeMode = false;
       if (g) g.classList.add("hide");
       if (mapEl) mapEl.classList.remove("hide");
-      if (gt) { gt.textContent = "🌐"; gt.title = "3D 지구본으로"; }
+      setViewBtns("2d");
       const msg = "3D 로드 실패: " + (err instanceof Error ? (err.message + "\n" + (err.stack || "")) : String(err));
       console.error("[globe]", err);
       showToast(msg);
-      alert(msg);   // (임시) 원인 확인용 — 확실히 보이게
     }
   } else {
     if (g) g.classList.add("hide");
     if (mapEl) mapEl.classList.remove("hide");
-    if (gt) { gt.textContent = "🌐"; gt.title = "3D 지구본으로"; }
+    setViewBtns("2d");
   }
 }
 // 자원 이동(전송) 시각화 — 본진→대상으로 점이 흐름(CoC식)
