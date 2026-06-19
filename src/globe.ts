@@ -68,7 +68,13 @@ export function ensureGlobe(
 
   // 카메라/컨트롤 — 살짝 자동 회전(슈퍼파워 감성), 드래그로 멈추고 돌릴 수 있음
   const c = globe.controls();
-  if (c) { c.autoRotate = true; c.autoRotateSpeed = 0.32; c.enableDamping = true; c.dampingFactor = 0.12; c.minDistance = 180; c.maxDistance = 520; }
+  if (c) {
+    c.autoRotate = true; c.autoRotateSpeed = 0.15; c.enableDamping = true; c.dampingFactor = 0.12; c.minDistance = 180; c.maxDistance = 520;
+    // 조작/클릭 중엔 자동회전 정지 → 회전 중 클릭이 빗나가는 문제 방지(유휴 후 재개)
+    let resume: ReturnType<typeof setTimeout> | null = null;
+    container.addEventListener("pointerdown", () => { c.autoRotate = false; if (resume) clearTimeout(resume); });
+    container.addEventListener("pointerup", () => { if (resume) clearTimeout(resume); resume = setTimeout(() => { c.autoRotate = true; }, 4000); });
+  }
   globe.pointOfView({ lat: 25, lng: 130, altitude: 2.2 }, 0);
 
   window.addEventListener("resize", resizeGlobe);
