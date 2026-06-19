@@ -16,6 +16,22 @@ let globe: any = null;
 let host: HTMLElement | null = null;
 const colorMap: Record<string, string> = {};   // 국가명 → cap 색(렌더 시 채움)
 
+// 국가명 → [lng,lat] 중심(아크 시작/끝점용) — 최대 면적 링의 bbox 중심
+const CENTROIDS: Record<string, [number, number]> = {};
+for (const f of FEATURES) {
+  const g = f.geometry; let rings: number[][][] = [];
+  if (g.type === "Polygon") rings = [g.coordinates[0]];
+  else if (g.type === "MultiPolygon") rings = g.coordinates.map((p: number[][][]) => p[0]);
+  let best: [number, number] | null = null, bestArea = -1;
+  for (const r of rings) {
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (const pt of r) { const x = pt[0], y = pt[1]; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+    const area = (maxx - minx) * (maxy - miny);
+    if (area > bestArea) { bestArea = area; best = [(minx + maxx) / 2, (miny + maxy) / 2]; }
+  }
+  if (best) CENTROIDS[f.properties.name] = best;
+}
+
 // 한 번만 생성(처음 3D로 전환될 때). 컨테이너는 그때 보이는 상태여야 크기를 잡음.
 export function ensureGlobe(
   container: HTMLElement,
@@ -37,6 +53,13 @@ export function ensureGlobe(
     .polygonSideColor(() => "rgba(40,194,255,0.10)")
     .polygonStrokeColor(() => "#2b4a5c")
     .polygonsTransitionDuration(300)
+    .arcsData([])
+    .arcStartLat((d: any) => d.sLat).arcStartLng((d: any) => d.sLng)
+    .arcEndLat((d: any) => d.eLat).arcEndLng((d: any) => d.eLng)
+    .arcColor((d: any) => d.color)
+    .arcStroke((d: any) => 0.3 + d.level * 0.2)
+    .arcAltitudeAutoScale(0.45)
+    .arcDashLength(0.4).arcDashGap(0.18).arcDashAnimateTime(1500)
     .onPolygonClick((f: any) => onPick(f?.properties?.name ?? null))
     .onGlobeClick(() => onPick(null));
 
@@ -66,6 +89,18 @@ export function paintGlobe(getColor: (name: string) => string | null): void {
     if (colorMap[n] !== col) { colorMap[n] = col; changed = true; }
   }
   if (changed) globe.polygonCapColor(globe.polygonCapColor());   // 동일 접근자 재설정 = 색만 갱신
+}
+
+// 자원 할당 아크 갱신 — {from,to,color,level} 목록을 lat/lng로 변환해 적용
+export function setGlobeArcs(list: { from: string; to: string; color: string; level: number }[]): void {
+  if (!globe) return;
+  const arcs: any[] = [];
+  for (const a of list) {
+    const s = CENTROIDS[a.from], e = CENTROIDS[a.to];
+    if (!s || !e) continue;
+    arcs.push({ sLng: s[0], sLat: s[1], eLng: e[0], eLat: e[1], color: a.color, level: a.level });
+  }
+  globe.arcsData(arcs);
 }
 
 export { FRONTIER as GLOBE_FRONTIER };

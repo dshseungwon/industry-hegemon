@@ -92,6 +92,11 @@ function colorForCountry(s: GameState, name: string): string | null {
   if (!m) return null;
   return s.marketOrder.includes(name) ? colByKey(s, m.leader) : GLOBE_FRONTIER;
 }
+function allocArcs(s: GameState): { from: string; to: string; color: string; level: number }[] {
+  const me = s.firms[s.youIdx]; const out: { from: string; to: string; color: string; level: number }[] = [];
+  for (const n in me.alloc) { const lvl = me.alloc[n]; if (lvl) out.push({ from: me.home, to: n, color: me.col, level: lvl }); }
+  return out;
+}
 async function toggleGlobe(): Promise<void> {
   globeMode = !globeMode;
   const mapEl = document.getElementById("map");
@@ -104,7 +109,7 @@ async function toggleGlobe(): Promise<void> {
     if (gt) { gt.textContent = "⏳"; }
     if (!globeMod) globeMod = await import("./globe");   // 최초 1회 three.js 로드
     globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
-    if (curS) globeMod.paintGlobe((n) => colorForCountry(curS!, n));
+    if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
     if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
   } else {
     if (g) g.classList.add("hide");
@@ -150,12 +155,15 @@ function renderTransit(s: GameState) {
   for (const n in me.alloc) {
     const lvl = me.alloc[n]; if (!lvl || !hb) continue;
     const to = centroidOf(n); if (!to) continue;
-    html += '<line x1="' + hb[0].toFixed(1) + '" y1="' + hb[1].toFixed(1) + '" x2="' + to[0].toFixed(1) + '" y2="' + to[1].toFixed(1) + '" stroke="' + me.col + '" stroke-width="' + (0.6 + lvl * 0.4) + '" stroke-dasharray="3 4" opacity="0.5" class="flow"/>';
-    for (let i = 0; i < lvl; i++) {
-      const ph = (i / lvl) + 0.001;   // 점을 균등 배치(흐르는 느낌은 CSS dash 애니메이션이 담당)
-      const x = hb[0] + (to[0] - hb[0]) * ph, y = hb[1] + (to[1] - hb[1]) * ph;
-      html += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.4" fill="' + me.col + '" class="ship"/>';
-    }
+    const x1 = hb[0], y1 = hb[1], x2 = to[0], y2 = to[1];
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    let px = -dy / len, py = dx / len; if (py > 0) { px = -px; py = -py; }   // 수직 오프셋 — 위로 휘게
+    const lift = Math.min(len * 0.32, 72);
+    const cx = (x1 + x2) / 2 + px * lift, cy = (y1 + y2) / 2 + py * lift;
+    const d = 'M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + x2.toFixed(1) + ' ' + y2.toFixed(1);
+    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (3 + lvl) + '" stroke-linecap="round" class="arcglow"/>';            // 글로우(블러)
+    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (1 + lvl * 0.5).toFixed(1) + '" stroke-linecap="round" stroke-dasharray="1.5 6" class="arcflow"/>';   // 흐르는 코어
+    html += '<circle cx="' + x2.toFixed(1) + '" cy="' + y2.toFixed(1) + '" r="2.5" fill="none" stroke="' + me.col + '" stroke-width="1.6" class="arcping"/>';   // 타깃 펄스
   }
   g.innerHTML = html;
 }
@@ -268,7 +276,7 @@ export function render(s: GameState, A: Actions) {
   const sh = myShare(s);                       // 점유율 상황 → 배경음악 분위기
   setBgmMood(sh < 0.12 ? "crisis" : sh >= 0.55 ? "strong" : "calm");
   recolor(s);
-  if (globeMode && globeMod) globeMod.paintGlobe((n) => colorForCountry(s, n));   // 3D 뷰 활성 시 리더색 갱신
+  if (globeMode && globeMod) { globeMod.paintGlobe((n) => colorForCountry(s, n)); globeMod.setGlobeArcs(allocArcs(s)); }   // 3D 뷰: 리더색 + 할당 아크
   renderTransit(s);
   renderTop(s, A);
   renderPanel(s, A);

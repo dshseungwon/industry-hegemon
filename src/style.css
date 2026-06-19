@@ -4,7 +4,7 @@
   --yellow:#ffe000;--card:#0c0d0f;--line:#262626;--mute:#8a8a8a;--ink:#e6e6e6;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
   --shadow:0 1px 0 #00000060;--radius:4px;
-  --bevel:inset 0 1px 0 #ffffff12;--elev:0 2px 6px #000000aa,0 12px 30px #00000099;}
+  --bevel:inset 0 1px 0 #ffffff07;--elev:0 1px 2px #00000080,0 5px 14px #0000004d;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
 html,body{margin:0;height:100%;overflow:hidden;background:#000000;}
 body{font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:var(--ink);line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
@@ -37,6 +37,11 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 @keyframes shippulse{0%,100%{opacity:1;}50%{opacity:.55;}}
 .flow{animation:flow 1s linear infinite;}
 @keyframes flow{to{stroke-dashoffset:-14;}}
+/* 자원 할당 = 글로우 곡선 아크(본사→대상) + 타깃 펄스 */
+.arcglow{opacity:.22;filter:blur(2.5px);}
+.arcflow{opacity:.95;stroke-linejoin:round;animation:flow 1s linear infinite;}
+.arcping{animation:arcping 1.7s ease-out infinite;}
+@keyframes arcping{0%{r:2;opacity:.85;}70%{opacity:.18;}100%{r:11;opacity:0;}}
 .homebase{filter:drop-shadow(0 0 5px var(--gold)) drop-shadow(0 0 2px #000);}
 /* 자원 할당 컨트롤 */
 .allocrow{display:flex;align-items:center;gap:8px;font-size:12px;margin:7px 0;}
@@ -373,10 +378,10 @@ a.rlink.big{display:block;text-align:center;margin-top:10px;padding:9px;backgrou
 .card,.proj,.actbtn,.btn,.op,.venture,.codex,.modal,.bdg,.embtn,
 .vtrack,.cbt,.apseg,.drawer,.sheet,.tutstep,button{border-radius:var(--radius)!important;}
 .myfirm,.clock,#toast,#globalmute{border-radius:999px!important;}
-/* 3) 카드: 떠 있는 데이터 패널(elevation) — 상단 하이라이트 + 그림자 */
-.card{background:linear-gradient(180deg,#181c22,#111419)!important;box-shadow:var(--elev),var(--bevel)!important;
-  border:1px solid #2c2c2c;border-left:2px solid #3a3a3a;transition:transform .1s ease,box-shadow .15s ease,border-color .15s ease;}
-.card:hover{border-left-color:var(--gold);transform:translateY(-1px);box-shadow:0 4px 10px #000a,0 18px 40px #000a,var(--bevel)!important;}
+/* 3) 카드: 납작한 데이터 패널 — 톤 단차 + 머리카락 보더 + 옅은 그림자(광택 없음) */
+.card{background:#15181d!important;box-shadow:var(--elev)!important;
+  border:1px solid #282c33;border-top-color:#333842;border-left:2px solid #343a43;transition:border-color .15s ease,box-shadow .15s ease;}
+.card:hover{border-left-color:var(--gold);box-shadow:0 1px 2px #00000090,0 8px 20px #00000060!important;}
 /* 4) 섹션 헤더 = 시안 컬럼 헤더 + 오렌지 바 + 하단 구분선 */
 .sect{font-size:11.5px!important;letter-spacing:1px;color:var(--blue)!important;font-family:var(--mono);
   font-weight:600!important;border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:8px;}
@@ -394,20 +399,18 @@ a.rlink.big{display:block;text-align:center;margin-top:10px;padding:9px;backgrou
 .sheet{background:linear-gradient(180deg,#0d0f12fa,#070809fa)!important;border-top:1px solid var(--gold);box-shadow:0 -14px 44px #000e,inset 0 1px 0 #ffffff0c;}
 /* 8) 드로어 본문 미세 스캔 그리드(터미널 텍스처) */
 .dbody{background-image:linear-gradient(#ffffff06 1px,transparent 1px);background-size:100% 26px;}
-/* 9) 버튼/프로젝트/op: 입체 표면(상단 하이라이트 + 그림자 + 눌림감) */
-.btn{background:linear-gradient(180deg,#ffa83e,#fb8b1e)!important;box-shadow:0 3px 10px #fb8b1e55,inset 0 1px 0 #ffffff55!important;}
-.btn:not(:disabled):active{box-shadow:0 1px 4px #fb8b1e55,inset 0 1px 0 #ffffff33!important;}
-.actbtn{background:linear-gradient(180deg,#1e222a,#15181d)!important;box-shadow:0 2px 7px #0009,var(--bevel)!important;}
-.proj{background:linear-gradient(180deg,#1a1e25,#121519)!important;border:1px solid #2c2c2c!important;box-shadow:0 2px 7px #0009,var(--bevel)!important;}
-.proj:not(:disabled):hover{border-color:var(--gold)!important;transform:translateY(-1px);box-shadow:0 5px 14px #000b,var(--bevel)!important;}
-.op{background:linear-gradient(180deg,#1a1e24,#131619)!important;box-shadow:0 1px 5px #0008,var(--bevel)!important;}
+/* 9) 버튼/프로젝트/op: 납작 표면 + 머리카락 보더 + 옅은 그림자(광택·그라데이션 없음) */
+.btn{background:var(--gold)!important;box-shadow:0 1px 2px #00000088!important;}
+.btn:not(:disabled):active{transform:translateY(1px);box-shadow:0 0 0 #0000!important;}
+.actbtn{background:#181c22!important;border:1px solid #2a2f37!important;border-top-color:#343a43!important;box-shadow:0 1px 2px #00000070!important;}
+.proj{background:#15191f!important;border:1px solid #282d35!important;border-top-color:#323841!important;box-shadow:0 1px 2px #00000070!important;}
+.proj:not(:disabled):hover{border-color:var(--gold)!important;box-shadow:0 2px 8px #00000070!important;}
+.op{background:#161a20!important;border:1px solid #262b32!important;box-shadow:0 1px 2px #00000060!important;}
 /* 10) 상승/하락 = 형광 그린/레드(터미널) */
 .pos,.up{color:var(--green)!important;} .neg,.dn{color:var(--red)!important;}
 /* 11) 칩 각지게 */
 .chip{border-radius:3px!important;}
-/* 12) 모달·코덱스·업적·벤처도 입체(elevation) */
-.modal{background:linear-gradient(180deg,#16191f,#0f1115)!important;box-shadow:0 24px 70px #000f,var(--bevel)!important;border:1px solid #333;}
-.codex,.achcard{box-shadow:0 2px 7px #0008,var(--bevel)!important;}
-.venture{box-shadow:0 2px 8px #0009,var(--bevel)!important;}
-/* 상단 메뉴 탭도 살짝 입체 */
-.mbtn{box-shadow:var(--bevel);}
+/* 12) 모달·코덱스·업적·벤처 — 납작 + 옅은 그림자(모달만 깊게 띄움) */
+.modal{background:#161a20!important;box-shadow:0 16px 48px #000000cc!important;border:1px solid #2c313a;border-top-color:#3a4049;}
+.codex,.achcard{box-shadow:0 1px 2px #00000066!important;border-top-color:#2f343c;}
+.venture{box-shadow:0 1px 2px #00000077!important;}
