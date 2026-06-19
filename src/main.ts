@@ -180,10 +180,15 @@ const A: Actions = {
     if (!s) return;
     if (p === "company") s.ui.leftPanel = s.ui.leftPanel === p ? "none" : p;   // 기업 내부는 왼쪽 드로어(독립)
     else s.ui.panel = s.ui.panel === p ? "none" : p;
+    // 모바일: 한 번에 한 창만(좌·우 드로어가 동시에 화면을 덮어 지도가 콩알 되는 문제 방지)
+    if (window.innerWidth < 760) {
+      if (p === "company" && s.ui.leftPanel !== "none") { s.ui.panel = "none"; s.ui.country = null; }
+      else if (p !== "company" && s.ui.panel !== "none") { s.ui.leftPanel = "none"; s.ui.country = null; }
+    }
     if (p === "intel" && s.ui.panel === "intel") { const g = scenarioGics(s.scenario.key); if (unlockIntel(g)) flash("📖 산업 인텔 해금: " + industryIntel(g).ko); }
     sfx("click"); render(s, A);
   },
-  selectCountry(n) { if (!s) return; s.ui.country = (n && s.ui.country === n) ? null : n; if (s.ui.country) sfx("click"); render(s, A); },
+  selectCountry(n) { if (!s) return; s.ui.country = (n && s.ui.country === n) ? null : n; if (s.ui.country) { sfx("click"); if (window.innerWidth < 760) { s.ui.leftPanel = "none"; s.ui.panel = "none"; } } render(s, A); },
   startStrategy(cap) {
     if (!s) return;
     const me = s.firms[s.youIdx];
