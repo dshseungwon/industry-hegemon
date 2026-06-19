@@ -1,7 +1,7 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap");
 :root{--navy:#0a0a0a;--blue:#28c2ff;--gold:#fb8b1e;--green:#41d041;--red:#ff453a;--purple:#a06bff;
-  --yellow:#ffe000;--card:#0c0d0f;--line:#262626;--mute:#8a8a8a;--ink:#e6e6e6;
+  --yellow:#ffe000;--card:#0c0d0f;--line:#262626;--mute:#aab3c0;--ink:#eef2f6;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
   --shadow:0 1px 0 #00000060;--radius:4px;
   --bevel:inset 0 1px 0 #ffffff07;--elev:0 1px 2px #00000080,0 5px 14px #0000004d;}

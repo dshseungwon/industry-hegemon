@@ -97,6 +97,12 @@ function allocArcs(s: GameState): { from: string; to: string; color: string; lev
   for (const n in me.alloc) { const lvl = me.alloc[n]; if (lvl) out.push({ from: me.home, to: n, color: me.col, level: lvl }); }
   return out;
 }
+function showToast(msg: string): void {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t && t.classList.remove("show"), 6000);
+}
 async function toggleGlobe(): Promise<void> {
   globeMode = !globeMode;
   const mapEl = document.getElementById("map");
@@ -110,6 +116,7 @@ async function toggleGlobe(): Promise<void> {
       if (mapEl) mapEl.classList.add("hide");
       g.classList.remove("hide");
       globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
+      if (!g.querySelector("canvas")) throw new Error("globe canvas 미생성 (WebGL?)");   // 가시성 자가진단
       if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
       if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
     } catch (err) {
@@ -117,9 +124,10 @@ async function toggleGlobe(): Promise<void> {
       if (g) g.classList.add("hide");
       if (mapEl) mapEl.classList.remove("hide");
       if (gt) { gt.textContent = "🌐"; gt.title = "3D 지구본으로"; }
-      const msg = "3D 로드 실패: " + (err instanceof Error ? err.message : String(err));
+      const msg = "3D 로드 실패: " + (err instanceof Error ? (err.message + "\n" + (err.stack || "")) : String(err));
       console.error("[globe]", err);
-      const t = document.getElementById("toast"); if (t) { t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 5000); }
+      showToast(msg);
+      alert(msg);   // (임시) 원인 확인용 — 확실히 보이게
     }
   } else {
     if (g) g.classList.add("hide");
@@ -248,7 +256,7 @@ function setupMapNav(svg: SVGSVGElement, A: Actions) {
     window.addEventListener("pointercancel", onUp);
   });
 
-  document.querySelectorAll<HTMLElement>("#mapnav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll<HTMLElement>("#mapnav button[data-z]").forEach(b => b.onclick = () => {
     const z = b.dataset.z;
     if (z === "reset") resetView(svg);
     else zoomAround(svg, window.innerWidth / 2, window.innerHeight / 2, z === "in" ? 1.4 : 1 / 1.4);
