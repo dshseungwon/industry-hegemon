@@ -57,9 +57,8 @@ export function ensureGlobe(
     .arcStartLat((d: any) => d.sLat).arcStartLng((d: any) => d.sLng)
     .arcEndLat((d: any) => d.eLat).arcEndLng((d: any) => d.eLng)
     .arcColor((d: any) => d.color)
-    .arcStroke((d: any) => 0.3 + d.level * 0.2)
     .arcAltitudeAutoScale(0.45)
-    .arcDashLength(0.4).arcDashGap(0.18).arcDashAnimateTime(1500)
+    .arcDashLength(0.35).arcDashGap(0.12).arcDashAnimateTime(1600)
     .onPolygonClick((f: any) => onPick(f?.properties?.name ?? null))
     .onGlobeClick(() => onPick(null));
 

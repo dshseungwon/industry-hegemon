@@ -104,13 +104,23 @@ async function toggleGlobe(): Promise<void> {
   const gt = document.getElementById("globetoggle");
   sfx("click");
   if (globeMode && g) {
-    if (mapEl) mapEl.classList.add("hide");
-    g.classList.remove("hide");
     if (gt) { gt.textContent = "⏳"; }
-    if (!globeMod) globeMod = await import("./globe");   // 최초 1회 three.js 로드
-    globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
-    if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
-    if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
+    try {
+      if (!globeMod) globeMod = await import("./globe");   // 최초 1회 three.js 로드
+      if (mapEl) mapEl.classList.add("hide");
+      g.classList.remove("hide");
+      globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
+      if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
+      if (gt) { gt.textContent = "🗺️"; gt.title = "2D 지도로"; }
+    } catch (err) {
+      globeMode = false;
+      if (g) g.classList.add("hide");
+      if (mapEl) mapEl.classList.remove("hide");
+      if (gt) { gt.textContent = "🌐"; gt.title = "3D 지구본으로"; }
+      const msg = "3D 로드 실패: " + (err instanceof Error ? err.message : String(err));
+      console.error("[globe]", err);
+      const t = document.getElementById("toast"); if (t) { t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 5000); }
+    }
   } else {
     if (g) g.classList.add("hide");
     if (mapEl) mapEl.classList.remove("hide");
@@ -161,8 +171,8 @@ function renderTransit(s: GameState) {
     const lift = Math.min(len * 0.32, 72);
     const cx = (x1 + x2) / 2 + px * lift, cy = (y1 + y2) / 2 + py * lift;
     const d = 'M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + x2.toFixed(1) + ' ' + y2.toFixed(1);
-    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (3 + lvl) + '" stroke-linecap="round" class="arcglow"/>';            // 글로우(블러)
-    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (1 + lvl * 0.5).toFixed(1) + '" stroke-linecap="round" stroke-dasharray="1.5 6" class="arcflow"/>';   // 흐르는 코어
+    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (1.3 + lvl * 0.3).toFixed(1) + '" stroke-linecap="round" class="arcglow"/>';            // 글로우(블러)
+    html += '<path d="' + d + '" fill="none" stroke="' + me.col + '" stroke-width="' + (0.7 + lvl * 0.2).toFixed(1) + '" stroke-linecap="round" stroke-dasharray="1.5 6" class="arcflow"/>';   // 흐르는 코어
     html += '<circle cx="' + x2.toFixed(1) + '" cy="' + y2.toFixed(1) + '" r="2.5" fill="none" stroke="' + me.col + '" stroke-width="1.6" class="arcping"/>';   // 타깃 펄스
   }
   g.innerHTML = html;
