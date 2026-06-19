@@ -420,3 +420,27 @@ a.rlink.big{display:block;text-align:center;margin-top:10px;padding:9px;backgrou
 .modal{background:#161a20!important;box-shadow:0 16px 48px #000000cc!important;border:1px solid #2c313a;border-top-color:#3a4049;}
 .codex,.achcard{box-shadow:0 1px 2px #00000066!important;border-top-color:#2f343c;}
 .venture{box-shadow:0 1px 2px #00000077!important;}
+
+/* ===== 모바일/아이폰 접근성 — 안전영역(노치·홈바) 인셋 ===== */
+/* env()는 노치 없는 기기에선 0이라 전 기기 적용 무해 */
+#topbar{padding-top:calc(8px + env(safe-area-inset-top));
+  padding-left:calc(12px + env(safe-area-inset-left));padding-right:calc(12px + env(safe-area-inset-right));}
+#mapnav{left:calc(10px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));}
+#globalmute{top:calc(12px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));}
+#viewtoggle{right:calc(12px + env(safe-area-inset-right));}
+.sheet{padding-bottom:calc(14px + env(safe-area-inset-bottom));}
+.dbody{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+.drawer{padding-right:env(safe-area-inset-right);}
+.drawer.left{padding-right:0;padding-left:env(safe-area-inset-left);}
+
+/* ===== 손가락 탭 타깃 ≥44px (애플 HIG) ===== */
+@media (max-width: 640px), (pointer: coarse) {
+  #viewtoggle{padding:11px 14px;font-size:14px;}
+  #globalmute{width:46px;height:46px;}
+  .abtn{width:44px;height:42px;font-size:20px;}      /* 자원 할당 ± */
+  .x{padding:10px 14px;min-height:40px;}              /* 닫기 */
+  .op{padding:11px;}                                   /* 운영 버튼 */
+  .mbtn{min-height:40px;}
+  .embtn{padding:11px 13px;}
+  .op .oe,.bdg{font-size:11px;}                        /* 너무 작던 글씨 키움 */
+}
