@@ -78,6 +78,15 @@ export function resizeGlobe(): void {
   if (globe) { globe.width(window.innerWidth); globe.height(window.innerHeight); }
 }
 
+// 새 게임 등으로 #globe DOM이 교체될 때 인스턴스 정리(다음 ensureGlobe가 새 컨테이너에 재생성)
+export function disposeGlobe(): void {
+  if (!globe) return;
+  try { globe._destructor && globe._destructor(); } catch { /* noop */ }
+  window.removeEventListener("resize", resizeGlobe);
+  globe = null; host = null;
+  for (const k in colorMap) delete colorMap[k];
+}
+
 // 리더 색 갱신 — 실제로 바뀐 경우에만 폴리곤 색 재적용(매 틱 호출돼도 가벼움)
 export function paintGlobe(getColor: (name: string) => string | null): void {
   if (!globe) return;

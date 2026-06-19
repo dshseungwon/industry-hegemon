@@ -63,6 +63,8 @@ const CAPCOL: Record<Cap, string> = { tech: "#35c5e0", brand: "#e85fd0", scale: 
 
 export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
+  globeMode = false; autoGlobePending = true;   // 새 게임도 기본 3D
+  if (globeMod) globeMod.disposeGlobe();          // 이전 globe 인스턴스 정리(새 #globe에 재마운트)
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
     '<div id="globe" class="hide"></div>' +
@@ -93,6 +95,7 @@ function setViewBtns(state: "3d" | "2d" | "loading"): void {
 
 // ===== 3D 지구본 뷰(globe.gl, 동적 로딩) =====
 let globeMode = false;
+let autoGlobePending = true;   // 기본 뷰 = 3D 지구본(게임 시작 시 첫 render에서 자동 전환)
 let globeMod: typeof import("./globe") | null = null;   // three.js 청크는 처음 3D 전환 때만 로드
 let curA: Actions | null = null;
 let curS: GameState | null = null;
@@ -300,6 +303,7 @@ function recolor(s: GameState) {
 
 export function render(s: GameState, A: Actions) {
   curS = s; curA = A;
+  if (autoGlobePending) { autoGlobePending = false; toggleGlobe(); }   // 기본 3D 진입(첫 render에서 1회)
   const sh = myShare(s);                       // 점유율 상황 → 배경음악 분위기
   setBgmMood(sh < 0.12 ? "crisis" : sh >= 0.55 ? "strong" : "calm");
   recolor(s);
