@@ -44,6 +44,7 @@ export const BALANCE = {
 
 export const ALLOC_MAX = 8;    // 시장당 자원 할당 절대 상한
 const ALLOC_BASE = 2;          // 기본 할당 상한(테크로 지역별 확장)
+const HOME_ALLOC_BONUS = 4;    // 본진(HQ)은 상한 +4(초과 허용) — 내렸다 올려도 유지(래칫 아님)
 // 시장 → 지역
 const REGION: Record<string, string> = {
   "United States of America": "북미", "Canada": "북미", "Mexico": "북미",
@@ -62,7 +63,8 @@ const ALLOC_TECH: Record<string, { region: string; amt: number }> = {
 export function maxAllocFor(s: GameState, fi: number, name: string) {
   const region = regionOf(name); let b = ALLOC_BASE;
   for (const k of s.firms[fi].tech) { const a = ALLOC_TECH[k]; if (a && (a.region === "all" || a.region === region)) b += a.amt; }
-  // 본진은 상한을 넘는 단계로 시작(특별 허용). 현재 할당을 바닥으로 깔아 상한을 정확히 표시(예: 6으로 시작 → 상한 6).
+  if (name === s.firms[fi].home) b += HOME_ALLOC_BONUS;   // 본진 초과 허용(진짜 상한 — 내렸다 다시 올릴 수 있음)
+  // 현재 할당을 바닥으로도 깔아 안전(상한이 줄어도 기존 단계 유지).
   return Math.max(Math.min(ALLOC_MAX, b), s.firms[fi].alloc[name] || 0);
 }
 const ALLOC_RAMP = 0.2;        // 매월 현재 영향력이 할당 목표로 다가가는 비율(전개 지연 ≈ 5개월)

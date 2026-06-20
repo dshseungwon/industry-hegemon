@@ -71,7 +71,6 @@ export function mountGame(app: HTMLElement, A: Actions) {
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
     '<div id="mapnav"><button id="globetoggle" title="2D / 3D 전환">🌐</button><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
     '<div id="topbar"></div>' +
-    '<button id="viewtoggle" title="2D 지도 / 3D 지구본 전환">🌐 3D 지구본</button>' +
     '<div id="overlayL" class="hide"></div>' +
     '<div id="overlay" class="hide"></div>' +
     '<div id="sheet" class="hide"></div>' +
@@ -86,7 +85,6 @@ export function mountGame(app: HTMLElement, A: Actions) {
   setupMapNav(svg, A);
   curA = A;
   const gt = document.getElementById("globetoggle"); if (gt) gt.onclick = () => toggleGlobe();
-  const vt = document.getElementById("viewtoggle"); if (vt) vt.onclick = () => toggleGlobe();
 }
 // 2D/3D 토글 버튼 라벨 동기화(좌하단 작은 🌐 + 큰 viewtoggle)
 function setViewBtns(state: "3d" | "2d" | "loading"): void {
@@ -726,8 +724,7 @@ function allocManagerBody(s: GameState): string {
   const me = s.firms[s.youIdx];
   const total = allocUpkeep(s, s.youIdx);
   const open = s.marketOrder.slice();
-  const idx = (n: string) => s.marketOrder.indexOf(n);
-  open.sort((a, b) => { const la = me.alloc[a] || 0, lb = me.alloc[b] || 0; return lb !== la ? lb - la : idx(a) - idx(b); });   // 할당 단계 높은 순(안정 정렬)
+  open.sort((a, b) => (s.markets[a]?.ko || a).localeCompare(s.markets[b]?.ko || b, "ko"));   // 이름순 고정(±해도 순서 안 바뀜)
   const allocCount = open.filter(n => (me.alloc[n] || 0) > 0).length;
   let rows = "";
   for (const n of open) {
