@@ -376,7 +376,7 @@ function renderTop(s: GameState, A: Actions) {
     '<div class="menu">' +
       mbtn("menu", "☰", s, true) + mbtn("log", "📜", s, true) + mbtn("guide", "❓", s, true) + mbtn("codex", "📖", s, true) +
       '<button class="mbtn minor" id="muteBtn" title="소리 켜기/끄기">' + (isMuted() ? "🔇" : "🔊") + '</button>' +
-      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("strategy", "📈", s) + mbtn("market", "💹", s) + mbtn("tech", "🔬", s) + mbtn("intel", "📊", s) +
+      '<span class="mgap"></span>' + mbtn("company", "🏢", s) + mbtn("alloc", "🎯", s) + mbtn("strategy", "📈", s) + mbtn("market", "💹", s) + mbtn("tech", "🔬", s) + mbtn("intel", "📊", s) +
     '</div>' +
     '<div class="trend">📰 ' + s.trend.headline + ' — ' + s.trend.note + (me.ventures.length ? ' · 🔬 ' + me.ventures.map(v => CAPKO[v.cap] + ' ' + Math.round(v.progress) + '%').join(' · ') : '') + '</div>';
   t.querySelectorAll<HTMLElement>(".spbtn").forEach(b => b.onclick = () => A.setSpeed(Number(b.dataset.sp) as 0|1|2|3));
@@ -454,6 +454,7 @@ function renderPanel(s: GameState, A: Actions) {
   o.querySelectorAll<HTMLElement>(".buystake").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.buyStakeOpen(b.dataset.key!); });
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".enter").forEach(b => b.onclick = () => A.alloc(b.dataset.n!, 1));
+  o.querySelectorAll<HTMLElement>(".allocset").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.alloc(b.dataset.n!, Number(b.dataset.d)); });
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.cap as Cap, b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
@@ -475,7 +476,9 @@ function renderPanel(s: GameState, A: Actions) {
 function panelBody(s: GameState, panel: string): string {
   let h = "";
   const you = s.firms[s.youIdx];
-  if (panel === "company") {
+  if (panel === "alloc") {
+    return allocManagerBody(s);
+  } else if (panel === "company") {
     // 월간 손익계산서(회계 구조): 공헌이익 − 고정비 − 유지비 = 영업이익(EBITDA) − 이자 = 순이익
     const gross = grossMargin(s), fixc = fixedCost(s), upk = allocUpkeep(s, s.youIdx);
     const ebitda = operatingIncome(s), intr = monthlyInterest(s), divIn = dividendIncome(s), net = ebitda - intr + divIn;
@@ -717,7 +720,35 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   const cd = v && !ok ? Math.max(0, (v.cooldown[action] || 0) - s.date) : 0;
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + Math.ceil(cd / DAYS_PER_MONTH) + '개월') + '</div></button>';
 }
-const panelTitle = (p: string) => ({ company: "🏢 기업 내부", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴", achievements: "🏆 업적" } as Record<string, string>)[p] || "";
+const panelTitle = (p: string) => ({ company: "🏢 기업 내부", alloc: "🎯 자원 할당", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴", achievements: "🏆 업적" } as Record<string, string>)[p] || "";
+// 자원 할당 관리 — 진출 시장을 한 목록에서 점유율·단계·월비용 보며 ±로 일괄 조절(국가별 클릭 불필요)
+function allocManagerBody(s: GameState): string {
+  const me = s.firms[s.youIdx];
+  const total = allocUpkeep(s, s.youIdx);
+  const open = s.marketOrder.slice();
+  const idx = (n: string) => s.marketOrder.indexOf(n);
+  open.sort((a, b) => { const la = me.alloc[a] || 0, lb = me.alloc[b] || 0; return lb !== la ? lb - la : idx(a) - idx(b); });   // 할당 단계 높은 순(안정 정렬)
+  const allocCount = open.filter(n => (me.alloc[n] || 0) > 0).length;
+  let rows = "";
+  for (const n of open) {
+    const m = s.markets[n]; if (!m) continue;
+    const lvl = me.alloc[n] || 0, mx = maxAllocFor(s, s.youIdx, n);
+    const share = shareOf(s, m, me.key) * 100, cost = allocUpkeepAt(s, n, lvl);
+    rows += '<div class="arow' + (lvl > 0 ? ' on' : '') + '">' +
+      '<span class="an" title="' + esc(m.name) + '">' + m.ko + '</span>' +
+      '<span class="ash" style="color:' + me.col + '">' + share.toFixed(0) + '%</span>' +
+      '<button class="abtn allocset" data-n="' + esc(n) + '" data-d="-1"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
+      '<b class="alvl2">' + lvl + '/' + mx + '</b>' +
+      '<button class="abtn allocset" data-n="' + esc(n) + '" data-d="1"' + (lvl >= mx ? ' disabled' : '') + '>＋</button>' +
+      '<span class="acost">$' + cost.toFixed(1) + '</span></div>';
+  }
+  if (!open.length) rows = '<div class="mute small">아직 진출한 시장이 없습니다 — 지도의 프론티어(점선) 국가를 클릭해 진출하세요.</div>';
+  return '<div class="card"><div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
+    '<div class="kv"><span>할당 중 시장</span><b>' + allocCount + ' / ' + open.length + '</b></div></div>' +
+    '<div class="sect">시장별 할당 <span class="mute small">점유율 · 단계 · 월비용</span></div>' +
+    '<div class="card alloclist">' + rows + '</div>' +
+    '<div class="mute small" style="margin-top:6px">＋ / － 로 단계 조절 · 0 = 철수 · 지도 클릭과 동일</div>';
+}
 // 일봉 캔들차트(인라인 SVG, 의존성 없음). 가격축 라벨·격자·현재가선·날짜. 상승=초록/하락=빨강.
 function candleChart(candles: Candle[], curDate: number): string {
   if (!candles || candles.length < 2) return '';
