@@ -64,10 +64,11 @@ const CAPCOL: Record<Cap, string> = { tech: "#35c5e0", brand: "#e85fd0", scale: 
 export function mountGame(app: HTMLElement, A: Actions) {
   prevLeaders = {};   // 새 게임 — 점령 flash 추적 초기화
   globeMode = false; autoGlobePending = true;   // 새 게임도 기본 3D
-  if (globeMod) globeMod.disposeGlobe();          // 이전 globe 인스턴스 정리(새 #globe에 재마운트)
+  // 지구본(#globe + 내부 three canvas)은 게임 간 보존·재사용 — 파괴/재생성 시 WebGL 컨텍스트 재초기화로 2회차부터 안 뜨는 문제 방지
+  let globeEl = document.getElementById("globe");
+  if (globeEl) globeEl.remove();   // innerHTML 교체 전에 분리(globe 인스턴스가 이 element를 계속 참조)
   app.innerHTML =
     '<svg id="map" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet"></svg>' +
-    '<div id="globe" class="hide"></div>' +
     '<div id="mapnav"><button id="globetoggle" title="2D / 3D 전환">🌐</button><button data-z="in" title="확대">＋</button><button data-z="out" title="축소">－</button><button data-z="reset" title="원위치">⤢</button></div>' +
     '<div id="topbar"></div>' +
     '<button id="viewtoggle" title="2D 지도 / 3D 지구본 전환">🌐 3D 지구본</button>' +
@@ -76,6 +77,10 @@ export function mountGame(app: HTMLElement, A: Actions) {
     '<div id="sheet" class="hide"></div>' +
     '<div id="confirmwrap" class="hide"></div>' +
     '<div id="banner" class="hide"></div>';
+  // 보존한 지구본 element를 재부착(없으면 생성). z-index:5 → 지도 위·오버레이 아래
+  if (!globeEl) { globeEl = document.createElement("div"); globeEl.id = "globe"; }
+  globeEl.className = "hide";
+  app.appendChild(globeEl);
   const svg = document.getElementById("map") as unknown as SVGSVGElement;
   svg.innerHTML = '<g class="landmass">' + MAPDATA.map(c => '<path data-n="' + esc(c.n) + '" class="country" d="' + c.d + '"></path>').join("") + '</g><g id="transit"></g>';
   setupMapNav(svg, A);
@@ -129,6 +134,7 @@ async function toggleGlobe(): Promise<void> {
       if (mapEl) mapEl.classList.add("hide");
       g.classList.remove("hide");
       globeMod.ensureGlobe(g, (name) => { if (curA) curA.selectCountry(name); });
+      globeMod.resizeGlobe();   // 재사용/창크기 변동 대비 크기 보정
       if (!g.querySelector("canvas")) throw new Error("globe canvas 미생성 (WebGL?)");   // 가시성 자가진단
       if (curS) { globeMod.paintGlobe((n) => colorForCountry(curS!, n)); globeMod.setGlobeArcs(allocArcs(curS)); }
       setViewBtns("3d");
