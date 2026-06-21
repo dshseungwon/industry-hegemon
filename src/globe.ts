@@ -38,7 +38,7 @@ export function ensureGlobe(
   container: HTMLElement,
   onPick: (name: string | null) => void,
 ): void {
-  if (globe) return;
+  if (globe) { if (host === container && container.querySelector("canvas")) return; disposeGlobe(); }   // 같은 살아있는 컨테이너면 재사용, 화면 전환으로 바뀌었으면 정리 후 재생성
   host = container;
   globe = new (Globe as any)(container, { animateIn: true })
     .backgroundColor("rgba(0,0,0,0)")
@@ -100,7 +100,11 @@ export function resizeGlobe(): void {
 // 새 게임 등으로 #globe DOM이 교체될 때 인스턴스 정리(다음 ensureGlobe가 새 컨테이너에 재생성)
 export function disposeGlobe(): void {
   if (!globe) return;
-  try { globe._destructor && globe._destructor(); } catch { /* noop */ }
+  try {
+    const r = globe.renderer && globe.renderer();
+    if (r) { if (r.forceContextLoss) r.forceContextLoss(); if (r.dispose) r.dispose(); }   // WebGL 컨텍스트 명시 해제(재생성 누수 방지)
+    if (globe._destructor) globe._destructor();
+  } catch { /* noop */ }
   window.removeEventListener("resize", resizeGlobe);
   globe = null; host = null;
   for (const k in colorMap) delete colorMap[k];
