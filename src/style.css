@@ -236,8 +236,12 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-wei
 .arow .an{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute);}
 .arow.on .an{color:var(--ink);}
 .arow .ash{width:36px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.arow .arev{width:46px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--green);font-size:11.5px;}
 .arow .alvl2{width:38px;text-align:center;font-weight:800;font-family:var(--mono);}
 .arow .acost{width:44px;text-align:right;color:var(--mute);font-size:11px;font-family:var(--mono);}
+.arow.ahead{border-bottom:1px solid var(--line);}
+.arow.ahead span{color:var(--mute)!important;font-size:10.5px;font-weight:600;}
+.arow.ahead .ahd-alloc{width:98px;text-align:center;}
 @keyframes up{from{transform:translateY(20px);opacity:.4;}to{transform:none;opacity:1;}}
 .sheet h3{margin:0 0 4px;font-size:17px;}.sheet .x{position:absolute;right:12px;top:10px;}
 /* modal */

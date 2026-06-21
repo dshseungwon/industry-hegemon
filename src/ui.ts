@@ -2,7 +2,7 @@ import { GameState, CAPS, CAPKO, WANTIC, Cap, CODEX, Candle } from "./state";
 import { hasSave, savedLabel } from "./save";
 import { allAchievements, unlockedIds } from "./achievements";
 import { MAPDATA } from "./mapdata";
-import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft, industryInitiatives } from "./engine";
+import { strategyProjects, myShare, waccOf, marketCap, intrinsicValue, naturalCaptured, utilizationOf, capacityCapex, dateLabel, canOperate, Project, shareOf, monthlyCashflow, grossMargin, fixedCost, operatingIncome, monthlyInterest, END_DAYS, DAYS_PER_MONTH, acquireTargets, lobbyCost, canAct, researchOptions, TECH_NODES, frontierMarkets, capturedSize, borrowRoom, creditRating, leverage, debtRate, allocUpkeep, allocUpkeepAt, maxAllocFor, regionOf, entryCost, bankruptcyIn, equityRaiseAmount, equityCooldownLeft, austeritySavings, liquidateValue, emergencyLoanAmount, gcap, matchScore, projectShare, hasControl, controllingThreat, equityMaxRaise, siCooldownLeft, stakeBuyCost, dividendIncome, cbPrincipal, cbMaxIssue, cbCooldownLeft, industryInitiatives } from "./engine";
 import { BRIEFS, BriefMeta } from "./reports.data";
 import { VERSION } from "./version";
 import { industryIntel, scenarioGics, unlockedGics, intelTotal, IndustryIntel } from "./intel";
@@ -719,32 +719,40 @@ function opbtn(s: GameState, cap: Cap, action: string, h: string, e: string) {
   return '<button class="op' + (ok ? '' : ' dis') + '" data-cap="' + cap + '" data-op="' + action + '"><div class="oh">' + h + '</div><div class="oe">' + (ok ? e : '쿨다운 ' + Math.ceil(cd / DAYS_PER_MONTH) + '개월') + '</div></button>';
 }
 const panelTitle = (p: string) => ({ company: "🏢 기업 내부", alloc: "🎯 자원 할당", strategy: "📈 전략 (M&A·재무·진출)", market: "💹 주식시장", tech: "🔬 연구개발", intel: "📊 산업 인텔", guide: "❓ 플레이 가이드", codex: "📖 용어집", log: "📜 활동 로그", menu: "☰ 게임 메뉴", achievements: "🏆 업적" } as Record<string, string>)[p] || "";
-// 자원 할당 관리 — 진출 시장을 한 목록에서 점유율·단계·월비용 보며 ±로 일괄 조절(국가별 클릭 불필요)
+// 자원 할당 + 시장 대시보드 — 국가별 점유율·월수익·할당을 한눈에, 미충족 수요(생산능력 부족) 표시
 function allocManagerBody(s: GameState): string {
   const me = s.firms[s.youIdx];
   const total = allocUpkeep(s, s.youIdx);
+  const myNat = naturalCaptured(s, me.key);        // 경쟁력으로 가져갈 수 있는 수요(생산능력 무관)
+  const gm = grossMargin(s);                        // 월 기여이익(전체, 생산능력 반영)
+  const util = utilizationOf(s, me.key);            // 가동률 = 생산능력/수요
+  const unmet = Math.max(0, myNat - capturedSize(s, me.key));   // 미충족 수요(생산능력 부족분)
   const open = s.marketOrder.slice();
-  open.sort((a, b) => (s.markets[a]?.ko || a).localeCompare(s.markets[b]?.ko || b, "ko"));   // 이름순 고정(±해도 순서 안 바뀜)
-  const allocCount = open.filter(n => (me.alloc[n] || 0) > 0).length;
+  open.sort((a, b) => (s.markets[a]?.ko || a).localeCompare(s.markets[b]?.ko || b, "ko"));   // 이름순 고정
   let rows = "";
   for (const n of open) {
     const m = s.markets[n]; if (!m) continue;
     const lvl = me.alloc[n] || 0, mx = maxAllocFor(s, s.youIdx, n);
-    const share = shareOf(s, m, me.key) * 100, cost = allocUpkeepAt(s, n, lvl);
+    const sh = shareOf(s, m, me.key);
+    const rev = myNat > 0 ? gm * (m.size * sh / myNat) : 0;     // 그 시장의 월 기여이익(수요 비중 × 전체 기여)
     rows += '<div class="arow' + (lvl > 0 ? ' on' : '') + '">' +
       '<span class="an" title="' + esc(m.name) + '">' + m.ko + '</span>' +
-      '<span class="ash" style="color:' + me.col + '">' + share.toFixed(0) + '%</span>' +
+      '<span class="ash" style="color:' + me.col + '">' + (sh * 100).toFixed(0) + '%</span>' +
+      '<span class="arev">$' + rev.toFixed(1) + '</span>' +
       '<button class="abtn allocset" data-n="' + esc(n) + '" data-d="-1"' + (lvl <= 0 ? ' disabled' : '') + '>－</button>' +
       '<b class="alvl2">' + lvl + '/' + mx + '</b>' +
-      '<button class="abtn allocset" data-n="' + esc(n) + '" data-d="1"' + (lvl >= mx ? ' disabled' : '') + '>＋</button>' +
-      '<span class="acost">$' + cost.toFixed(1) + '</span></div>';
+      '<button class="abtn allocset" data-n="' + esc(n) + '" data-d="1"' + (lvl >= mx ? ' disabled' : '') + '>＋</button></div>';
   }
   if (!open.length) rows = '<div class="mute small">아직 진출한 시장이 없습니다 — 지도의 프론티어(점선) 국가를 클릭해 진출하세요.</div>';
-  return '<div class="card"><div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
-    '<div class="kv"><span>할당 중 시장</span><b>' + allocCount + ' / ' + open.length + '</b></div></div>' +
-    '<div class="sect">시장별 할당 <span class="mute small">점유율 · 단계 · 월비용</span></div>' +
-    '<div class="card alloclist">' + rows + '</div>' +
-    '<div class="mute small" style="margin-top:6px">＋ / － 로 단계 조절 · 0 = 철수 · 지도 클릭과 동일</div>';
+  return '<div class="card">' +
+    '<div class="kv"><span>글로벌 점유율 <span class="mute small">상대</span></span><b class="gold">' + (myShare(s) * 100).toFixed(0) + '%</b></div>' +
+    '<div class="kv"><span>월 기여이익</span><b class="' + (gm >= 0 ? 'gold' : 'red') + '">$' + gm.toFixed(1) + 'B</b></div>' +
+    '<div class="kv"><span>가동률 <span class="mute small">생산/수요</span></span><b class="' + (util >= 0.97 ? 'gold' : 'red') + '">' + (util * 100).toFixed(0) + '%</b></div>' +
+    '<div class="kv"><span>미충족 수요 <span class="mute small">생산능력 부족분</span></span><b class="' + (unmet > 0.5 ? 'red' : 'mute') + '">$' + unmet.toFixed(1) + 'B/월</b></div>' +
+    '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div></div>' +
+    '<div class="sect">시장별 <span class="mute small">점유율 · 월수익 · 할당</span></div>' +
+    '<div class="card alloclist"><div class="arow ahead"><span class="an">국가</span><span class="ash">점유</span><span class="arev">월$</span><span class="ahd-alloc">할당</span></div>' + rows + '</div>' +
+    '<div class="mute small" style="margin-top:6px">＋/－ 단계 조절 · 0=철수 · 가동률<100%면 🏭증설로 수익↑(승리는 점유율 기준)</div>';
 }
 // 일봉 캔들차트(인라인 SVG, 의존성 없음). 가격축 라벨·격자·현재가선·날짜. 상승=초록/하락=빨강.
 function candleChart(candles: Candle[], curDate: number): string {
