@@ -11,7 +11,7 @@ export const END_MONTHS = 120; // (구) 개월 horizon — 종료엔 더 이상 
 export const DAYS_PER_MONTH = 30;          // 경제 cadence: 30일 주기로 환경/AI/운영 정산(월간 튜닝값 보존). 표시 날짜는 실제 달력(dateLabel).
 const START_MS = Date.UTC(2026, 0, 1);     // 게임 시작일 2026-01-01 (s.date=0일)
 export const END_DAYS = Math.round((Date.UTC(2040, 2, 31) - START_MS) / 86400000);   // 종료 2040-03-31 (실제 경과일 ≈ 5203)
-const DOM_SHARE = 0.58;        // 완전 장악: 전 시장 1위 + 가중 점유율 이 값 이상(결정적 우위). 대부분 게임은 마감까지 감.
+const DOM_SHARE = 0.72;        // 완전 장악: 전 시장 1위 + 상대 점유율 이 값 이상(결정적 우위). 상대 점유율 기준이라 임계 상향(게임 길이 회복).
 const MARGIN = 0.012;          // 점령 규모 1단위당 월 현금($B)
 // 산업(섹터) 자본집약도 — 생산능력(공장) 1단위당 고정비·증설비 배수. 자본집약(반도체·유틸·에너지·소재) 高 / 자산경량(금융·SW·서비스) 低.
 const CAP_INTENSITY: Record<string, number> = {
@@ -89,7 +89,7 @@ export function setAlloc(s: GameState, fi: number, name: string, delta: number) 
     if (lead && li >= 0) { const sh = realizedShareOf(s, m, m.leader); if (sh > 0.15) lead.grudge[f.key] = (lead.grudge[f.key] || 0) + BALANCE.grudgeEncroach * sh * delta; }
   }
 }
-export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps) * utilizationOf(s, f.key); if (v > bv) { bv = v; best = f; } } return best; }
+export function leaderOf(s: GameState, m: Market): Firm { let best = s.firms[0], bv = -1; for (const f of s.firms) { const v = weightOf(f, m, f.caps); if (v > bv) { bv = v; best = f; } } return best; }   // 리더 = 경쟁력(상대 점유율) 1위 — 생산능력 무관
 export function recomputeLeaders(s: GameState) { for (const n of s.marketOrder) s.markets[n].leader = leaderOf(s, s.markets[n]).key; }
 
 // 한 시장 점유율 = 가중치 / Σ 가중치(적합도 + 공략 투입). capsOverride로 "이 투자를 하면?" 평가.
@@ -148,7 +148,8 @@ export function capturedSize(s: GameState, firmKey: string, capsOverride?: Recor
 }
 // 실현 시장 점유율(생산능력 게이트 적용) — 리더 판정·UI에 사용.
 export function realizedShareOf(s: GameState, m: Market, firmKey: string) { return shareOf(s, m, firmKey) * utilizationOf(s, firmKey); }
-export function myShare(s: GameState, fi: number = s.youIdx) { let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size; return tot > 0 ? capturedSize(s, s.firms[fi].key) / tot : 0; }
+// 점유율 = 경쟁사 대비 상대 점유율(생산능력 무관, 전 기업 합=100%). 생산능력은 수익(capturedSize)에만 영향.
+export function myShare(s: GameState, fi: number = s.youIdx) { let tot = 0; for (const n of s.marketOrder) tot += s.markets[n].size; return tot > 0 ? naturalCaptured(s, s.firms[fi].key) / tot : 0; }
 // ---- 월간 손익(회계 구조) ----
 // 공헌이익(≈매출총이익): 점령규모 × 마진. 변동원가는 마진에 반영됨.
 export function grossMargin(s: GameState, fi: number = s.youIdx) { const m = techMods(s, fi); return capturedSize(s, s.firms[fi].key) * (MARGIN + m.marginAdd); }
