@@ -278,6 +278,7 @@ const A: Actions = {
     };
     render(s, A);
   },
+  toggleAutoCapacity() { if (!s) return; const me = s.firms[s.youIdx]; me.autoCapacity = !me.autoCapacity; flash(me.autoCapacity ? "🏭 자동 증설 ON — 수요를 자동 추종(차입 포함)" : "🏭 자동 증설 OFF"); sfx("click"); render(s, A); },
   buildCapacity() {
     if (!s) return;
     const me = s.firms[s.youIdx];

@@ -37,6 +37,7 @@ export interface Actions {
   buyStake(rivalKey: string, frac: number): void;
   raiseDebt(): void;
   buildCapacity(): void;
+  toggleAutoCapacity(): void;
   raiseFI(): void;
   raiseSI(): void;
   raiseExec(asSI: boolean, amt: number): void;
@@ -453,6 +454,7 @@ function renderPanel(s: GameState, A: Actions) {
   o.querySelectorAll<HTMLElement>("button.tech").forEach(b => b.onclick = () => A.research(b.dataset.key!));
   o.querySelectorAll<HTMLElement>(".enter").forEach(b => b.onclick = () => A.alloc(b.dataset.n!, 1));
   o.querySelectorAll<HTMLElement>(".allocset").forEach(b => { if (!(b as HTMLButtonElement).disabled) b.onclick = () => A.alloc(b.dataset.n!, Number(b.dataset.d)); });
+  { const acb = o.querySelector("#autoCapBtn") as HTMLElement | null; if (acb) acb.onclick = () => A.toggleAutoCapacity(); }
   o.querySelectorAll<HTMLElement>(".op").forEach(b => { if (!b.classList.contains("dis")) b.onclick = () => A.operate(b.dataset.cap as Cap, b.dataset.op!); });
   const rd = document.getElementById("raiseDebt") as HTMLButtonElement | null;
   if (rd && !rd.disabled) rd.onclick = () => A.raiseDebt();
@@ -749,7 +751,8 @@ function allocManagerBody(s: GameState): string {
     '<div class="kv"><span>월 기여이익</span><b class="' + (gm >= 0 ? 'gold' : 'red') + '">$' + gm.toFixed(1) + 'B</b></div>' +
     '<div class="kv"><span>가동률 <span class="mute small">생산/수요</span></span><b class="' + (util >= 0.97 ? 'gold' : 'red') + '">' + (util * 100).toFixed(0) + '%</b></div>' +
     '<div class="kv"><span>미충족 수요 <span class="mute small">생산능력 부족분</span></span><b class="' + (unmet > 0.5 ? 'red' : 'mute') + '">$' + unmet.toFixed(1) + 'B/월</b></div>' +
-    '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div></div>' +
+    '<div class="kv"><span>총 월 유지비</span><b class="' + (total > 0 ? 'gold' : 'mute') + '">$' + total.toFixed(1) + 'B/월</b></div>' +
+    '<div class="kv"><span>🏭 자동 증설 <span class="mute small">수요 자동 추종(차입 포함)</span></span><button class="captog' + (me.autoCapacity ? ' on' : '') + '" id="autoCapBtn">' + (me.autoCapacity ? 'ON' : 'OFF') + '</button></div></div>' +
     '<div class="sect">시장별 <span class="mute small">점유율 · 월수익 · 할당</span></div>' +
     '<div class="card alloclist"><div class="arow ahead"><span class="an">국가</span><span class="ash">점유</span><span class="arev">월$</span><span class="ahd-alloc">할당</span></div>' + rows + '</div>' +
     '<div class="mute small" style="margin-top:6px">＋/－ 단계 조절 · 0=철수 · 가동률<100%면 🏭증설로 수익↑(승리는 점유율 기준)</div>';

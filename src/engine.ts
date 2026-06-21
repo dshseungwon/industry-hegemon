@@ -631,6 +631,7 @@ export function tick(s: GameState) {
     for (let fi = 0; fi < s.firms.length; fi++) {
       const f = s.firms[fi];
       if (f.auto) aiPolicy(s, fi);
+      else if (f.autoCapacity) autoBuildCapacity(s, fi);   // 플레이어 자동 증설(ON)
       rampEffort(s, fi);
       if (f.capacityTarget !== f.capacity) {
         const next = f.capacity + (f.capacityTarget - f.capacity) * CAP_RAMP;
@@ -785,7 +786,11 @@ function aiPolicy(s: GameState, fi: number) {
   if (f.cash > 40 && Math.random() < BALANCE.aiCampaignChance * 0.25) {
     const fr = frontierMarkets(s).filter(m => f.cash >= entryCost(s, m.name)); if (fr.length) doEnter(s, fi, fr[ri(0, fr.length - 1)].name);
   }
-  // 생산능력 증설: 수요(자연점령)가 생산능력을 넘으면(가동률 한계) 여유자금/차입으로 증설.
+  autoBuildCapacity(s, fi);   // 생산능력 자동 증설(AI·플레이어 공용)
+}
+// 수요(자연점령)가 생산능력을 넘으면 여유자금/차입으로 자동 증설. AI와 '자동증설 ON' 플레이어가 공용.
+export function autoBuildCapacity(s: GameState, fi: number) {
+  const f = s.firms[fi];
   const nat = naturalCaptured(s, f.key);
   if (f.cash >= 0 && nat > f.capacityTarget * 1.03) {
     const amt = (nat - f.capacityTarget) * 0.6;
